@@ -15,11 +15,11 @@
  */
 package jetbrains.exodus.entitystore.orientdb.testutil
 
-import com.orientechnologies.orient.core.config.OGlobalConfiguration
-import com.orientechnologies.orient.core.db.ODatabaseSession
-import com.orientechnologies.orient.core.db.ODatabaseType
-import com.orientechnologies.orient.core.db.OrientDB
-import com.orientechnologies.orient.core.db.OrientDBConfig
+import com.jetbrains.youtrack.db.api.DatabaseSession
+import com.jetbrains.youtrack.db.api.DatabaseType
+import com.jetbrains.youtrack.db.api.YouTrackDB
+import com.jetbrains.youtrack.db.api.config.GlobalConfiguration
+import com.jetbrains.youtrack.db.api.config.YouTrackDBConfig
 import jetbrains.exodus.entitystore.orientdb.*
 import jetbrains.exodus.entitystore.orientdb.testutil.Issues.Links.IN_PROJECT
 import jetbrains.exodus.entitystore.orientdb.testutil.Issues.Links.ON_BOARD
@@ -28,12 +28,12 @@ import org.junit.rules.ExternalResource
 import java.nio.file.Files
 import kotlin.io.path.absolutePathString
 
-class InMemoryOrientDB(
+class InMemoryYouTrackDB(
     private val initializeIssueSchema: Boolean = true,
     private val autoInitializeSchemaBuddy: Boolean = true
 ) : ExternalResource() {
 
-    private lateinit var db: OrientDB
+    private lateinit var db: YouTrackDB
     lateinit var store: OPersistentEntityStore
         private set
 
@@ -46,8 +46,8 @@ class InMemoryOrientDB(
 
     override fun before() {
         val connConfig = ODatabaseConnectionConfig.builder()
-            .withDatabaseType(ODatabaseType.MEMORY)
-            .withDatabaseRoot(Files.createTempDirectory("oxigenDB_test").absolutePathString())
+            .withDatabaseType(DatabaseType.MEMORY)
+            .withDatabaseRoot(Files.createTempDirectory("youTrackDB_test").absolutePathString())
             .withPassword(password)
             .withUserName(username)
             .build()
@@ -56,9 +56,9 @@ class InMemoryOrientDB(
             .withConnectionConfig(connConfig)
             .withDatabaseName(dbName)
             .build()
-        val builder = OrientDBConfig.builder()
-        builder.addConfig(OGlobalConfiguration.NON_TX_READS_WARNING_MODE, "SILENT")
-        db = initOrientDbServer(connConfig)
+        val builder = YouTrackDBConfig.builder()
+        builder.addGlobalConfigurationParameter(GlobalConfiguration.NON_TX_READS_WARNING_MODE, "SILENT")
+        db = iniYouTrackDb(connConfig)
         provider = ODatabaseProviderImpl(config, db)
 
         if (initializeIssueSchema) {
@@ -91,7 +91,7 @@ class InMemoryOrientDB(
         }
     }
 
-    fun <R> withTxSession(block: (ODatabaseSession) -> R): R {
+    fun <R> withTxSession(block: (DatabaseSession) -> R): R {
         val session = provider.acquireSession()
         try {
             session.begin()
@@ -110,7 +110,7 @@ class InMemoryOrientDB(
         }
     }
 
-    fun <R> withSession(block: (ODatabaseSession) -> R): R {
+    fun <R> withSession(block: (DatabaseSession) -> R): R {
         val session = provider.acquireSession()
         try {
             return block(session)
@@ -121,7 +121,7 @@ class InMemoryOrientDB(
         }
     }
 
-    fun openSession(): ODatabaseSession {
+    fun openSession(): DatabaseSession {
         return db.cachedPool(dbName, username, password).acquire()
     }
 }

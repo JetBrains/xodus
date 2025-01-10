@@ -15,12 +15,11 @@
  */
 package jetbrains.exodus.entitystore.orientdb
 
-import com.orientechnologies.orient.core.metadata.schema.OType
+import com.jetbrains.youtrack.db.api.schema.PropertyType
 import jetbrains.exodus.entitystore.EntityRemovedInDatabaseException
 import jetbrains.exodus.entitystore.PersistentEntityId
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.linkTargetEntityIdPropertyName
 import jetbrains.exodus.entitystore.orientdb.testutil.*
-import jetbrains.exodus.entitystore.orientdb.testutil.createIssueImpl
 import org.junit.Rule
 import org.junit.Test
 import java.io.ByteArrayInputStream
@@ -28,17 +27,16 @@ import java.util.*
 import kotlin.random.Random
 import kotlin.test.*
 
-class OEntityTest: OTestMixin {
-
+class OEntityTest : OTestMixin {
     @Rule
     @JvmField
-    val orientDbRule = InMemoryOrientDB()
+    val youTrackDbRule = InMemoryYouTrackDB()
 
-    override val orientDb = orientDbRule
+    override val youTrackDb = youTrackDbRule
 
     @Test
     fun `create entities`() {
-        val (e1, e2) = orientDb.withStoreTx { tx ->
+        val (e1, e2) = youTrackDb.withStoreTx { tx ->
             val e1 = tx.newEntity(Issues.CLASS)
             val e2 = tx.newEntity(Issues.CLASS)
             assertEquals(tx.getTypeId(Issues.CLASS), e1.id.typeId)
@@ -53,11 +51,11 @@ class OEntityTest: OTestMixin {
             Pair(e1, e2)
         }
 
-        orientDb.withStoreTx { tx ->
+        youTrackDb.withStoreTx { tx ->
             assertTrue(e1.delete())
         }
 
-        orientDb.withStoreTx { tx ->
+        youTrackDb.withStoreTx { tx ->
             tx.getEntity(e2.id)
             assertFailsWith<EntityRemovedInDatabaseException> { tx.getEntity(e1.id) }
             assertEquals(1, tx.getAll(Issues.CLASS).size())
@@ -67,14 +65,14 @@ class OEntityTest: OTestMixin {
     @Test
     fun `an entity sees changes made to it in another part of the application`() {
         // your entity
-        val e1 = orientDb.withStoreTx { tx ->
+        val e1 = youTrackDb.withStoreTx { tx ->
             val e1 = tx.newEntity(Issues.CLASS)
             e1.setProperty("name", "Pumba")
             e1
         }
 
         // this changes happen in another part of the application
-        val e1Again = orientDb.withStoreTx { tx ->
+        val e1Again = youTrackDb.withStoreTx { tx ->
             val e1Again = tx.getEntity(e1.id)
             e1Again.setProperty("name", "Bampu")
             e1Again
@@ -84,7 +82,7 @@ class OEntityTest: OTestMixin {
         assertNotSame(e1, e1Again)
 
         // your entity sees changes made in another part of the application
-        orientDb.withStoreTx { tx ->
+        youTrackDb.withStoreTx { tx ->
             assertEquals("Bampu", e1.getProperty("name"))
         }
     }
@@ -92,36 +90,36 @@ class OEntityTest: OTestMixin {
 
     @Test
     fun `rename entity type`() {
-        orientDb.withStoreTx { tx ->
+        youTrackDb.withStoreTx { tx ->
             for (i in 0..9) {
                 tx.newEntity("Issue")
             }
             assertEquals(10, tx.getAll("Issue").size())
         }
-        orientDb.withStoreTx {
-            orientDb.store.renameEntityType("Issue", "Comment")
+        youTrackDb.withStoreTx {
+            youTrackDb.store.renameEntityType("Issue", "Comment")
         }
-        orientDb.withStoreTx { tx ->
+        youTrackDb.withStoreTx { tx ->
             assertEquals(10, tx.getAll("Comment").size())
         }
     }
 
     @Test
     fun `multiple links should work`() {
-        val issueA = orientDb.createIssue("A")
-        val issueB = orientDb.createIssue("B")
-        val issueC = orientDb.createIssue("C")
+        val issueA = youTrackDb.createIssue("A")
+        val issueB = youTrackDb.createIssue("B")
+        val issueC = youTrackDb.createIssue("C")
         val linkName = "link"
-        orientDb.withSession { session ->
+        youTrackDb.withSession { session ->
             session.createEdgeClass(OVertexEntity.edgeClassName(linkName))
         }
 
-        orientDb.withStoreTx {
+        youTrackDb.withStoreTx {
             issueA.addLink(linkName, issueB)
             issueA.addLink(linkName, issueC)
         }
 
-        orientDb.withStoreTx {
+        youTrackDb.withStoreTx {
             val links = issueA.getLinks(linkName)
             assertTrue(links.contains(issueB))
             assertTrue(links.contains(issueC))
@@ -139,13 +137,13 @@ class OEntityTest: OTestMixin {
     @Test
     fun `set a hard blob`() {
         val hardBlob = Random.nextBytes(1023)
-        val id = orientDb.withStoreTx { tx ->
+        val id = youTrackDb.withStoreTx { tx ->
             val issue = tx.createIssueImpl("iss")
             issue.setBlob("blob1", ByteArrayInputStream(hardBlob))
             issue.id
         }
 
-        orientDb.withStoreTx { tx ->
+        youTrackDb.withStoreTx { tx ->
             val issue = tx.getEntity(id)
             val gotBlob = issue.getBlob("blob1")!!.readAllBytes()
             assertContentEquals(hardBlob, gotBlob)
@@ -154,16 +152,16 @@ class OEntityTest: OTestMixin {
 
     @Test
     fun `set, change and delete blobs`() {
-        val issue = orientDb.createIssue("iss")
+        val issue = youTrackDb.createIssue("iss")
 
         // set
         val expectedBlob1 = byteArrayOf(0x01, 0x02)
         val expectedBlob2 = byteArrayOf(0x04, 0x05, 0x06)
-        orientDb.withStoreTx {
+        youTrackDb.withStoreTx {
             issue.setBlob("blob1", ByteArrayInputStream(expectedBlob1))
             issue.setBlob("blob2", ByteArrayInputStream(expectedBlob2))
         }
-        orientDb.withStoreTx {
+        youTrackDb.withStoreTx {
             assertContentEquals(expectedBlob1, issue.getBlob("blob1")!!.readAllBytes())
             assertContentEquals(expectedBlob2, issue.getBlob("blob2")!!.readAllBytes())
             assertEquals(expectedBlob1.size.toLong(), issue.getBlobSize("blob1"))
@@ -172,20 +170,20 @@ class OEntityTest: OTestMixin {
 
         // change
         val expectedResetBlob1 = byteArrayOf(0x01, 0x03, 0x04, 0x05)
-        orientDb.withStoreTx {
+        youTrackDb.withStoreTx {
             issue.setBlob("blob1", ByteArrayInputStream(expectedResetBlob1))
         }
-        orientDb.withStoreTx {
+        youTrackDb.withStoreTx {
             val resetBlob1 = issue.getBlob("blob1")!!.readAllBytes()
             assertContentEquals(expectedResetBlob1, resetBlob1)
             assertEquals(expectedResetBlob1.size.toLong(), issue.getBlobSize("blob1"))
         }
 
         // delete
-        orientDb.withStoreTx {
+        youTrackDb.withStoreTx {
             issue.deleteBlob("blob1")
         }
-        orientDb.withStoreTx {
+        youTrackDb.withStoreTx {
             assertNull(issue.getBlob("blob1"))
             assertEquals(-1, issue.getBlobSize("blob1"))
             // another blob is still here
@@ -196,16 +194,16 @@ class OEntityTest: OTestMixin {
 
     @Test
     fun `set, change and delete string blobs`() {
-        val issue = orientDb.createIssue("iss")
+        val issue = youTrackDb.createIssue("iss")
 
         // set
         val expectedBlob1 = "Abc"
         val expectedBlob2 = "dxYz"
-        orientDb.withStoreTx {
+        youTrackDb.withStoreTx {
             issue.setBlobString("blob1", expectedBlob1)
             issue.setBlobString("blob2", expectedBlob2)
         }
-        orientDb.withStoreTx {
+        youTrackDb.withStoreTx {
             assertEquals(expectedBlob1, issue.getBlobString("blob1"))
             assertEquals(expectedBlob2, issue.getBlobString("blob2"))
             assertEquals(expectedBlob1.length.toLong() + 2, issue.getBlobSize("blob1"))
@@ -214,20 +212,20 @@ class OEntityTest: OTestMixin {
 
         // change
         val expectedResetBlob1 = "Caramba"
-        orientDb.withStoreTx {
+        youTrackDb.withStoreTx {
             issue.setBlobString("blob1", expectedResetBlob1)
         }
-        orientDb.withStoreTx {
+        youTrackDb.withStoreTx {
             val resetBlob1 = issue.getBlobString("blob1")
             assertEquals(expectedResetBlob1, resetBlob1)
             assertEquals(expectedResetBlob1.length.toLong() + 2, issue.getBlobSize("blob1"))
         }
 
         // delete
-        orientDb.withStoreTx {
+        youTrackDb.withStoreTx {
             issue.deleteBlob("blob1")
         }
-        orientDb.withStoreTx {
+        youTrackDb.withStoreTx {
             assertNull(issue.getBlobString("blob1"))
             assertEquals(-1, issue.getBlobSize("blob1"))
             // another blob is still here
@@ -238,18 +236,18 @@ class OEntityTest: OTestMixin {
 
     @Test
     fun `string blobs size`() {
-        val issue = orientDb.createIssue("iss")
+        val issue = youTrackDb.createIssue("iss")
 
         // set
         val englishStr = "mamba, mamba, caramba"
         val notEnglishStr = "вы хотите песен, их есть у меня"
         val mixedStr = "magic пипл woodoo пипл"
-        orientDb.withStoreTx {
+        youTrackDb.withStoreTx {
             issue.setBlobString("blob1", englishStr)
             issue.setBlobString("blob2", notEnglishStr)
             issue.setBlobString("blob3", mixedStr)
         }
-        orientDb.withStoreTx {
+        youTrackDb.withStoreTx {
             assertEquals(englishStr, issue.getBlobString("blob1"))
             assertEquals(notEnglishStr, issue.getBlobString("blob2"))
             assertEquals(mixedStr, issue.getBlobString("blob3"))
@@ -267,16 +265,16 @@ class OEntityTest: OTestMixin {
 
     @Test
     fun `add blob should be reflected in get blob names`() {
-        val issue = orientDb.createIssue("TestBlobs")
+        val issue = youTrackDb.createIssue("TestBlobs")
 
-        orientDb.withStoreTx {
+        youTrackDb.withStoreTx {
             issue.setBlob("blob1", ByteArrayInputStream(byteArrayOf(0x01, 0x02, 0x03)))
             issue.setBlob("blob2", ByteArrayInputStream(byteArrayOf(0x04, 0x05, 0x06)))
             issue.setBlob("blob3", ByteArrayInputStream(byteArrayOf(0x07, 0x08, 0x09)))
             issue.setProperty("version", 99)
         }
 
-        orientDb.withStoreTx {
+        youTrackDb.withStoreTx {
             val blobNames = issue.getBlobNames()
             assertTrue(blobNames.contains("blob1"))
             assertTrue(blobNames.contains("blob2"))
@@ -287,14 +285,14 @@ class OEntityTest: OTestMixin {
 
     @Test
     fun `set the same string blob should return false`() {
-        val issue = orientDb.createIssue("GetPropertyTest")
+        val issue = youTrackDb.createIssue("GetPropertyTest")
 
         val propertyName = "SampleProperty"
         val propertyValue = "SampleValue"
-        orientDb.withStoreTx {
+        youTrackDb.withStoreTx {
             issue.setBlobString(propertyName, propertyValue)
         }
-        orientDb.withStoreTx {
+        youTrackDb.withStoreTx {
             assertEquals(false, issue.setBlobString(propertyName, propertyValue))
         }
     }
@@ -302,25 +300,29 @@ class OEntityTest: OTestMixin {
     @Test
     fun `delete links`() {
         val linkName = "link"
-        orientDb.withSession { session ->
+        youTrackDb.withSession { session ->
             session.createEdgeClass(OVertexEntity.edgeClassName(linkName))
             val oClass = session.getClass(Issues.CLASS)!!
             // pretend that the link is indexed
-            oClass.createProperty(linkTargetEntityIdPropertyName(linkName), OType.LINKBAG)
+            oClass.createProperty(
+                session,
+                linkTargetEntityIdPropertyName(linkName),
+                PropertyType.LINKBAG
+            )
         }
 
-        val issueA = orientDb.createIssue("A")
-        val issueB = orientDb.createIssue("B")
-        val issueC = orientDb.createIssue("C")
-        val issueD = orientDb.createIssue("D")
+        val issueA = youTrackDb.createIssue("A")
+        val issueB = youTrackDb.createIssue("B")
+        val issueC = youTrackDb.createIssue("C")
+        val issueD = youTrackDb.createIssue("D")
 
-        orientDb.withStoreTx {
+        youTrackDb.withStoreTx {
             issueA.addLink(linkName, issueB)
             issueA.addLink(linkName, issueC)
             issueA.addLink(linkName, issueD)
         }
 
-        orientDb.withStoreTx {
+        youTrackDb.withStoreTx {
             issueA.deleteLink(linkName, issueB)
             issueA.deleteLink(linkName, issueC.id)
 
@@ -337,18 +339,22 @@ class OEntityTest: OTestMixin {
     @Test
     fun `set links`() {
         val linkName = "link"
-        orientDb.withSession { session ->
+        youTrackDb.withSession { session ->
             session.createEdgeClass(OVertexEntity.edgeClassName(linkName))
             val oClass = session.getClass(Issues.CLASS)!!
             // pretend that the link is indexed
-            oClass.createProperty(linkTargetEntityIdPropertyName(linkName), OType.LINKBAG)
+            oClass.createProperty(
+                session,
+                linkTargetEntityIdPropertyName(linkName),
+                PropertyType.LINKBAG
+            )
         }
 
-        val issueA = orientDb.createIssue("A")
-        val issueB = orientDb.createIssue("B")
-        val issueC = orientDb.createIssue("C")
+        val issueA = youTrackDb.createIssue("A")
+        val issueB = youTrackDb.createIssue("B")
+        val issueC = youTrackDb.createIssue("C")
 
-        orientDb.withStoreTx {
+        youTrackDb.withStoreTx {
             assertTrue(issueA.setLink(linkName, issueB))
             assertFalse(issueA.setLink(linkName, issueB))
 
@@ -358,7 +364,7 @@ class OEntityTest: OTestMixin {
             assertTrue(bag.contains(issueB.vertex.identity))
         }
 
-        orientDb.withStoreTx {
+        youTrackDb.withStoreTx {
             assertTrue(issueA.setLink(linkName, issueC))
 
             assertEquals(issueC, issueA.getLink(linkName))
@@ -367,7 +373,7 @@ class OEntityTest: OTestMixin {
             assertTrue(bag.contains(issueC.vertex.identity))
         }
 
-        orientDb.withStoreTx {
+        youTrackDb.withStoreTx {
             assertTrue(issueA.setLink(linkName, issueB.id))
             assertFalse(issueA.setLink(linkName, issueB.id))
 
@@ -381,23 +387,27 @@ class OEntityTest: OTestMixin {
     @Test
     fun `should delete all links`() {
         val linkName = "link"
-        orientDb.withSession { session ->
+        youTrackDb.withSession { session ->
             session.createEdgeClass(OVertexEntity.edgeClassName(linkName))
             val oClass = session.getClass(Issues.CLASS)!!
             // pretend that the link is indexed
-            oClass.createProperty(linkTargetEntityIdPropertyName(linkName), OType.LINKBAG)
+            oClass.createProperty(
+                session,
+                linkTargetEntityIdPropertyName(linkName),
+                PropertyType.LINKBAG
+            )
         }
 
-        val issueA = orientDb.createIssue("A")
-        val issueB = orientDb.createIssue("B")
-        val issueC = orientDb.createIssue("C")
+        val issueA = youTrackDb.createIssue("A")
+        val issueB = youTrackDb.createIssue("B")
+        val issueC = youTrackDb.createIssue("C")
 
-        orientDb.withStoreTx {
+        youTrackDb.withStoreTx {
             issueA.addLink(linkName, issueB)
             issueA.addLink(linkName, issueC)
         }
 
-        orientDb.withStoreTx {
+        youTrackDb.withStoreTx {
             issueA.deleteLinks(linkName)
             val links = issueA.getLinks(linkName)
             assertEquals(0, links.size())
@@ -410,24 +420,24 @@ class OEntityTest: OTestMixin {
     @Test
     fun `should replace a link correctly`() {
         val linkName = "link"
-        orientDb.withSession { session ->
+        youTrackDb.withSession { session ->
             session.createEdgeClass(OVertexEntity.edgeClassName(linkName))
         }
 
-        val issueA = orientDb.createIssue("A")
-        val issueB = orientDb.createIssue("B")
-        val issueC = orientDb.createIssue("C")
+        val issueA = youTrackDb.createIssue("A")
+        val issueB = youTrackDb.createIssue("B")
+        val issueC = youTrackDb.createIssue("C")
 
-        orientDb.withStoreTx {
+        youTrackDb.withStoreTx {
             issueA.setLink(linkName, issueB.id)
         }
-        orientDb.withStoreTx {
+        youTrackDb.withStoreTx {
             assertEquals(issueB, issueA.getLink(linkName))
         }
-        orientDb.withStoreTx {
+        youTrackDb.withStoreTx {
             issueA.setLink(linkName, issueC.id)
         }
-        orientDb.withStoreTx {
+        youTrackDb.withStoreTx {
             assertEquals(issueC, issueA.getLink(linkName))
         }
     }
@@ -435,26 +445,26 @@ class OEntityTest: OTestMixin {
     @Test
     fun `setLink() and addLink() should work correctly with PersistentEntityId`() {
         val linkName = "link"
-        orientDb.withSession { session ->
+        youTrackDb.withSession { session ->
             session.createEdgeClass(OVertexEntity.edgeClassName(linkName))
         }
 
-        val issueA = orientDb.createIssue("A")
-        val issueB = orientDb.createIssue("B")
-        val issueC = orientDb.createIssue("C")
+        val issueA = youTrackDb.createIssue("A")
+        val issueB = youTrackDb.createIssue("B")
+        val issueC = youTrackDb.createIssue("C")
 
-        orientDb.withStoreTx {
+        youTrackDb.withStoreTx {
             val legacyId = PersistentEntityId(issueB.id.typeId, issueB.id.localId)
             issueA.setLink(linkName, legacyId)
         }
-        orientDb.withStoreTx {
+        youTrackDb.withStoreTx {
             assertEquals(issueB, issueA.getLink(linkName))
         }
-        orientDb.withStoreTx {
+        youTrackDb.withStoreTx {
             val legacyId = PersistentEntityId(issueC.id.typeId, issueC.id.localId)
             issueB.addLink(linkName, legacyId)
         }
-        orientDb.withStoreTx {
+        youTrackDb.withStoreTx {
             assertEquals(issueB, issueA.getLink(linkName))
         }
     }
@@ -462,24 +472,24 @@ class OEntityTest: OTestMixin {
     @Test
     fun `setLink() and addLink() return false if the target entity is not found`() {
         val linkName = "link"
-        orientDb.withSession { session ->
+        youTrackDb.withSession { session ->
             session.createEdgeClass(OVertexEntity.edgeClassName(linkName))
         }
 
-        val issueB = orientDb.createIssue("A")
+        val issueB = youTrackDb.createIssue("A")
 
-        orientDb.withStoreTx { tx ->
+        youTrackDb.withStoreTx { tx ->
             issueB.delete()
         }
 
-        orientDb.withStoreTx {
+        youTrackDb.withStoreTx {
             assertFalse(issueB.addLink(linkName, issueB.id))
             assertFalse(issueB.addLink(linkName, ORIDEntityId.EMPTY_ID))
             assertFalse(issueB.addLink(linkName, PersistentEntityId.EMPTY_ID))
             assertFalse(issueB.addLink(linkName, PersistentEntityId(300, 300)))
         }
 
-        orientDb.withStoreTx {
+        youTrackDb.withStoreTx {
             assertFalse(issueB.setLink(linkName, issueB.id))
             assertFalse(issueB.setLink(linkName, ORIDEntityId.EMPTY_ID))
             assertFalse(issueB.setLink(linkName, PersistentEntityId.EMPTY_ID))
@@ -489,14 +499,14 @@ class OEntityTest: OTestMixin {
 
     @Test
     fun `should get property`() {
-        val issue = orientDb.createIssue("GetPropertyTest")
+        val issue = youTrackDb.createIssue("GetPropertyTest")
 
         val propertyName = "SampleProperty"
         val propertyValue = "SampleValue"
-        orientDb.withStoreTx {
+        youTrackDb.withStoreTx {
             issue.setProperty(propertyName, propertyValue)
         }
-        orientDb.withStoreTx {
+        youTrackDb.withStoreTx {
             val value = issue.getProperty(propertyName)
             assertEquals(propertyValue, value)
         }
@@ -504,14 +514,14 @@ class OEntityTest: OTestMixin {
 
     @Test
     fun `should delete property`() {
-        val issue = orientDb.createIssue("DeletePropertyTest")
+        val issue = youTrackDb.createIssue("DeletePropertyTest")
 
         val propertyName = "SampleProperty"
         val propertyValue = "SampleValue"
-        orientDb.withStoreTx {
+        youTrackDb.withStoreTx {
             issue.setProperty(propertyName, propertyValue)
         }
-        orientDb.withStoreTx {
+        youTrackDb.withStoreTx {
             issue.deleteProperty(propertyName)
             val value = issue.getProperty(propertyName)
             assertNull(value)
@@ -520,9 +530,9 @@ class OEntityTest: OTestMixin {
 
     @Test
     fun `set, read, change and delete properties`() {
-        val issue = orientDb.createIssue("Test1")
+        val issue = youTrackDb.createIssue("Test1")
 
-        orientDb.withStoreTx {
+        youTrackDb.withStoreTx {
             issue.setProperty("hello", "world")
             issue.setProperty("june", 6)
             issue.setProperty("year", 44L)
@@ -532,7 +542,7 @@ class OEntityTest: OTestMixin {
             issue.setProperty("boolProp", true)
         }
 
-        orientDb.withStoreTx {
+        youTrackDb.withStoreTx {
             assertEquals("world", issue.getProperty("hello"))
             assertEquals(6, issue.getProperty("june"))
             assertEquals(44L, issue.getProperty("year"))
@@ -542,7 +552,7 @@ class OEntityTest: OTestMixin {
             assertEquals(true, issue.getProperty("boolProp"))
         }
 
-        orientDb.withStoreTx {
+        youTrackDb.withStoreTx {
             assertEquals(false, issue.setProperty("hello", "world"))
             assertEquals(false, issue.setProperty("june", 6))
             assertEquals(false, issue.setProperty("year", 44L))
@@ -552,7 +562,7 @@ class OEntityTest: OTestMixin {
             assertEquals(false, issue.setProperty("boolProp", true))
         }
 
-        orientDb.withStoreTx {
+        youTrackDb.withStoreTx {
             assertEquals(true, issue.setProperty("hello", "xodus"))
             assertEquals(true, issue.setProperty("june", 8))
             assertEquals(true, issue.setProperty("year", 34L))
@@ -562,7 +572,7 @@ class OEntityTest: OTestMixin {
             assertEquals(true, issue.setProperty("boolProp", false))
         }
 
-        orientDb.withStoreTx {
+        youTrackDb.withStoreTx {
             assertEquals("xodus", issue.getProperty("hello"))
             assertEquals(8, issue.getProperty("june"))
             assertEquals(34L, issue.getProperty("year"))
@@ -573,16 +583,24 @@ class OEntityTest: OTestMixin {
         }
 
 
-        orientDb.withStoreTx {
+        youTrackDb.withStoreTx {
             issue.deleteProperty("dateProp")
             assertNull(issue.getProperty("dateProp"))
             // check that other properties are still there
             assertEquals("xodus", issue.getProperty("hello"))
         }
 
-        orientDb.withStoreTx {
+        youTrackDb.withStoreTx {
             assertEquals(
-                listOf("hello", "name", "june", "year", "floatProp", "doubleProp", "boolProp").sorted(),
+                listOf(
+                    "hello",
+                    "name",
+                    "june",
+                    "year",
+                    "floatProp",
+                    "doubleProp",
+                    "boolProp"
+                ).sorted(),
                 issue.propertyNames.sorted()
             )
         }
@@ -590,8 +608,8 @@ class OEntityTest: OTestMixin {
 
     @Test
     fun `it is forbidden to use entities outside transactions, except for id`() {
-        val iss = orientDb.createIssue("trista")
-        val anotherIss = orientDb.createIssue("sto")
+        val iss = youTrackDb.createIssue("trista")
+        val anotherIss = youTrackDb.createIssue("sto")
 
         // no properties
         assertFailsWith<IllegalStateException> { iss.getProperty("name") }
@@ -604,7 +622,12 @@ class OEntityTest: OTestMixin {
         assertFailsWith<IllegalStateException> { iss.getBlob("blob1") }
         assertFailsWith<IllegalStateException> { iss.getBlobSize("blob1") }
         assertFailsWith<IllegalStateException> { iss.getBlobString("blob1") }
-        assertFailsWith<IllegalStateException> { iss.setBlob("blob1", ByteArrayInputStream(byteArrayOf(100))) }
+        assertFailsWith<IllegalStateException> {
+            iss.setBlob(
+                "blob1",
+                ByteArrayInputStream(byteArrayOf(100))
+            )
+        }
         assertFailsWith<IllegalStateException> { iss.setBlobString("blob1", "opca") }
         assertFailsWith<IllegalStateException> { iss.deleteBlob("blob1") }
 
@@ -612,7 +635,7 @@ class OEntityTest: OTestMixin {
         assertFailsWith<IllegalStateException> { iss.getLink("link1") }
         assertFailsWith<IllegalStateException> { iss.linkNames }
         assertFailsWith<IllegalStateException> { iss.setLink("link1", anotherIss) }
-        assertFailsWith<IllegalStateException> { iss.deleteLink("link1",anotherIss) }
+        assertFailsWith<IllegalStateException> { iss.deleteLink("link1", anotherIss) }
         assertFailsWith<IllegalStateException> { iss.deleteLinks("link1") }
         assertFailsWith<IllegalStateException> { iss.getLinks("link1") }
         assertFailsWith<IllegalStateException> { iss.getLinks(listOf("link1")); }
@@ -626,7 +649,7 @@ class OEntityTest: OTestMixin {
         val localIdSet = hashSetOf<Long>()
         val typeIdSet = hashSetOf<Int>()
         (0..1000).map {
-            val issue = orientDb.createIssue("Issue$it")
+            val issue = youTrackDb.createIssue("Issue$it")
             typeIdSet.add(issue.id.typeId)
             localIdSet.add(issue.id.localId)
         }
@@ -635,8 +658,8 @@ class OEntityTest: OTestMixin {
     }
 
     @Test
-    fun `setProperty and setBlobString returns false in case of equal values`(){
-        val iss = orientDb.createIssue("trista")
+    fun `setProperty and setBlobString returns false in case of equal values`() {
+        val iss = youTrackDb.createIssue("trista")
         withStoreTx { tx ->
             iss.setProperty("test", 1)
             iss.setBlobString("blobString", "hello")

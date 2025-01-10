@@ -15,7 +15,7 @@
  */
 package jetbrains.exodus.entitystore.orientdb.query
 
-import com.orientechnologies.orient.core.id.ORID
+import com.jetbrains.youtrack.db.api.record.RID
 
 interface OConditional {
     val condition: OCondition?
@@ -115,7 +115,7 @@ class OLinkInFromSubQuerySelect(
 
 class OLinkInFromIdsSelect(
     val linkName: String,
-    val targetIds: List<ORID>,
+    val targetIds: List<RID>,
     order: OOrder? = null,
     skip: OSkip? = null,
     limit: OLimit? = null
@@ -126,13 +126,13 @@ class OLinkInFromIdsSelect(
             .append(targetIdsSql)
     }
 
-    private val targetIdsSql get() = "[${targetIds.map(ORID::toString).joinToString(", ")}]"
+    private val targetIdsSql get() = "[${targetIds.map(RID::toString).joinToString(", ")}]"
 }
 
 
 class OLinkOfTypeInFromIdsSelect(
     val linkName: String,
-    val targetIds: List<ORID>,
+    val targetIds: List<RID>,
     val targetEntityType: String,
     order: OOrder? = null,
     skip: OSkip? = null,
@@ -148,12 +148,12 @@ class OLinkOfTypeInFromIdsSelect(
 
     }
 
-    private val targetIdsSql get() = "[${targetIds.map(ORID::toString).joinToString(", ")}]"
+    private val targetIdsSql get() = "[${targetIds.map(RID::toString).joinToString(", ")}]"
 }
 
 class OLinkOutFromIdSelect(
     val linkName: String,
-    private val targetIds: List<ORID>,
+    private val targetIds: List<RID>,
     order: OOrder? = null,
     skip: OSkip? = null,
     limit: OLimit? = null
@@ -164,7 +164,7 @@ class OLinkOutFromIdSelect(
             .append(targetIdsSql)
     }
 
-    private val targetIdsSql get() = "[${targetIds.map(ORID::toString).joinToString(", ")}]"
+    private val targetIdsSql get() = "[${targetIds.map(RID::toString).joinToString(", ")}]"
 }
 
 
@@ -326,7 +326,7 @@ class ODifferenceSelect(
 }
 
 class ORecordIdSelect(
-    val recordIds: Collection<ORID>,
+    val recordIds: Collection<RID>,
     order: OOrder? = null
 ) : OSelectBase(order) {
 

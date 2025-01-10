@@ -1,7 +1,6 @@
 dependencies {
     implementation(project(":xodus-entity-store"))
     implementation(project(":xodus-utils"))
-    implementation("com.orientechnologies:orientdb-core:4.0.0-20241126.153402-203")
     api(project(":xodus-openAPI"))
     implementation("com.github.penemue:keap:0.3.0")
     implementation(project(":xodus-environment"))

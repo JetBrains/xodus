@@ -17,7 +17,7 @@ package jetbrains.exodus.entitystore.orientdb.testutil
 
 import com.google.common.truth.Ordered
 import com.google.common.truth.Truth.assertThat
-import com.orientechnologies.orient.core.db.ODatabaseSession
+import com.jetbrains.youtrack.db.api.DatabaseSession
 import jetbrains.exodus.entitystore.Entity
 import jetbrains.exodus.entitystore.orientdb.OEntity
 import jetbrains.exodus.entitystore.orientdb.OStoreTransaction
@@ -26,7 +26,7 @@ import jetbrains.exodus.entitystore.orientdb.OVertexEntity
 
 interface OTestMixin {
 
-    val orientDb: InMemoryOrientDB
+    val youTrackDb: InMemoryYouTrackDB
 
     fun assertNamesExactly(result: Iterable<Entity>, vararg names: String): Ordered {
         return assertThat(result.map { it.getProperty("name") }).containsExactly(*names)
@@ -37,36 +37,31 @@ interface OTestMixin {
     }
 
     fun beginTransaction(): OStoreTransactionImpl {
-        val store = orientDb.store
+        val store = youTrackDb.store
         return store.beginTransaction() as OStoreTransactionImpl
     }
 
-    fun beginReadonlyTransaction(): OStoreTransactionImpl {
-        val store = orientDb.store
-        return store.beginReadonlyTransaction() as OStoreTransactionImpl
-    }
-
     fun <R> withStoreTx(block: (OStoreTransaction) -> R): R {
-        return orientDb.withStoreTx(block)
+        return youTrackDb.withStoreTx(block)
     }
 
-    fun <R> withSession(block: (ODatabaseSession) -> R): R {
-        return orientDb.withSession(block)
+    fun <R> withSession(block: (DatabaseSession) -> R): R {
+        return youTrackDb.withSession(block)
     }
 
-    fun <R> withTxSession(block: (ODatabaseSession) -> R): R {
-        return orientDb.withTxSession(block)
+    fun <R> withTxSession(block: (DatabaseSession) -> R): R {
+        return youTrackDb.withTxSession(block)
     }
 
-    fun givenTestCase() = OTaskTrackerTestCase(orientDb)
+    fun givenTestCase() = OTaskTrackerTestCase(youTrackDb)
 
     fun OStoreTransaction.createIssue(name: String, priority: String? = null): OVertexEntity = createIssueImpl(name, priority)
 
     fun OStoreTransaction.createProject(name: String): OVertexEntity = createProjectImpl(name)
 
-    fun OStoreTransaction.createBoard(name: String): OVertexEntity = createBoardImpl(name)
+    fun OStoreTransaction.addIssueToProject(issue: OEntity, project: OEntity) =
+        addIssueToProjectImpl(issue, project)
 
-    fun OStoreTransaction.addIssueToProject(issue: OEntity, project: OEntity) = addIssueToProjectImpl(issue, project)
-
-    fun OStoreTransaction.addIssueToBoard(issue: OEntity, board: OEntity) = addIssueToBoardImpl(issue, board)
+    fun OStoreTransaction.addIssueToBoard(issue: OEntity, board: OEntity) =
+        addIssueToBoardImpl(issue, board)
 }

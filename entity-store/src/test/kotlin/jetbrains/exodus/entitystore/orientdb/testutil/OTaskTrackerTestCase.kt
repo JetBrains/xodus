@@ -18,7 +18,7 @@ package jetbrains.exodus.entitystore.orientdb.testutil
 import jetbrains.exodus.entitystore.orientdb.OStoreTransaction
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity
 
-class OTaskTrackerTestCase(val orientDB: InMemoryOrientDB) {
+class OTaskTrackerTestCase(val orientDB: InMemoryYouTrackDB) {
 
     val project1: OVertexEntity
     val project2: OVertexEntity

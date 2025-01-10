@@ -15,12 +15,11 @@
  */
 package jetbrains.exodus.entitystore.orientdb
 
-import com.orientechnologies.orient.core.metadata.schema.OClass
-import com.orientechnologies.orient.core.metadata.schema.OType
-import com.orientechnologies.orient.core.record.OVertex
-import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
+import com.jetbrains.youtrack.db.api.exception.RecordDuplicatedException
+import com.jetbrains.youtrack.db.api.schema.PropertyType
+import com.jetbrains.youtrack.db.api.schema.SchemaClass
 import jetbrains.exodus.entitystore.StoreTransaction
-import jetbrains.exodus.entitystore.orientdb.testutil.InMemoryOrientDB
+import jetbrains.exodus.entitystore.orientdb.testutil.InMemoryYouTrackDB
 import jetbrains.exodus.entitystore.orientdb.testutil.OTestMixin
 import junit.framework.TestCase.assertFalse
 import junit.framework.TestCase.assertTrue
@@ -34,9 +33,9 @@ class OStoreTransactionLifecycleTest : OTestMixin {
 
     @Rule
     @JvmField
-    val orientDbRule = InMemoryOrientDB(true)
+    val orientDbRule = InMemoryYouTrackDB(true)
 
-    override val orientDb = orientDbRule
+    override val youTrackDb = orientDbRule
 
     private val allTxActions: Map<String, TxAction> = mapOf(
         "commit" to { tx -> tx.commit() },
@@ -59,12 +58,16 @@ class OStoreTransactionLifecycleTest : OTestMixin {
     fun `commit() and abort() finish transaction`() {
         commitAbort.forEach { (terminalTxActionName, terminalTxAction) ->
             allTxActions.forEach { (txActionName, txAction) ->
-            val tx = beginTransaction()
-            assertFalse(tx.isFinished)
+                val tx = beginTransaction()
+                assertFalse(tx.isFinished)
 
-            terminalTxAction(tx)
-            assertTrue(tx.isFinished)
-                assertFailsWith<IllegalStateException>("$txActionName after $terminalTxActionName must lead to an IllegalStateException") { txAction(tx) }
+                terminalTxAction(tx)
+                assertTrue(tx.isFinished)
+                assertFailsWith<IllegalStateException>("$txActionName after $terminalTxActionName must lead to an IllegalStateException") {
+                    txAction(
+                        tx
+                    )
+                }
             }
         }
     }
@@ -77,7 +80,10 @@ class OStoreTransactionLifecycleTest : OTestMixin {
                 assertFalse(tx.isFinished)
 
                 notTerminalTxAction(tx)
-                assertFalse("$notTerminalTxActionName finished the transaction but it should not have", tx.isFinished)
+                assertFalse(
+                    "$notTerminalTxActionName finished the transaction but it should not have",
+                    tx.isFinished
+                )
 
                 txAction(tx)
                 if (!tx.isFinished) {
@@ -89,32 +95,36 @@ class OStoreTransactionLifecycleTest : OTestMixin {
 
     @Test
     fun `commit() and flush() finish the transaction if error happens`() {
-        val session = orientDb.openSession()
+        val session = youTrackDb.openSession()
         val oClass = session.getOrCreateVertexClass("trista")
-        oClass.createProperty("name", OType.STRING)
-        oClass.createIndex("idx_name", OClass.INDEX_TYPE.UNIQUE, "name")
+        oClass.createProperty(session, "name", PropertyType.STRING)
+        oClass.createIndex(session, "idx_name", SchemaClass.INDEX_TYPE.UNIQUE, "name")
         session.close()
+
 
         allTxActions.forEach { (actionName, txAction) ->
             val tx = beginTransaction()
 
-            val trista1 = session.newVertex("trista")
+
+            val trista1 = tx.session.newVertex("trista")
             trista1.setProperty("name", "dvesti")
-            trista1.save<OVertex>()
-            val trista2 = session.newVertex("trista")
+            trista1.save()
+            val trista2 = tx.session.newVertex("trista")
             trista2.setProperty("name", "dvesti")
-            trista2.save<OVertex>()
+            trista2.save()
 
             when (actionName) {
                 "commit",
-                "flush" -> assertFailsWith<ORecordDuplicatedException> { txAction(tx) }
+                "flush" -> assertFailsWith<RecordDuplicatedException> { txAction(tx) }
 
                 "revert" -> {
                     txAction(tx)
                     tx.abort()
                 }
+
                 "abort" -> txAction(tx)
             }
         }
+
     }
 }

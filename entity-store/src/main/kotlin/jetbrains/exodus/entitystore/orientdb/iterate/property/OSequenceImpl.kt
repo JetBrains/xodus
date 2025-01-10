@@ -15,7 +15,7 @@
  */
 package jetbrains.exodus.entitystore.orientdb.iterate.property
 
-import com.orientechnologies.orient.core.metadata.sequence.OSequence
+import com.jetbrains.youtrack.db.internal.core.metadata.sequence.DBSequence
 import jetbrains.exodus.entitystore.Sequence
 import jetbrains.exodus.entitystore.orientdb.OPersistentEntityStore
 
@@ -36,7 +36,7 @@ internal class OSequenceImpl(
         currentTx.updateOSequence(sequenceName, l)
     }
 
-    private fun getOSequence(): OSequence {
+    private fun getOSequence(): DBSequence {
         val currentTx = store.requireActiveTransaction()
         return currentTx.getOSequence(sequenceName)
     }

@@ -15,11 +15,11 @@
  */
 package jetbrains.exodus.query.metadata
 
-import com.orientechnologies.orient.core.db.ODatabaseType
+import com.jetbrains.youtrack.db.api.DatabaseType
 import jetbrains.exodus.entitystore.orientdb.ODatabaseConfig
 import jetbrains.exodus.entitystore.orientdb.ODatabaseConnectionConfig
 import jetbrains.exodus.entitystore.orientdb.ODatabaseProviderImpl
-import jetbrains.exodus.entitystore.orientdb.initOrientDbServer
+import jetbrains.exodus.entitystore.orientdb.iniYouTrackDb
 import org.junit.Test
 import kotlin.test.Ignore
 
@@ -44,14 +44,14 @@ class MigrateYourDatabaseTest {
             .withPassword("password")
             .withUserName("admin")
             .withDatabaseRoot("")
-            .withDatabaseType(ODatabaseType.MEMORY)
+            .withDatabaseType(DatabaseType.MEMORY)
             .build()
         
         val config = ODatabaseConfig.builder()
             .withDatabaseName("testDB")
             .build()
 
-        val db = initOrientDbServer(connectionConfig)
+        val db = iniYouTrackDb(connectionConfig)
         val provider = ODatabaseProviderImpl(config, db)
         val launcher = XodusToOrientDataMigratorLauncher(
             orient = MigrateToOrientConfig(

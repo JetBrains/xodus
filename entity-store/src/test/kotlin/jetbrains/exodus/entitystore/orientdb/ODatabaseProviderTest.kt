@@ -15,9 +15,8 @@
  */
 package jetbrains.exodus.entitystore.orientdb
 
-import com.orientechnologies.common.concur.lock.OModificationOperationProhibitedException
-import com.orientechnologies.orient.core.record.OVertex
-import jetbrains.exodus.entitystore.orientdb.testutil.InMemoryOrientDB
+import com.jetbrains.youtrack.db.api.exception.ModificationOperationProhibitedException
+import jetbrains.exodus.entitystore.orientdb.testutil.InMemoryYouTrackDB
 import jetbrains.exodus.entitystore.orientdb.testutil.OTestMixin
 import org.junit.Rule
 import org.junit.Test
@@ -27,35 +26,35 @@ class ODatabaseProviderTest: OTestMixin {
 
     @Rule
     @JvmField
-    val orientDbRule = InMemoryOrientDB()
+    val orientDbRule = InMemoryYouTrackDB()
 
-    override val orientDb = orientDbRule
+    override val youTrackDb = orientDbRule
 
     @Test
     fun `read-only mode works`() {
         // by default it is read-write
         withTxSession { session ->
             val v = session.newVertex()
-            v.save<OVertex>()
+            v.save()
         }
 
-        orientDb.provider.readOnly = true
-        assertFailsWith<OModificationOperationProhibitedException> {
+        youTrackDb.provider.readOnly = true
+        assertFailsWith<ModificationOperationProhibitedException> {
             withTxSession { session ->
                 val v = session.newVertex()
-                v.save<OVertex>()
+                v.save()
             }
         }
 
-        orientDb.provider.readOnly = false
+        youTrackDb.provider.readOnly = false
         withTxSession { session ->
             val v = session.newVertex()
-            v.save<OVertex>()
+            v.save()
         }
 
-        orientDb.provider.readOnly = true
+        youTrackDb.provider.readOnly = true
         // close() releases the read-only mode before closing the database (otherwise it throws exceptions)
-        orientDb.provider.close()
+        youTrackDb.provider.close()
     }
 
 }

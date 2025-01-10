@@ -15,10 +15,10 @@
  */
 package jetbrains.exodus.entitystore.orientdb.testutil
 
-import com.orientechnologies.orient.core.db.ODatabaseSession
-import com.orientechnologies.orient.core.metadata.schema.OType
-import com.orientechnologies.orient.core.record.ODirection
-import com.orientechnologies.orient.core.record.OVertex
+import com.jetbrains.youtrack.db.api.DatabaseSession
+import com.jetbrains.youtrack.db.api.record.Direction
+import com.jetbrains.youtrack.db.api.record.Vertex
+import com.jetbrains.youtrack.db.api.schema.PropertyType
 import jetbrains.exodus.entitystore.Entity
 import jetbrains.exodus.entitystore.orientdb.OEntity
 import jetbrains.exodus.entitystore.orientdb.OStoreTransaction
@@ -58,7 +58,7 @@ object Boards {
     }
 }
 
-fun InMemoryOrientDB.createIssue(name: String, priority: String? = null): OVertexEntity {
+fun InMemoryYouTrackDB.createIssue(name: String, priority: String? = null): OVertexEntity {
     return withStoreTx { tx ->
         tx.createIssueImpl(name, priority)
     }
@@ -78,7 +78,10 @@ private fun Entity.setName(name: String) {
     setProperty("name", name)
 }
 
-internal fun OStoreTransaction.createIssueImpl(name: String, priority: String? = null): OVertexEntity {
+internal fun OStoreTransaction.createIssueImpl(
+    name: String,
+    priority: String? = null
+): OVertexEntity {
     val issue = newEntity(CLASS) as OVertexEntity
     issue.setName(name)
     priority?.let { issue.setProperty(PRIORITY, it) }
@@ -91,31 +94,32 @@ internal fun OStoreTransaction.createBoardImpl(name: String): OVertexEntity {
     return e
 }
 
-internal fun OStoreTransaction.addIssueToProjectImpl(issue: OEntity, project: OEntity) {
+internal fun addIssueToProjectImpl(issue: OEntity, project: OEntity) {
     issue.addLink(IN_PROJECT, project)
     project.addLink(HAS_ISSUE, issue)
 }
 
-internal fun OStoreTransaction.addIssueToBoardImpl(issue: OEntity, board: OEntity) {
+internal fun addIssueToBoardImpl(issue: OEntity, board: OEntity) {
     issue.addLink(ON_BOARD, board)
     board.addLink(Boards.Links.HAS_ISSUE, issue)
 }
 
-internal fun ODatabaseSession.addAssociation(
+internal fun DatabaseSession.addAssociation(
     fromClassName: String,
     toClassName: String,
     outPropName: String,
     inPropName: String
 ) {
-    val fromClass = getClass(fromClassName) ?: throw IllegalStateException("$fromClassName not found")
+    val fromClass =
+        getClass(fromClassName) ?: throw IllegalStateException("$fromClassName not found")
     val toClass = getClass(toClassName) ?: throw IllegalStateException("$toClassName not found")
     val inEdgeName = OVertexEntity.edgeClassName(inPropName)
     val outEdgeName = OVertexEntity.edgeClassName(outPropName)
     getClass(inEdgeName) ?: this.createEdgeClass(inEdgeName)
     getClass(outEdgeName) ?: this.createEdgeClass(outEdgeName)
 
-    val linkInPropName = OVertex.getEdgeLinkFieldName(ODirection.IN, inEdgeName)
-    val linkOutPropName = OVertex.getEdgeLinkFieldName(ODirection.OUT, outEdgeName)
-    fromClass.createProperty(linkOutPropName, OType.LINKBAG)
-    toClass.createProperty(linkInPropName, OType.LINKBAG)
+    val linkInPropName = Vertex.getEdgeLinkFieldName(Direction.IN, inEdgeName)
+    val linkOutPropName = Vertex.getEdgeLinkFieldName(Direction.OUT, outEdgeName)
+    fromClass.createProperty(this, linkOutPropName, PropertyType.LINKBAG)
+    toClass.createProperty(this, linkInPropName, PropertyType.LINKBAG)
 }

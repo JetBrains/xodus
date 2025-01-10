@@ -15,8 +15,8 @@
  */
 package jetbrains.exodus.entitystore.orientdb.iterate.link
 
-import com.orientechnologies.common.util.OSizeable
-import com.orientechnologies.orient.core.record.OVertex
+import com.jetbrains.youtrack.db.api.record.Vertex
+import com.jetbrains.youtrack.db.internal.common.util.Sizeable
 import jetbrains.exodus.entitystore.Entity
 import jetbrains.exodus.entitystore.EntityIterable
 import jetbrains.exodus.entitystore.EntityIterator
@@ -32,7 +32,7 @@ import org.apache.commons.collections4.functors.EqualPredicate
 
 class OVertexEntityIterable(
     private val tx: OStoreTransaction,
-    private val vertices: Iterable<OVertex>,
+    private val vertices: Iterable<Vertex>,
     private val store: OEntityStore,
     private val linkName: String,
     private val targetEntityID: OEntityId
@@ -64,13 +64,13 @@ class OVertexEntityIterable(
 
     override fun size() = when (vertices) {
         is Collection<*> -> vertices.size.toLong()
-        is OSizeable -> vertices.size().toLong()
+        is Sizeable -> vertices.size().toLong()
         else -> IterableUtils.size(vertices).toLong()
     }
 
     override fun count() = when (vertices) {
         is Collection<*> -> vertices.size.toLong()
-        is OSizeable -> vertices.size().toLong()
+        is Sizeable -> vertices.size().toLong()
         else -> -1
     }
 

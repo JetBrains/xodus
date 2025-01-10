@@ -15,7 +15,7 @@
  */
 package jetbrains.exodus.entitystore.orientdb
 
-import jetbrains.exodus.entitystore.orientdb.testutil.InMemoryOrientDB
+import jetbrains.exodus.entitystore.orientdb.testutil.InMemoryYouTrackDB
 import jetbrains.exodus.entitystore.orientdb.testutil.Issues
 import jetbrains.exodus.entitystore.orientdb.testutil.createIssueImpl
 import org.junit.Assert
@@ -26,7 +26,7 @@ class DBCompactTest {
 
     @Rule
     @JvmField
-    val orientDb = InMemoryOrientDB()
+    val orientDb = InMemoryYouTrackDB()
 
     @Test
     fun `database compacter should work`() {

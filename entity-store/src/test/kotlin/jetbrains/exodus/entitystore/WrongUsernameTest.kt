@@ -15,9 +15,9 @@
  */
 package jetbrains.exodus.entitystore
 
-import com.orientechnologies.orient.core.db.ODatabaseType
+import com.jetbrains.youtrack.db.api.DatabaseType
 import jetbrains.exodus.entitystore.orientdb.ODatabaseConnectionConfig
-import jetbrains.exodus.entitystore.orientdb.initOrientDbServer
+import jetbrains.exodus.entitystore.orientdb.iniYouTrackDb
 import java.nio.file.Files
 import kotlin.io.path.absolutePathString
 import kotlin.test.Test
@@ -30,10 +30,10 @@ class WrongUsernameTest {
             .builder()
             .withPassword("hello")
             .withUserName(";drop database users")
-            .withDatabaseType(ODatabaseType.MEMORY)
+            .withDatabaseType(DatabaseType.MEMORY)
             .withDatabaseRoot(Files.createTempDirectory("haha").absolutePathString())
             .build()
-        initOrientDbServer(cfg)
+        iniYouTrackDb(cfg)
     }
 
 

@@ -15,11 +15,12 @@
  */
 package jetbrains.exodus.query.metadata
 
-import com.orientechnologies.orient.core.db.ODatabaseType
+
+import com.jetbrains.youtrack.db.api.DatabaseType
 import jetbrains.exodus.entitystore.orientdb.ODatabaseConfig
 import jetbrains.exodus.entitystore.orientdb.ODatabaseConnectionConfig
 import jetbrains.exodus.entitystore.orientdb.ODatabaseProviderImpl
-import jetbrains.exodus.entitystore.orientdb.initOrientDbServer
+import jetbrains.exodus.entitystore.orientdb.iniYouTrackDb
 
 fun main() {
     val xodusDatabaseDirectory = requireParam("xodusDatabaseDirectory")
@@ -57,11 +58,11 @@ fun main() {
     val xodusCypherIV = xodusCipherIVStr.toLongOrNull() ?: 0L
     val xodusMemoryUsagePercentage = xodusMemoryUsagePercentageStr.toIntOrNull() ?: 10
     val orientDatabaseType = if (orientDatabaseTypeStr.isNullOrBlank() || orientDatabaseTypeStr.lowercase() == "memory") {
-        ODatabaseType.MEMORY
+        DatabaseType.MEMORY
     } else {
-        ODatabaseType.PLOCAL
+        DatabaseType.PLOCAL
     }
-    val orientDatabaseDirectory = if (orientDatabaseType == ODatabaseType.MEMORY) {
+    val orientDatabaseDirectory = if (orientDatabaseType == DatabaseType.MEMORY) {
         "memory"
     } else {
         require(!orientDatabaseDirectoryStr.isNullOrBlank()) { "For not in-memory OrientDB, the orientDatabaseDirectory param is required" }
@@ -103,7 +104,7 @@ fun main() {
         .withDatabaseName(orientDatabaseName)
         .build()
 
-    val db = initOrientDbServer(connectionConfig)
+    val db = iniYouTrackDb(connectionConfig)
     // create a provider
     val dbProvider = ODatabaseProviderImpl(config, db)
 

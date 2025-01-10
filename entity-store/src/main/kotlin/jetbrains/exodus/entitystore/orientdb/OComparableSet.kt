@@ -15,13 +15,12 @@
  */
 package jetbrains.exodus.entitystore.orientdb
 
-import com.orientechnologies.orient.core.db.record.OTrackedSet
+import com.jetbrains.youtrack.db.internal.core.db.record.TrackedSet
 
 class OComparableSet<E>(val source: MutableSet<E>) : MutableSet<E> by source, Comparable<MutableSet<E>> {
-
     val isDirty: Boolean
         get() {
-            return if (source is OTrackedSet) {
+            return if (source is TrackedSet) {
                 source.isTransactionModified
             } else {
                 true

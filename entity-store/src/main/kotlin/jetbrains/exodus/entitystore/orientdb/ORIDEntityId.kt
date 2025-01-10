@@ -15,25 +15,25 @@
  */
 package jetbrains.exodus.entitystore.orientdb
 
-import com.orientechnologies.orient.core.id.OEmptyRecordId
-import com.orientechnologies.orient.core.id.ORID
-import com.orientechnologies.orient.core.metadata.schema.OClass
-import com.orientechnologies.orient.core.record.OVertex
+import com.jetbrains.youtrack.db.api.record.RID
+import com.jetbrains.youtrack.db.api.record.Vertex
+import com.jetbrains.youtrack.db.api.schema.SchemaClass
+import com.jetbrains.youtrack.db.internal.core.id.ImmutableRecordId
 import jetbrains.exodus.entitystore.EntityId
 
 class ORIDEntityId(
     private val classId: Int,
     private val localEntityId: Long,
-    private val oId: ORID,
-    private val schemaClass: OClass?
+    private val oId: RID,
+    private val schemaClass: SchemaClass?
 ) : OEntityId {
 
     companion object {
-
         @JvmStatic
-        val EMPTY_ID: ORIDEntityId = ORIDEntityId(-1, -1, OEmptyRecordId(), null)
+        val EMPTY_ID: ORIDEntityId = ORIDEntityId(-1, -1,
+            ImmutableRecordId.EMPTY_RECORD_ID, null)
 
-        fun fromVertex(vertex: OVertex): ORIDEntityId {
+        fun fromVertex(vertex: Vertex): ORIDEntityId {
             val oClass = vertex.requireSchemaClass()
             val classId = oClass.requireClassId()
             val localEntityId = vertex.requireLocalEntityId()
@@ -41,7 +41,7 @@ class ORIDEntityId(
         }
     }
 
-    override fun asOId(): ORID {
+    override fun asOId(): RID {
         return oId
     }
 

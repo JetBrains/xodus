@@ -40,9 +40,9 @@ class OEntityIterableTest : OTestMixin {
 
     @Rule
     @JvmField
-    val orientDbRule = InMemoryOrientDB()
+    val orientDbRule = InMemoryYouTrackDB()
 
-    override val orientDb = orientDbRule
+    override val youTrackDb = orientDbRule
 
     @Test
     fun `property is null`() {
@@ -150,7 +150,7 @@ class OEntityIterableTest : OTestMixin {
             tx.checkSql(
                 issues,
                 expectedSql = "SELECT FROM Issue WHERE (name = :name0 OR name = :name1)",
-                expectedParams = mapOf("name0" to "issue1", "name1" to "issue1" )
+                expectedParams = mapOf("name0" to "issue1", "name1" to "issue1")
             )
             // Union operation can distinct result set if query is optimized to OR conditions
             assertNamesExactlyInOrder(issues, "issue1")
@@ -224,7 +224,11 @@ class OEntityIterableTest : OTestMixin {
 
         // When
         withStoreTx { tx ->
-            val issues = tx.findLinks(Issues.CLASS, test.board1, Issues.Links.ON_BOARD) as OLinkOfTypeToEntityIterable
+            val issues = tx.findLinks(
+                Issues.CLASS,
+                test.board1,
+                Issues.Links.ON_BOARD
+            ) as OLinkOfTypeToEntityIterable
 
             println(test.board1.id.asOId())
             // Then
@@ -438,7 +442,8 @@ class OEntityIterableTest : OTestMixin {
 
         // When
         withStoreTx { tx ->
-            val reversedByName = tx.sort(Issues.CLASS, "name", true).reverse() as OReversedEntityIterable
+            val reversedByName =
+                tx.sort(Issues.CLASS, "name", true).reverse() as OReversedEntityIterable
 
             // Then
             tx.checkSql(
@@ -467,7 +472,8 @@ class OEntityIterableTest : OTestMixin {
             val boards = tx.find(Boards.CLASS, "name", test.board1.name())
                 .union(tx.find(Boards.CLASS, "name", test.board2.name()))
             val allIssues = tx.getAll(Issues.CLASS) as OEntityIterableBase
-            val issuesOnBoards = allIssues.findLinks(boards, Issues.Links.ON_BOARD) as OEntityIterable
+            val issuesOnBoards =
+                allIssues.findLinks(boards, Issues.Links.ON_BOARD) as OEntityIterable
 
             // Then
             tx.checkSql(
@@ -583,13 +589,13 @@ class OEntityIterableTest : OTestMixin {
     @Test
     fun `instance of should work`() {
         // Create 10 Issue and 1 SubIssue and their classes
-        orientDb.provider.acquireSession().use { session ->
+        youTrackDb.provider.acquireSession().use { session ->
             val subIssue = session.getOrCreateVertexClass("ChildIssue")
             val issueClass = session.getOrCreateVertexClass(Issues.CLASS)
-            subIssue.setSuperClasses(listOf(issueClass))
+            subIssue.setSuperClasses(session, listOf(issueClass))
         }
         (1..10).forEach {
-            orientDb.createIssue("issue$it")
+            youTrackDb.createIssue("issue$it")
         }
         withStoreTx { tx ->
             tx.newEntity("ChildIssue")

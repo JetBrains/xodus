@@ -15,11 +15,10 @@
  */
 package jetbrains.exodus.entitystore.orientdb
 
-import com.orientechnologies.orient.core.config.OGlobalConfiguration
-import com.orientechnologies.orient.core.db.ODatabaseSession
-import com.orientechnologies.orient.core.db.OrientDB
-import com.orientechnologies.orient.core.db.OrientDBConfig
-import com.orientechnologies.orient.core.db.OrientDBConfigBuilder
+import com.jetbrains.youtrack.db.api.DatabaseSession
+import com.jetbrains.youtrack.db.api.YouTrackDB
+import com.jetbrains.youtrack.db.api.config.GlobalConfiguration
+import com.jetbrains.youtrack.db.api.config.YouTrackDBConfig
 import java.io.File
 import java.util.*
 
@@ -27,16 +26,22 @@ import java.util.*
 //todo this params also should be collected in some config entity
 class ODatabaseProviderImpl(
     private val config: ODatabaseConfig,
-    private val database: OrientDB
+    private val database: YouTrackDB
 ) : ODatabaseProvider {
-    private val orientConfig: OrientDBConfig
+    private val youTrackDBConfig: YouTrackDBConfig
 
     init {
-        orientConfig = OrientDBConfigBuilder().apply {
-            addConfig(OGlobalConfiguration.AUTO_CLOSE_AFTER_DELAY, true)
-            addConfig(OGlobalConfiguration.AUTO_CLOSE_DELAY, config.closeAfterDelayTimeout)
+        youTrackDBConfig = YouTrackDBConfig.builder().apply {
+            addGlobalConfigurationParameter(GlobalConfiguration.AUTO_CLOSE_AFTER_DELAY, true)
+            addGlobalConfigurationParameter(
+                GlobalConfiguration.AUTO_CLOSE_DELAY,
+                config.closeAfterDelayTimeout
+            )
             config.cipherKey?.let {
-                addConfig(OGlobalConfiguration.STORAGE_ENCRYPTION_KEY, Base64.getEncoder().encodeToString(it))
+                addGlobalConfigurationParameter(
+                    GlobalConfiguration.STORAGE_ENCRYPTION_KEY,
+                    Base64.getEncoder().encodeToString(it)
+                )
             }
             config.tweakConfig(this)
         }.build()
@@ -44,7 +49,7 @@ class ODatabaseProviderImpl(
         database.createIfNotExists(
             config.databaseName,
             config.databaseType,
-            orientConfig
+            youTrackDBConfig
         )
 
         //todo migrate to some config entity instead of System props
@@ -64,11 +69,14 @@ class ODatabaseProviderImpl(
     override val databaseLocation: String
         get() = File(config.connectionConfig.databaseRoot, config.databaseName).absolutePath
 
-    override fun acquireSession(): ODatabaseSession {
+    override fun acquireSession(): DatabaseSession {
         return acquireSessionImpl(true)
     }
 
-    override fun <T> executeInASeparateSession(currentSession: ODatabaseSession, action: (ODatabaseSession) -> T): T {
+    override fun <T> executeInASeparateSession(
+        currentSession: DatabaseSession,
+        action: (DatabaseSession) -> T
+    ): T {
         val result = try {
             acquireSessionImpl(checkNoActiveSession = false).use { session ->
                 action(session)
@@ -101,17 +109,22 @@ class ODatabaseProviderImpl(
             _readOnly = value
         }
 
-    private fun acquireSessionImpl(checkNoActiveSession: Boolean = true): ODatabaseSession {
+    private fun acquireSessionImpl(checkNoActiveSession: Boolean = true): DatabaseSession {
         if (checkNoActiveSession) {
             requireNoActiveSession()
         }
-        return database.cachedPool(config.databaseName, config.connectionConfig.userName, config.connectionConfig.password, orientConfig).acquire()
+        return database.cachedPool(
+            config.databaseName,
+            config.connectionConfig.userName,
+            config.connectionConfig.password,
+            youTrackDBConfig
+        ).acquire()
     }
 
     override fun close() {
         // OxygenDB cannot close the database if it is read-only (frozen)
         readOnly = false
-        if (config.closeDatabaseInDbProvider){
+        if (config.closeDatabaseInDbProvider) {
             database.close()
         }
     }

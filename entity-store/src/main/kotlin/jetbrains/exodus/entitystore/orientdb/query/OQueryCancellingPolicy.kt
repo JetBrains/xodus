@@ -15,7 +15,7 @@
  */
 package jetbrains.exodus.entitystore.orientdb.query
 
-import com.orientechnologies.common.concur.OTimeoutException
+import com.jetbrains.youtrack.db.internal.common.concur.TimeoutException
 import jetbrains.exodus.entitystore.QueryCancellingPolicy
 
 class OQueryTimeoutException(message: String, source: Throwable) : RuntimeException(message, source) {
@@ -25,7 +25,7 @@ class OQueryTimeoutException(message: String, source: Throwable) : RuntimeExcept
         fun <R> withTimeoutWrap(block: () -> R): R {
             try {
                 return block()
-            } catch (e: OTimeoutException) {
+            } catch (e: TimeoutException) {
                 throw OQueryTimeoutException("Query execution timed out", e)
             }
         }

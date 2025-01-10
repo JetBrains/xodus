@@ -15,10 +15,10 @@
  */
 package jetbrains.exodus.query.metadata
 
-import com.orientechnologies.orient.core.db.ODatabaseSession
-import com.orientechnologies.orient.core.metadata.schema.OClass
-import com.orientechnologies.orient.core.record.ODirection
-import com.orientechnologies.orient.core.record.OVertex
+import com.jetbrains.youtrack.db.api.DatabaseSession
+import com.jetbrains.youtrack.db.api.record.Direction
+import com.jetbrains.youtrack.db.api.record.Vertex
+import com.jetbrains.youtrack.db.api.schema.SchemaClass
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.edgeClassName
 import jetbrains.exodus.entitystore.orientdb.getTargetLocalEntityIds
 import jetbrains.exodus.entitystore.orientdb.setTargetLocalEntityIds
@@ -26,7 +26,7 @@ import mu.KotlinLogging
 
 private val log = KotlinLogging.logger {}
 
-internal fun ODatabaseSession.applyIndices(indices: Map<String, Set<DeferredIndex>>) {
+internal fun DatabaseSession.applyIndices(indices: Map<String, Set<DeferredIndex>>) {
     IndicesCreator(indices).createIndices(this)
 }
 
@@ -35,7 +35,7 @@ internal class IndicesCreator(
 ) {
     private val logger = PaddedLogger.logger(log)
 
-    fun createIndices(oSession: ODatabaseSession) {
+    fun createIndices(oSession: DatabaseSession) {
         try {
             with (logger) {
                 appendLine("applying indices to OrientDB")
@@ -47,9 +47,9 @@ internal class IndicesCreator(
                     withPadding {
                         for ((_, indexName, properties, unique) in indices) {
                             append(indexName)
-                            if (oClass.getClassIndex(indexName) == null) {
-                                val indexType = if (unique) OClass.INDEX_TYPE.UNIQUE else OClass.INDEX_TYPE.NOTUNIQUE
-                                oClass.createIndex(indexName, indexType, *properties.toTypedArray())
+                            if (!oClass.areIndexed(oSession, *properties.toTypedArray())) {
+                                val indexType = if (unique) SchemaClass.INDEX_TYPE.UNIQUE else SchemaClass.INDEX_TYPE.NOTUNIQUE
+                                oClass.createIndex(oSession, indexName, indexType, *properties.toTypedArray())
                                 appendLine(", created")
                             } else {
                                 appendLine(", already created")
@@ -67,7 +67,7 @@ internal class IndicesCreator(
     }
 }
 
-internal fun ODatabaseSession.initializeIndices(schemaApplicationResult: SchemaApplicationResult) {
+internal fun DatabaseSession.initializeIndices(schemaApplicationResult: SchemaApplicationResult) {
     /*
     * The order of operations matter.
     * We want to initialize complementary properties before creating indices,
@@ -78,7 +78,7 @@ internal fun ODatabaseSession.initializeIndices(schemaApplicationResult: SchemaA
 }
 
 
-internal fun ODatabaseSession.initializeComplementaryPropertiesForNewIndexedLinks(
+internal fun DatabaseSession.initializeComplementaryPropertiesForNewIndexedLinks(
     newIndexedLinks: Map<String, Set<String>>, // ClassName -> set of link names
     commitEvery: Int = 50
 ) {
@@ -87,15 +87,15 @@ internal fun ODatabaseSession.initializeComplementaryPropertiesForNewIndexedLink
     var counter = 0
     withTx {
         for ((className, indexedLinks) in newIndexedLinks) {
-            for (vertex in query("select from $className").vertexStream().map { it as OVertex }) {
+            for (vertex in query("select from $className").vertexStream().map { it as Vertex }) {
                 for (indexedLink in indexedLinks) {
                     val edgeClassName = edgeClassName(indexedLink)
                     val targetLocalEntityIds = vertex.getTargetLocalEntityIds(indexedLink)
-                    for (target in vertex.getVertices(ODirection.OUT, edgeClassName)) {
+                    for (target in vertex.getVertices(Direction.OUT, edgeClassName)) {
                         targetLocalEntityIds.add(target)
                     }
                     vertex.setTargetLocalEntityIds(indexedLink, targetLocalEntityIds)
-                    vertex.save<OVertex>()
+                    vertex.save()
 
                     counter++
                     if (counter == commitEvery) {
@@ -123,7 +123,7 @@ internal data class DeferredIndex(
     )
 }
 
-internal fun OClass.makeDeferredIndexForEmbeddedSet(propertyName: String): DeferredIndex {
+internal fun SchemaClass.makeDeferredIndexForEmbeddedSet(propertyName: String): DeferredIndex {
     return DeferredIndex(
         ownerVertexName = this.name,
         setOf(propertyName),

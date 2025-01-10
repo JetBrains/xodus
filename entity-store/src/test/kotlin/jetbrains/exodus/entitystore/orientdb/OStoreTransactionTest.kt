@@ -16,12 +16,11 @@
 package jetbrains.exodus.entitystore.orientdb
 
 import com.google.common.truth.Truth.assertThat
-import com.orientechnologies.orient.core.db.ODatabaseSession
-import com.orientechnologies.orient.core.db.ODatabaseSessionInternal
-import com.orientechnologies.orient.core.exception.ODatabaseException
-import com.orientechnologies.orient.core.record.ODirection
-import com.orientechnologies.orient.core.record.ORecord
-import com.orientechnologies.orient.core.record.OVertex
+import com.jetbrains.youtrack.db.api.exception.DatabaseException
+import com.jetbrains.youtrack.db.api.record.DBRecord
+import com.jetbrains.youtrack.db.api.record.Direction
+import com.jetbrains.youtrack.db.api.record.Vertex
+import com.jetbrains.youtrack.db.internal.core.db.DatabaseRecordThreadLocal
 import jetbrains.exodus.entitystore.EntityRemovedInDatabaseException
 import jetbrains.exodus.entitystore.PersistentEntityId
 import jetbrains.exodus.entitystore.orientdb.iterate.OEntityIterableBase
@@ -41,9 +40,9 @@ class OStoreTransactionTest : OTestMixin {
 
     @Rule
     @JvmField
-    val orientDbRule = InMemoryOrientDB(true)
+    val orientDbRule = InMemoryYouTrackDB(true)
 
-    override val orientDb = orientDbRule
+    override val youTrackDb = orientDbRule
 
     @Test
     fun `should find all`() {
@@ -94,7 +93,7 @@ class OStoreTransactionTest : OTestMixin {
             Assert.assertEquals(
                 2,
                 test.issue1.vertex.getEdges(
-                    ODirection.IN,
+                    Direction.IN,
                     OVertexEntity.edgeClassName(Boards.Links.HAS_ISSUE)
                 )
                     .toList().size
@@ -184,7 +183,7 @@ class OStoreTransactionTest : OTestMixin {
         // Given
         val test = givenTestCase()
 
-        orientDb.withStoreTx {
+        youTrackDb.withStoreTx {
             //correct blob (can be found)
             test.issue1.setBlob("myBlob", "Hello".toByteArray().inputStream())
 
@@ -196,7 +195,7 @@ class OStoreTransactionTest : OTestMixin {
         }
 
         // When
-        orientDb.withStoreTx { tx ->
+        youTrackDb.withStoreTx { tx ->
             val issues = tx.findWithBlob(Issues.CLASS, "myBlob")
 
             // Then
@@ -229,7 +228,7 @@ class OStoreTransactionTest : OTestMixin {
     @Test
     fun `single entity iterable test`() {
         val test = givenTestCase()
-        orientDb.store.executeInTransaction {
+        youTrackDb.store.executeInTransaction {
             val issue3 = it.getSingletonIterable(test.issue3).iterator().next()
             Assert.assertEquals(test.issue3, issue3)
         }
@@ -571,11 +570,11 @@ class OStoreTransactionTest : OTestMixin {
 
     @Test
     fun `tx lets search for an entity using PersistentEntityId`() {
-        val aId = orientDb.createIssue("A").id
-        val bId = orientDb.createIssue("B").id
+        val aId = youTrackDb.createIssue("A").id
+        val bId = youTrackDb.createIssue("B").id
 
         // use default ids
-        orientDb.store.executeInTransaction { tx ->
+        youTrackDb.store.executeInTransaction { tx ->
             val a = tx.getEntity(aId)
             val b = tx.getEntity(bId)
 
@@ -586,7 +585,7 @@ class OStoreTransactionTest : OTestMixin {
         // use legacy ids
         val legacyIdA = PersistentEntityId(aId.typeId, aId.localId)
         val legacyIdB = PersistentEntityId(bId.typeId, bId.localId)
-        orientDb.store.executeInTransaction { tx ->
+        youTrackDb.store.executeInTransaction { tx ->
             val a = tx.getEntity(legacyIdA)
             val b = tx.getEntity(legacyIdB)
 
@@ -597,15 +596,15 @@ class OStoreTransactionTest : OTestMixin {
 
     @Test
     fun `getEntity() throws an exception if the entity not found`() {
-        val aId = orientDb.createIssue("A").id
+        val aId = youTrackDb.createIssue("A").id
 
         // delete the issue
-        orientDb.withTxSession { oSession ->
+        youTrackDb.withTxSession { oSession ->
             oSession.delete(aId.asOId())
         }
 
         // entity not found
-        orientDb.store.executeInTransaction { tx ->
+        youTrackDb.store.executeInTransaction { tx ->
             assertFailsWith<EntityRemovedInDatabaseException> {
                 tx.getEntity(aId)
             }
@@ -623,8 +622,8 @@ class OStoreTransactionTest : OTestMixin {
 
     @Test
     fun `tx works with both ORIDEntityId and PersistentEntityId representations`() {
-        val aId = orientDb.createIssue("A").id
-        val bId = orientDb.createIssue("B").id
+        val aId = youTrackDb.createIssue("A").id
+        val bId = youTrackDb.createIssue("B").id
         val aIdRepresentation = aId.toString()
         val bIdRepresentation = bId.toString()
         val aLegacyId = PersistentEntityId(aId.typeId, aId.localId)
@@ -632,7 +631,7 @@ class OStoreTransactionTest : OTestMixin {
         val aLegacyIdRepresentation = aLegacyId.toString()
         val bLegacyIdRepresentation = bLegacyId.toString()
 
-        orientDb.store.executeInTransaction { tx ->
+        youTrackDb.store.executeInTransaction { tx ->
             assertEquals(aId, tx.toEntityId(aIdRepresentation))
             assertEquals(bId, tx.toEntityId(bIdRepresentation))
 
@@ -644,7 +643,7 @@ class OStoreTransactionTest : OTestMixin {
 
     @Test
     fun `entity id should be valid and accessible just after creation`() {
-        orientDb.store.executeInTransaction { tx ->
+        youTrackDb.store.executeInTransaction { tx ->
             val entity = tx.newEntity(Issues.CLASS)
             val orid = (entity.id as OEntityId).asOId()
             Assert.assertTrue(orid.clusterId > 0)
@@ -653,7 +652,7 @@ class OStoreTransactionTest : OTestMixin {
 
     @Test
     fun `newEntity sets localEntityId`() {
-        orientDb.store.executeInTransaction { tx ->
+        youTrackDb.store.executeInTransaction { tx ->
             val issue = tx.newEntity(Issues.CLASS)
             assertEquals(issue.id.localId, 0)
         }
@@ -673,8 +672,8 @@ class OStoreTransactionTest : OTestMixin {
 
     @Test
     fun `read-only transaction forbids changing data in it`() {
-        val issue = orientDb.createIssue("trista")
-        val tx = orientDb.store.beginReadonlyTransaction()
+        val issue = youTrackDb.createIssue("trista")
+        val tx = youTrackDb.store.beginReadonlyTransaction()
         assertFailsWith<IllegalStateException> { tx.newEntity(Issues.CLASS) }
         assertFailsWith<IllegalStateException> { tx.saveEntity(issue) }
     }
@@ -686,7 +685,7 @@ class OStoreTransactionTest : OTestMixin {
         test.createManyIssues(1000)
 
         // When
-        orientDb.store.executeInTransaction { transaction ->
+        youTrackDb.store.executeInTransaction { transaction ->
             transaction.queryCancellingPolicy = OQueryCancellingPolicy.timeout(0)
 
             val exception = Assert.assertThrows(OQueryTimeoutException::class.java) {
@@ -740,11 +739,11 @@ class OStoreTransactionTest : OTestMixin {
 
     @Test
     fun `active session still has an active transaction after flush`() {
-        assertFailsWith<ODatabaseException> { ODatabaseSession.getActiveSession() }
+        assertFailsWith<DatabaseException> { DatabaseRecordThreadLocal.instance().get() }
         withStoreTx { tx ->
-            (ODatabaseSession.getActiveSession() as ODatabaseSession).requireActiveTransaction()
+            DatabaseRecordThreadLocal.instance().get().requireActiveTransaction()
             tx.flush()
-            (ODatabaseSession.getActiveSession() as ODatabaseSession).requireActiveTransaction()
+            DatabaseRecordThreadLocal.instance().get().requireActiveTransaction()
         }
     }
 
@@ -752,7 +751,7 @@ class OStoreTransactionTest : OTestMixin {
     fun `transactionId does not get changed on flush()`() {
         withStoreTx { tx ->
             val oTransactionId =
-                (ODatabaseSession.getActiveSession() as ODatabaseSessionInternal).transaction.id.toLong()
+                DatabaseRecordThreadLocal.instance().get().transaction.id
             assertEquals(oTransactionId, tx.getTransactionId())
             tx.flush()
             assertEquals(oTransactionId, tx.getTransactionId())
@@ -830,7 +829,7 @@ class OStoreTransactionTest : OTestMixin {
         }
 
         withStoreTx { tx ->
-            val vertex: OVertex = tx.getRecord(id)!!
+            val vertex: Vertex = tx.getRecord(id)
             assertEquals("caramba", vertex.getProperty("mamba"))
             val e1 = tx.getEntity(id)
             e1.delete()
@@ -838,7 +837,7 @@ class OStoreTransactionTest : OTestMixin {
 
         withStoreTx { tx ->
             try {
-                tx.getRecord<ORecord>(id)
+                tx.getRecord<DBRecord>(id)
                 Assert.fail()
             } catch (e: EntityRemovedInDatabaseException) {
                 // expected

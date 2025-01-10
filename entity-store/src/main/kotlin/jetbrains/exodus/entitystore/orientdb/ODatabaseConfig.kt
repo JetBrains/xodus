@@ -16,18 +16,18 @@
 
 package jetbrains.exodus.entitystore.orientdb
 
-import com.orientechnologies.orient.core.db.ODatabaseType
-import com.orientechnologies.orient.core.db.OrientDBConfigBuilder
+import com.jetbrains.youtrack.db.api.DatabaseType
+import com.jetbrains.youtrack.db.api.config.YouTrackDBConfigBuilder
 import kotlin.math.min
 
 class ODatabaseConfig private constructor(
     val connectionConfig: ODatabaseConnectionConfig,
     val databaseName: String,
-    val databaseType: ODatabaseType,
+    val databaseType: DatabaseType,
     val closeAfterDelayTimeout: Int,
     val cipherKey: ByteArray?,
     val closeDatabaseInDbProvider: Boolean,
-    val tweakConfig: OrientDBConfigBuilder.() -> Unit
+    val tweakConfig: YouTrackDBConfigBuilder.() -> Unit
 ) {
     companion object {
         fun builder(): Builder {
@@ -39,17 +39,17 @@ class ODatabaseConfig private constructor(
     class Builder internal constructor() {
         private lateinit var connectionConfig: ODatabaseConnectionConfig
         private var databaseName: String = ""
-        private var databaseType: ODatabaseType? = null
+        private var databaseType: DatabaseType? = null
         private var closeAfterDelayTimeout: Int? = null
         private var cipherKey: ByteArray? = null
         private var closeDatabaseInDbProvider = true
-        private var tweakConfig: OrientDBConfigBuilder.() -> Unit = {}
+        private var tweakConfig: YouTrackDBConfigBuilder.() -> Unit = {}
 
         fun withDatabaseName(databaseName: String) = apply { this.databaseName = databaseName }
         fun withConnectionConfig(connectionConfig: ODatabaseConnectionConfig) =
             apply { this.connectionConfig = connectionConfig }
 
-        fun withDatabaseType(databaseType: ODatabaseType) = apply { this.databaseType = databaseType }
+        fun withDatabaseType(databaseType: DatabaseType) = apply { this.databaseType = databaseType }
         fun withCloseAfterDelayTimeout(closeAfterDelayTimeout: Int) =
             apply { this.closeAfterDelayTimeout = closeAfterDelayTimeout }
 
@@ -63,7 +63,7 @@ class ODatabaseConfig private constructor(
             cipherKey = hexStringToByteArray(key.substring(0, min(16 * 2, key.length))) + longToByteArray(IV)
         }
 
-        fun tweakConfig(tweakConfig: OrientDBConfigBuilder.() -> Unit) = apply { this.tweakConfig = tweakConfig }
+        fun tweakConfig(tweakConfig: YouTrackDBConfigBuilder.() -> Unit) = apply { this.tweakConfig = tweakConfig }
 
         fun build() = ODatabaseConfig(
             connectionConfig, databaseName, databaseType ?: connectionConfig.databaseType, closeAfterDelayTimeout ?: connectionConfig.closeAfterDelayTimeout,

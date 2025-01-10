@@ -15,25 +15,24 @@
  */
 package jetbrains.exodus.query.metadata
 
-import com.orientechnologies.orient.core.record.ODirection
-import com.orientechnologies.orient.core.record.OVertex
-import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
+import com.jetbrains.youtrack.db.api.exception.RecordDuplicatedException
+import com.jetbrains.youtrack.db.api.record.Direction
+import com.jetbrains.youtrack.db.api.record.Vertex
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.edgeClassName
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.linkTargetEntityIdPropertyName
 import jetbrains.exodus.entitystore.orientdb.getTargetLocalEntityIds
-import jetbrains.exodus.entitystore.orientdb.testutil.InMemoryOrientDB
+import jetbrains.exodus.entitystore.orientdb.testutil.InMemoryYouTrackDB
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
-import kotlin.streams.toList
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-class OrientDbSchemaInitializerLinkIndicesTest {
+class YouTrackDbSchemaInitializerLinkIndicesTest {
     @Rule
     @JvmField
-    val orientDb = InMemoryOrientDB(initializeIssueSchema = false)
+    val orientDb = InMemoryYouTrackDB(initializeIssueSchema = false)
 
     @Test
     fun `the same DeferredIndices are equal`() {
@@ -163,7 +162,7 @@ class OrientDbSchemaInitializerLinkIndicesTest {
         }
 
         // (no links) == (no links)
-        assertFailsWith<ORecordDuplicatedException> {
+        assertFailsWith<RecordDuplicatedException> {
             orientDb.withTxSession { oSession ->
                 oSession.createVertexAndSetLocalEntityId("type1")
                 oSession.createVertexAndSetLocalEntityId("type1")
@@ -182,7 +181,7 @@ class OrientDbSchemaInitializerLinkIndicesTest {
         }
 
         // ({ v3 }) == ({ v3 })
-        assertFailsWith<ORecordDuplicatedException> {
+        assertFailsWith<RecordDuplicatedException> {
             orientDb.withTxSession { oSession ->
                 val v1 = oSession.loadVertex(id1)
                 val v3 = oSession.loadVertex(id3)
@@ -192,7 +191,7 @@ class OrientDbSchemaInitializerLinkIndicesTest {
         }
 
         // ({ v2, v3 }) == ({ v3 })
-        assertFailsWith<ORecordDuplicatedException> {
+        assertFailsWith<RecordDuplicatedException> {
             orientDb.withTxSession { oSession ->
                 val v1 = oSession.loadVertex(id1)
                 val v2 = oSession.loadVertex(id2)
@@ -209,8 +208,8 @@ class OrientDbSchemaInitializerLinkIndicesTest {
             val v2 = oSession.loadVertex(id2)
             val v3 = oSession.loadVertex(id3)
 
-            v1.deleteIndexedEdge("ass1", v3)
             v2.addIndexedEdge("ass1", v3)
+            v1.deleteIndexedEdge("ass1", v3)
         }
     }
 
@@ -234,7 +233,7 @@ class OrientDbSchemaInitializerLinkIndicesTest {
         }
 
         // (1, no links) == (1, no links)
-        assertFailsWith<ORecordDuplicatedException> {
+        assertFailsWith<RecordDuplicatedException> {
             orientDb.withTxSession { oSession ->
                 val v1 = oSession.createVertexAndSetLocalEntityId("type1")
                 val v2 = oSession.createVertexAndSetLocalEntityId("type1")
@@ -245,7 +244,7 @@ class OrientDbSchemaInitializerLinkIndicesTest {
         }
 
         // (1, { v3 }) == (1, { v3 }), trying to set in the same transaction
-        assertFailsWith<ORecordDuplicatedException> {
+        assertFailsWith<RecordDuplicatedException> {
             orientDb.withTxSession { oSession ->
                 val v1 = oSession.createVertexAndSetLocalEntityId("type1")
                 val v2 = oSession.createVertexAndSetLocalEntityId("type1")
@@ -274,7 +273,7 @@ class OrientDbSchemaInitializerLinkIndicesTest {
         }
 
         // (1, { v3 } ) == (1, { v3 } )
-        assertFailsWith<ORecordDuplicatedException> {
+        assertFailsWith<RecordDuplicatedException> {
             orientDb.withTxSession { oSession ->
                 val v2 = oSession.loadVertex(id2)
                 val v3 = oSession.loadVertex(id3)
@@ -292,7 +291,7 @@ class OrientDbSchemaInitializerLinkIndicesTest {
         }
 
         // (1, { v2, v3 } ) == (1, { v3 } ), who could think...
-        assertFailsWith<ORecordDuplicatedException> {
+        assertFailsWith<RecordDuplicatedException> {
             orientDb.withTxSession { oSession ->
                 val v2 = oSession.loadVertex(id2)
                 val v3 = oSession.loadVertex(id3)
@@ -340,8 +339,8 @@ class OrientDbSchemaInitializerLinkIndicesTest {
             val v2 = oSession.loadVertex(id2)
             val v3 = oSession.loadVertex(id3)
 
-            v1.deleteIndexedEdge("ass1", v3)
             v2.addIndexedEdge("ass1", v3)
+            v1.deleteIndexedEdge("ass1", v3)
         }
     }
 
@@ -378,7 +377,7 @@ class OrientDbSchemaInitializerLinkIndicesTest {
         }
 
         // (1, { v3 } ) == (1, { v3 } )
-        assertFailsWith<ORecordDuplicatedException> {
+        assertFailsWith<RecordDuplicatedException> {
             orientDb.withStoreTx { tx ->
                 val e2 = tx.getEntity(id2)
                 val e3 = tx.getEntity(id3)
@@ -424,8 +423,9 @@ class OrientDbSchemaInitializerLinkIndicesTest {
 
         orientDb.withTxSession { oSession ->
             val v1 =
-                oSession.query("select from type1").vertexStream().toList().first { it.getProperty<Int>("prop1") == 1 }
-            val links: MutableIterable<OVertex> = v1.getVertices(ODirection.OUT, edgeClassName)
+                oSession.query("select from type1").vertexStream().toList()
+                    .first { it.getProperty<Int>("prop1") == 1 }
+            val links: MutableIterable<Vertex> = v1.getVertices(Direction.OUT, edgeClassName)
             assertEquals(2, links.count())
         }
     }
@@ -468,7 +468,7 @@ class OrientDbSchemaInitializerLinkIndicesTest {
             val v1 =
                 oSession.query("select from type1").vertexStream().toList()
                     .first { it.getProperty<Int>("prop1") == 1 }
-            val links: MutableIterable<OVertex> = v1.getVertices(ODirection.OUT, edgeClassName)
+            val links: MutableIterable<Vertex> = v1.getVertices(Direction.OUT, edgeClassName)
             assertEquals(1, links.count())
         }
     }

@@ -61,9 +61,9 @@ class OQueryEngineTest(
 
     @Rule
     @JvmField
-    val orientDbRule = InMemoryOrientDB()
+    val orientDbRule = InMemoryYouTrackDB()
 
-    override val orientDb = orientDbRule
+    override val youTrackDb = orientDbRule
 
     @Test
     fun `should query all`() {
@@ -674,7 +674,7 @@ class OQueryEngineTest(
 
     private fun givenOQueryEngine(metadataOrNull: ModelMetaData? = null): QueryEngine {
         // ToDo: return orientdb compatible query engine
-        return QueryEngine(metadataOrNull, orientDb.store).apply {
+        return QueryEngine(metadataOrNull, youTrackDb.store).apply {
             sortEngine = SortEngine(this)
         }
     }

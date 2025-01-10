@@ -15,15 +15,17 @@
  */
 package jetbrains.exodus.entitystore.orientdb
 
-import com.orientechnologies.orient.core.config.OGlobalConfiguration
-import com.orientechnologies.orient.core.db.ODatabaseRecordThreadLocal
-import com.orientechnologies.orient.core.db.ODatabaseSession
-import com.orientechnologies.orient.core.db.OrientDB
-import com.orientechnologies.orient.core.db.OrientDBConfigBuilder
+import com.jetbrains.youtrack.db.api.DatabaseSession
+import com.jetbrains.youtrack.db.api.YouTrackDB
+import com.jetbrains.youtrack.db.api.YourTracks
+import com.jetbrains.youtrack.db.api.config.GlobalConfiguration
+import com.jetbrains.youtrack.db.api.config.YouTrackDBConfig
+import com.jetbrains.youtrack.db.api.exception.RecordDuplicatedException
+import com.jetbrains.youtrack.db.internal.core.db.DatabaseRecordThreadLocal
 
 interface ODatabaseProvider {
     val databaseLocation: String
-    fun acquireSession(): ODatabaseSession
+    fun acquireSession(): DatabaseSession
 
     /**
      * If there is a session on the current thread, create a new session, executes the action in it,
@@ -33,8 +35,8 @@ interface ODatabaseProvider {
      * and do not hesitate to invite people to review your code.
      */
     fun <T> executeInASeparateSession(
-        currentSession: ODatabaseSession,
-        action: (ODatabaseSession) -> T
+        currentSession: DatabaseSession,
+        action: (DatabaseSession) -> T
     ): T
 
     /**
@@ -46,7 +48,7 @@ interface ODatabaseProvider {
     fun close()
 }
 
-fun <R> ODatabaseProvider.withSession(block: (ODatabaseSession) -> R): R {
+fun <R> ODatabaseProvider.withSession(block: (DatabaseSession) -> R): R {
     acquireSession().use { session ->
         return block(session)
     }
@@ -54,10 +56,10 @@ fun <R> ODatabaseProvider.withSession(block: (ODatabaseSession) -> R): R {
 
 fun <R> ODatabaseProvider.withCurrentOrNewSession(
     requireNoActiveTransaction: Boolean = false,
-    block: (ODatabaseSession) -> R
+    block: (DatabaseSession) -> R
 ): R {
     return if (hasActiveSession()) {
-        val activeSession = ODatabaseSession.getActiveSession() as ODatabaseSession
+        val activeSession = DatabaseRecordThreadLocal.instance().getIfDefined() as DatabaseSession
         if (requireNoActiveTransaction) {
             activeSession.requireNoActiveTransaction()
         }
@@ -69,15 +71,15 @@ fun <R> ODatabaseProvider.withCurrentOrNewSession(
     }
 }
 
-internal fun ODatabaseSession.hasActiveTransaction(): Boolean {
+internal fun DatabaseSession.hasActiveTransaction(): Boolean {
     return isActiveOnCurrentThread && activeTxCount() > 0
 }
 
-internal fun ODatabaseSession.requireActiveTransaction() {
+internal fun DatabaseSession.requireActiveTransaction() {
     require(hasActiveTransaction()) { "No active transaction is found. Happy debugging, pal!" }
 }
 
-internal fun ODatabaseSession.requireNoActiveTransaction() {
+internal fun DatabaseSession.requireNoActiveTransaction() {
     assert(isActiveOnCurrentThread && activeTxCount() == 0) { "Active transaction is detected. Changes in the schema must not happen in a transaction." }
 }
 
@@ -86,24 +88,28 @@ internal fun requireNoActiveSession() {
 }
 
 internal fun hasActiveSession(): Boolean {
-    val db = ODatabaseRecordThreadLocal.instance().getIfDefined()
+    val db = DatabaseRecordThreadLocal.instance().getIfDefined()
     return db != null
 }
 
-fun initOrientDbServer(config: ODatabaseConnectionConfig): OrientDB {
-    val orientConfig = OrientDBConfigBuilder().apply {
-        addConfig(OGlobalConfiguration.AUTO_CLOSE_AFTER_DELAY, true)
-        addConfig(OGlobalConfiguration.AUTO_CLOSE_DELAY, config.closeAfterDelayTimeout)
-        addConfig(OGlobalConfiguration.NON_TX_READS_WARNING_MODE, "SILENT")
+fun iniYouTrackDb(config: ODatabaseConnectionConfig): YouTrackDB {
+    val orientConfig = YouTrackDBConfig.builder().apply {
+        addGlobalConfigurationParameter(GlobalConfiguration.AUTO_CLOSE_AFTER_DELAY, true)
+        addGlobalConfigurationParameter(
+            GlobalConfiguration.AUTO_CLOSE_DELAY,
+            config.closeAfterDelayTimeout
+        )
+        addGlobalConfigurationParameter(GlobalConfiguration.NON_TX_READS_WARNING_MODE, "SILENT")
     }.build()
     require(config.userName.matches(Regex("^[a-zA-Z0-9]*$")))
-    val dbType = config.databaseType.name.lowercase()
-    val db = OrientDB("$dbType:${config.databaseRoot}", orientConfig)
+    val db = YourTracks.embedded(config.databaseRoot, orientConfig)
+
     try {
         db.execute("create system user ${config.userName} identified by :pass role root", mapOf(
             "pass" to config.password,
         ))
-    } catch (_: com.orientechnologies.orient.core.storage.ORecordDuplicatedException) {
+    } catch (_: RecordDuplicatedException) {
     }
+
     return db
 }

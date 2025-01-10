@@ -15,11 +15,10 @@
  */
 package jetbrains.exodus.entitystore.orientdb
 
-import com.orientechnologies.orient.core.Orient
-import com.orientechnologies.orient.core.db.ODatabaseType
-import com.orientechnologies.orient.core.db.OrientDB
-import com.orientechnologies.orient.core.exception.OStorageException
-import com.orientechnologies.orient.core.record.OVertex
+import com.jetbrains.youtrack.db.api.DatabaseType
+import com.jetbrains.youtrack.db.api.YouTrackDB
+import com.jetbrains.youtrack.db.internal.core.YouTrackDBEnginesManager
+import com.jetbrains.youtrack.db.internal.core.exception.StorageException
 import jetbrains.exodus.crypto.toByteArray
 import mu.KLogging
 import org.junit.After
@@ -43,7 +42,7 @@ class EncryptedDBTest(val number: Int) {
     }
 
     lateinit var provider: ODatabaseProviderImpl
-    lateinit var db: OrientDB
+    lateinit var db: YouTrackDB
 
     private fun createConfig(key: ByteArray?): ODatabaseConfig {
         val password = "admin"
@@ -53,13 +52,13 @@ class EncryptedDBTest(val number: Int) {
         val connConfig = ODatabaseConnectionConfig.builder()
             .withPassword(password)
             .withUserName(username)
-            .withDatabaseType(ODatabaseType.PLOCAL)
+            .withDatabaseType(DatabaseType.PLOCAL)
             .withDatabaseRoot(Files.createTempDirectory("oxigenDB_test$number").absolutePathString())
             .build()
 
         return ODatabaseConfig.builder()
             .withConnectionConfig(connConfig)
-            .withDatabaseType(ODatabaseType.PLOCAL)
+            .withDatabaseType(DatabaseType.PLOCAL)
             .withDatabaseName(dbName)
             .withCipherKey(key)
             .build()
@@ -74,7 +73,7 @@ class EncryptedDBTest(val number: Int) {
         val config = createConfig(cipherKey)
         val noEncryptionConfig = createConfig(null)
         logger.info("Connect to db and create test vertex class")
-        db = initOrientDbServer(config.connectionConfig)
+        db = iniYouTrackDb(config.connectionConfig)
         provider = ODatabaseProviderImpl(config, db)
         provider.withSession { session ->
             session.createVertexClass("TEST")
@@ -84,14 +83,14 @@ class EncryptedDBTest(val number: Int) {
             session.executeInTx {
                 val vertex = session.newVertex("TEST")
                 vertex.setProperty("hello", "world")
-                vertex.save<OVertex>()
+                vertex.save()
             }
         }
         db.close()
         logger.info("Close the DB")
         Thread.sleep(1000)
         logger.info("Connect to db one more time and read")
-        db = initOrientDbServer(config.connectionConfig)
+        db = iniYouTrackDb(config.connectionConfig)
         provider = ODatabaseProviderImpl(config, db)
         provider.withSession { session ->
             session.executeInTx {
@@ -103,7 +102,7 @@ class EncryptedDBTest(val number: Int) {
         db.close()
         Thread.sleep(1000)
         logger.info("Connect to db one more time without encryption")
-        db = initOrientDbServer(config.connectionConfig)
+        db = iniYouTrackDb(config.connectionConfig)
         try {
             ODatabaseProviderImpl(noEncryptionConfig, db).apply {
                 withSession { session ->
@@ -114,7 +113,7 @@ class EncryptedDBTest(val number: Int) {
                 }
                 Assert.fail("Should not open")
             }
-        } catch (_: OStorageException) {
+        } catch (_: StorageException) {
             logger.info("As expected DB failed to initialize without key")
         } catch (e: AssertionError) {
             logger.info("As expected DB failed to initialize without key")
@@ -128,11 +127,11 @@ class EncryptedDBTest(val number: Int) {
     fun close() {
         db.close()
         try {
-            if (!Orient.instance().isActive) {
-                Orient.instance().startup()
+            if (!YouTrackDBEnginesManager.instance().isActive) {
+                YouTrackDBEnginesManager.instance().startup()
             }
         } catch (_: Throwable) {
-            logger.error("CANNOT REINIT OXIGENDB")
+            logger.error("CANNOT REINIT YouTrackDB")
         }
     }
 }
