@@ -15,11 +15,11 @@
  */
 package jetbrains.exodus.entitystore.orientdb
 
-import com.orientechnologies.orient.core.metadata.schema.OClass
-import com.orientechnologies.orient.core.metadata.sequence.OSequence
-import com.orientechnologies.orient.core.record.ORecord
-import com.orientechnologies.orient.core.record.OVertex
-import com.orientechnologies.orient.core.sql.executor.OResultSet
+import com.jetbrains.youtrack.db.api.query.ResultSet
+import com.jetbrains.youtrack.db.api.record.DBRecord
+import com.jetbrains.youtrack.db.api.record.Vertex
+import com.jetbrains.youtrack.db.api.schema.SchemaClass
+import com.jetbrains.youtrack.db.internal.core.metadata.sequence.DBSequence
 import jetbrains.exodus.entitystore.PersistentEntityId
 import jetbrains.exodus.entitystore.StoreTransaction
 
@@ -40,17 +40,17 @@ interface OStoreTransaction : StoreTransaction {
 
 
     fun <T> getRecord(id: OEntityId): T
-        where T: ORecord
+            where T : DBRecord
 
     fun newEntity(entityType: String, localEntityId: Long): OVertexEntity
 
-    fun generateEntityId(entityType: String, vertex: OVertex)
+    fun generateEntityId(entityType: String, vertex: Vertex)
 
-    fun bindToSession(vertex: OVertex):OVertex
+    fun bindToSession(vertex: Vertex): Vertex
 
     fun bindToSession(entity: OVertexEntity): OVertexEntity
 
-    fun query(sql: String, params: Map<String, Any>): OResultSet
+    fun query(sql: String, params: Map<String, Any>): ResultSet
 
     fun getOEntityId(entityId: PersistentEntityId): OEntityId
 
@@ -60,17 +60,21 @@ interface OStoreTransaction : StoreTransaction {
     fun getTypeId(entityType: String): Int
 
     /**
-     If the class has not been found, will throw EntityRemovedInDatabaseException with invalid type id
+    If the class has not been found, will throw EntityRemovedInDatabaseException with invalid type id
      */
     fun getType(entityTypeId: Int): String
 
-    fun getOSequence(sequenceName: String): OSequence
+    fun getOSequence(sequenceName: String): DBSequence
 
     fun updateOSequence(sequenceName: String, currentValue: Long)
 
     fun renameOClass(oldName: String, newName: String)
 
-    fun getOrCreateEdgeClass(linkName: String, outClassName: String, inClassName: String): OClass
+    fun getOrCreateEdgeClass(
+        linkName: String,
+        outClassName: String,
+        inClassName: String
+    ): SchemaClass
 
-    fun bindResultSet(resultSet: OResultSet)
+    fun bindResultSet(resultSet: ResultSet)
 }

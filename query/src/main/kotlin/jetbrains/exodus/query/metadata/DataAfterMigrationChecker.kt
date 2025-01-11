@@ -288,4 +288,5 @@ private val oEntityStoreExtraEntityTypes = setOf(
     "OSequence",
     "OSecurityPolicy",
     "OUser",
+    "O"
 )

@@ -17,9 +17,9 @@
 
 package jetbrains.exodus.query.metadata
 
-import com.orientechnologies.orient.core.record.OVertex
-import com.orientechnologies.orient.core.record.impl.ORecordBytes
-import com.orientechnologies.orient.core.record.impl.OVertexDocument
+import com.jetbrains.youtrack.db.api.record.Vertex
+import com.jetbrains.youtrack.db.internal.core.db.DatabaseSessionInternal
+import com.jetbrains.youtrack.db.internal.core.record.impl.RecordBytes
 import jetbrains.exodus.bindings.ComparableSet
 import jetbrains.exodus.bindings.StringBinding
 import jetbrains.exodus.entitystore.PersistentEntityStore
@@ -31,7 +31,7 @@ import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.localEntity
 import jetbrains.exodus.entitystore.orientdb.createVertexClassWithClassId
 import jetbrains.exodus.entitystore.orientdb.requireClassId
 import jetbrains.exodus.entitystore.orientdb.requireLocalEntityId
-import jetbrains.exodus.entitystore.orientdb.testutil.InMemoryOrientDB
+import jetbrains.exodus.entitystore.orientdb.testutil.InMemoryYouTrackDB
 import jetbrains.exodus.util.ByteArraySizedInputStream
 import jetbrains.exodus.util.LightOutputStream
 import jetbrains.exodus.util.UTFUtil
@@ -48,7 +48,8 @@ class MigrateDataTest {
 
     @Rule
     @JvmField
-    val orientDb = InMemoryOrientDB(initializeIssueSchema = false, autoInitializeSchemaBuddy = false)
+    val youTrackDB =
+        InMemoryYouTrackDB(initializeIssueSchema = false, autoInitializeSchemaBuddy = false)
 
     @Rule
     @JvmField
@@ -68,14 +69,16 @@ class MigrateDataTest {
                 val strNormal = bytes.toString(Charsets.UTF_8)
                 val hexXodusStyle = bytesXodusStyle.toHexString()
                 val hex = bytes.toHexString()
-                println("""
+                println(
+                    """
                     $i problematic string
                     original: '$str'
                     normal  : '$strNormal'
                     xStyle  : '$strXodusStyle'
                     bytes   : '$hex'
                     xBytes  : '$hexXodusStyle'
-                """.trimIndent())
+                """.trimIndent()
+                )
                 throw Exception()
             }
         }
@@ -83,7 +86,7 @@ class MigrateDataTest {
 
     @Test
     fun `migrate string blobs`() {
-        orientDb.withSession { session ->
+        youTrackDB.withSession { session ->
             session.createVertexClassWithClassId("type1")
         }
 
@@ -105,7 +108,7 @@ class MigrateDataTest {
         val oId = xodus.withTx { xTx ->
             val xE = xTx.getEntity(xId)
             val xBlob = xE.getBlob("blob1")!!
-            orientDb.withStoreTx { oTx ->
+            youTrackDB.withStoreTx { oTx ->
                 val oE = oTx.newEntity("type1")
                 oE.setBlob("blob1", xBlob)
                 oE.id
@@ -115,7 +118,7 @@ class MigrateDataTest {
         xodus.withTx { xTx ->
             val xE = xTx.getEntity(xId)
             val xBytes = xE.getBlob("blob1")!!.readAllBytes()
-            orientDb.withStoreTx { tx ->
+            youTrackDB.withStoreTx { tx ->
                 val oE = tx.getEntity(oId)
                 val oBytes = oE.getBlob("blob1")!!.readAllBytes()
                 assertContentEquals(xBytes, oBytes)
@@ -135,7 +138,7 @@ class MigrateDataTest {
      */
     @Test
     fun `orient add extra bytes to blobs once in a while`() {
-        orientDb.withSession { session ->
+        youTrackDB.withSession { session ->
             session.createVertexClass("turbo")
         }
 
@@ -145,18 +148,18 @@ class MigrateDataTest {
             val message = StringBuilder()
             message.append("given $size bytes")
 
-            val id = orientDb.withTxSession { session ->
+            val id = youTrackDB.withTxSession { session ->
                 val e1 = session.newVertex("turbo")
-                val blob = ORecordBytes()
+                val blob = RecordBytes()
                 // this thing reads more bytes than necessary
                 val readBytes = blob.fromInputStream(ByteArrayInputStream(bytes))
                 message.append(", fromInputStream() read $readBytes bytes")
                 e1.setProperty("blob1", blob)
-                e1.save<OVertex>()
+                e1.save()
                 e1.identity
             }
 
-            orientDb.withTxSession { session ->
+            youTrackDB.withTxSession { session ->
                 val e1 = session.loadVertex(id)
                 val blob = e1.getBlobProperty("blob1")
                 val gotBytes = blob!!.toStream()
@@ -181,11 +184,14 @@ class MigrateDataTest {
     fun `broken strings from Xodus`() {
         // it is how the string is stored in Classic Xodus on the disk
         // The first byte is the type identifier (82), the last byte is the end of string (00)
-        val rawBytesGottenFromAProdXodus = "82e197b0cf83c4a7e2b1a2ceb1c59fc4a7ceb96d20e1b9a8c4a7ceb1e1b8adeda080c4a700".hexToByteArray()
+        val rawBytesGottenFromAProdXodus =
+            "82e197b0cf83c4a7e2b1a2ceb1c59fc4a7ceb96d20e1b9a8c4a7ceb1e1b8adeda080c4a700".hexToByteArray()
         // drop the type identifier for the Xodus decoder
-        val originalBytesForXodus = rawBytesGottenFromAProdXodus.sliceArray(1 until rawBytesGottenFromAProdXodus.size)
+        val originalBytesForXodus =
+            rawBytesGottenFromAProdXodus.sliceArray(1 until rawBytesGottenFromAProdXodus.size)
         // drop the type identifier and the end of string symbol for "normal" decoders
-        val originalBytes = rawBytesGottenFromAProdXodus.sliceArray(1 until rawBytesGottenFromAProdXodus.size - 1)
+        val originalBytes =
+            rawBytesGottenFromAProdXodus.sliceArray(1 until rawBytesGottenFromAProdXodus.size - 1)
 
         // Xodus does not parse a string with the type identifier
         assertFailsWith<IllegalArgumentException> {
@@ -200,7 +206,17 @@ class MigrateDataTest {
         val originalStrXodusPropStyle = originalBytesForXodus.toStringXodusPropertyStyle()
 
         val charsets = with(Charsets) {
-            listOf(US_ASCII, ISO_8859_1, UTF_16, UTF_32, UTF_8, UTF_16BE, UTF_16LE, UTF_32BE, UTF_32LE)
+            listOf(
+                US_ASCII,
+                ISO_8859_1,
+                UTF_16,
+                UTF_32,
+                UTF_8,
+                UTF_16BE,
+                UTF_16LE,
+                UTF_32BE,
+                UTF_32LE
+            )
         }
         // none of the charsets can encode the string to get original bytes
         for (charset in charsets) {
@@ -217,17 +233,21 @@ class MigrateDataTest {
         }
 
         // the original Xodus-property-style string is malformed from the UTF-8 point of view
-        assertFailsWith<MalformedInputException> { originalStrXodusPropStyle.encodeToByteArray(throwOnInvalidSequence = true) }
+        assertFailsWith<MalformedInputException> {
+            originalStrXodusPropStyle.encodeToByteArray(
+                throwOnInvalidSequence = true
+            )
+        }
 
         // let's migrate such a string from Classic Xodus to Orient and see what happens
         val entities = pileOfEntities(
             eProps("type1", 1, "prop1" to originalStrXodusPropStyle)
         )
         xodus.withTx { tx -> tx.createEntities(entities) }
-        migrateAndCheckData(xodus.store, orientDb)
+        migrateAndCheckData(xodus.store, youTrackDB)
 
         xodus.withTx { xTx ->
-            orientDb.withStoreTx { oTx ->
+            youTrackDB.withStoreTx { oTx ->
                 val xStr = xTx.getAll("type1").first().getProperty("prop1") as String
                 val oStr = oTx.getAll("type1").first().getProperty("prop1") as String
 
@@ -237,15 +257,18 @@ class MigrateDataTest {
                 assertNotEquals(xStr, oStr)
 
                 // fix the string from Xodus
-                val fixedXStr = xStr.encodeToByteArray(throwOnInvalidSequence = false).decodeToString(throwOnInvalidSequence = true)
+                val fixedXStr = xStr.encodeToByteArray(throwOnInvalidSequence = false)
+                    .decodeToString(throwOnInvalidSequence = true)
 
                 // now, fixed Xodus string equals to the Orient string
                 assertEquals(fixedXStr, oStr)
-                println("""
+                println(
+                    """
                     xStr:      '$xStr'
                     fixedXStr: '$fixedXStr'
                     oStr:      '$oStr'
-                """.trimIndent())
+                """.trimIndent()
+                )
             }
         }
     }
@@ -266,9 +289,9 @@ class MigrateDataTest {
             tx.createEntities(entities)
         }
 
-        migrateAndCheckData(xodus.store, orientDb)
+        migrateAndCheckData(xodus.store, youTrackDB)
 
-        orientDb.store.executeInTransaction { tx ->
+        youTrackDB.store.executeInTransaction { tx ->
             tx.assertOrientContainsAllTheEntities(entities)
         }
     }
@@ -276,16 +299,20 @@ class MigrateDataTest {
     @Test
     fun `copy sets`() {
         val entities = pileOfEntities(
-            eSets("type1", 1, "set1" to setOf(1, 2 ,3), "set2" to setOf(300, 100)),
-            eSets("type1", 2, "set1" to setOf("ok string", "not a bad string", getBrokenXodusString())),
+            eSets("type1", 1, "set1" to setOf(1, 2, 3), "set2" to setOf(300, 100)),
+            eSets(
+                "type1",
+                2,
+                "set1" to setOf("ok string", "not a bad string", getBrokenXodusString())
+            ),
         )
         xodus.withTx { tx ->
             tx.createEntities(entities)
         }
 
-        migrateAndCheckData(xodus.store, orientDb)
+        migrateAndCheckData(xodus.store, youTrackDB)
 
-        orientDb.store.executeInTransaction { tx ->
+        youTrackDB.store.executeInTransaction { tx ->
             tx.assertOrientContainsAllTheEntities(entities)
         }
     }
@@ -296,13 +323,13 @@ class MigrateDataTest {
             tx.newEntity("type1").id
         }
 
-        migrateAndCheckData(xodus.store, orientDb)
-        orientDb.withSession {
-            orientDb.schemaBuddy.initialize(it)
+        migrateAndCheckData(xodus.store, youTrackDB)
+        youTrackDB.withSession {
+            youTrackDB.schemaBuddy.initialize(it)
         }
 
-        orientDb.store.executeInTransaction {
-            orientDb.store.getEntity(entityId)
+        youTrackDB.store.executeInTransaction {
+            youTrackDB.store.getEntity(entityId)
         }
     }
 
@@ -324,9 +351,9 @@ class MigrateDataTest {
             tx.createEntities(entities)
         }
 
-        migrateAndCheckData(xodus.store, orientDb)
+        migrateAndCheckData(xodus.store, youTrackDB)
 
-        orientDb.store.executeInTransaction { tx ->
+        youTrackDB.store.executeInTransaction { tx ->
             tx.assertOrientContainsAllTheEntities(entities)
         }
     }
@@ -335,8 +362,10 @@ class MigrateDataTest {
     fun `copy links`() {
         val entities = pileOfEntities(
             eLinks(
-                "type1", 1,
-                Link("link1", "type1", 2), Link("link1", "type1", 3), // several links with the same name
+                "type1",
+                1,
+                Link("link1", "type1", 2),
+                Link("link1", "type1", 3), // several links with the same name
                 Link("link2", "type2", 4)
             ),
             eLinks(
@@ -364,9 +393,9 @@ class MigrateDataTest {
             tx.createEntities(entities)
         }
 
-        migrateAndCheckData(xodus.store, orientDb)
+        migrateAndCheckData(xodus.store, youTrackDB)
 
-        orientDb.store.executeInTransaction { tx ->
+        youTrackDB.store.executeInTransaction { tx ->
             tx.assertOrientContainsAllTheEntities(entities)
         }
     }
@@ -385,9 +414,9 @@ class MigrateDataTest {
             tx.createEntities(entities)
         }
 
-        migrateAndCheckData(xodus.store, orientDb)
+        migrateAndCheckData(xodus.store, youTrackDB)
 
-        orientDb.store.executeInTransaction { tx ->
+        youTrackDB.store.executeInTransaction { tx ->
             tx.assertOrientContainsAllTheEntities(entities)
         }
     }
@@ -407,11 +436,11 @@ class MigrateDataTest {
             tx.createEntities(entities)
         }
 
-        migrateAndCheckData(xodus.store, orientDb)
+        migrateAndCheckData(xodus.store, youTrackDB)
 
         var maxClassId = 0
         xodus.withTx { xTx ->
-            orientDb.withSession { oSession ->
+            youTrackDB.withSession { oSession ->
                 for (type in xTx.entityTypes) {
                     val typeId = xodus.store.getEntityTypeId(type)
                     Assert.assertEquals(typeId, oSession.getClass(type).requireClassId())
@@ -419,7 +448,10 @@ class MigrateDataTest {
                 }
                 assertTrue(maxClassId > 0)
 
-                val nextGeneratedClassId = oSession.metadata.sequenceLibrary.getSequence(CLASS_ID_SEQUENCE_NAME).next()
+                val nextGeneratedClassId =
+                    (oSession as DatabaseSessionInternal).metadata.sequenceLibrary.getSequence(
+                        CLASS_ID_SEQUENCE_NAME
+                    ).next()
                 assertEquals(maxClassId.toLong() + 1, nextGeneratedClassId)
             }
         }
@@ -440,10 +472,10 @@ class MigrateDataTest {
             tx.createEntities(entities)
         }
 
-        migrateAndCheckData(xodus.store, orientDb)
+        migrateAndCheckData(xodus.store, youTrackDB)
 
         xodus.withTx { xTx ->
-            orientDb.withSession { oSession ->
+            youTrackDB.withSession { oSession ->
                 for (type in xTx.entityTypes) {
                     val xTestIdToLocalEntityId = HashMap<Int, Long>()
                     val oTestIdToLocalEntityId = HashMap<Int, Long>()
@@ -455,7 +487,7 @@ class MigrateDataTest {
                         maxLocalEntityId = maxOf(maxLocalEntityId, localEntityId)
                     }
 
-                    for (oEntity in oSession.query("select from $type").vertexStream().map { it as OVertexDocument }) {
+                    for (oEntity in oSession.query("select from $type").vertexStream()) {
                         val testId = oEntity.getTestId()
                         val localEntityId = oEntity.requireLocalEntityId()
                         oTestIdToLocalEntityId[testId] = localEntityId
@@ -463,7 +495,10 @@ class MigrateDataTest {
 
                     assertTrue(maxLocalEntityId > 0)
                     val nextGeneratedLocalEntityId =
-                        oSession.metadata.sequenceLibrary.getSequence(localEntityIdSequenceName(type)).next()
+                        (oSession as DatabaseSessionInternal).metadata.sequenceLibrary.getSequence(
+                            localEntityIdSequenceName(type)
+                        )
+                            .next()
                     assertEquals(maxLocalEntityId + 1, nextGeneratedLocalEntityId)
 
                     assertEquals(xTestIdToLocalEntityId, oTestIdToLocalEntityId)
@@ -472,7 +507,7 @@ class MigrateDataTest {
         }
     }
 
-    private fun migrateAndCheckData(xodus: PersistentEntityStore, orient: InMemoryOrientDB) {
+    private fun migrateAndCheckData(xodus: PersistentEntityStore, orient: InMemoryYouTrackDB) {
         val stats = migrateDataFromXodusToOrientDb(
             xodus,
             orient.store,
@@ -528,7 +563,7 @@ internal fun OVertexEntity.assertEquals(expected: Entity) {
 
 internal fun OVertexEntity.getTestId(): Int = getProperty("id") as Int
 
-internal fun OVertexDocument.getTestId(): Int = getProperty<Int>("id") as Int
+internal fun Vertex.getTestId(): Int = getProperty<Int>("id") as Int
 
 internal fun StoreTransaction.createEntities(pile: PileOfEntities) {
     for (type in pile.types) {
@@ -564,7 +599,8 @@ internal fun StoreTransaction.createEntity(entity: Entity) {
 internal fun StoreTransaction.createLinks(entity: Entity) {
     val xEntity = this.getAll(entity.type).first { it.getProperty("id") == entity.id }
     for (link in entity.links) {
-        val targetXEntity = this.getAll(link.targetType).first { it.getProperty("id") == link.targetId }
+        val targetXEntity =
+            this.getAll(link.targetType).first { it.getProperty("id") == link.targetId }
         xEntity.addLink(link.name, targetXEntity)
     }
 }
@@ -611,7 +647,11 @@ internal fun eProps(type: String, id: Int, vararg props: Pair<String, Comparable
     return Entity(type, id, props.toMap())
 }
 
-internal fun <T> eSets(type: String, id: Int, vararg sets: Pair<String, Set<T>>): Entity where T: Comparable<T> {
+internal fun <T> eSets(
+    type: String,
+    id: Int,
+    vararg sets: Pair<String, Set<T>>
+): Entity where T : Comparable<T> {
     val mapOfSets = sets.associate { (name, set) ->
         Pair(name, ComparableSet<T>(set))
     }
@@ -650,8 +690,10 @@ private fun ByteArray.toStringXodusPropertyStyle(addEOF: Boolean = false): Strin
 }
 
 private fun getBrokenXodusString(): String {
-    val rawBytesGottenFromAProdXodus = "82e197b0cf83c4a7e2b1a2ceb1c59fc4a7ceb96d20e1b9a8c4a7ceb1e1b8adeda080c4a700".hexToByteArray()
-    val originalBytesForXodus = rawBytesGottenFromAProdXodus.sliceArray(1 until rawBytesGottenFromAProdXodus.size)
+    val rawBytesGottenFromAProdXodus =
+        "82e197b0cf83c4a7e2b1a2ceb1c59fc4a7ceb96d20e1b9a8c4a7ceb1e1b8adeda080c4a700".hexToByteArray()
+    val originalBytesForXodus =
+        rawBytesGottenFromAProdXodus.sliceArray(1 until rawBytesGottenFromAProdXodus.size)
     return originalBytesForXodus.toStringXodusPropertyStyle()
 }
 

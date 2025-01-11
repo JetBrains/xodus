@@ -15,7 +15,8 @@
  */
 package jetbrains.exodus.query.metadata
 
-import com.orientechnologies.orient.core.metadata.schema.OType
+
+import com.jetbrains.youtrack.db.api.schema.PropertyType
 import jetbrains.exodus.bindings.ComparableSet
 import jetbrains.exodus.entitystore.EntityId
 import jetbrains.exodus.entitystore.EntityRemovedInDatabaseException
@@ -42,7 +43,13 @@ fun migrateDataFromXodusToOrientDb(
     * */
     entitiesPerTransaction: Int = 10
 ): XodusToOrientMigrationStats {
-    val migrator = XodusToOrientDataMigrator(xodus, orient, orientProvider, schemaBuddy, entitiesPerTransaction)
+    val migrator = XodusToOrientDataMigrator(
+        xodus,
+        orient,
+        orientProvider,
+        schemaBuddy,
+        entitiesPerTransaction
+    )
     return migrator.migrate()
 }
 
@@ -167,19 +174,24 @@ internal class XodusToOrientDataMigrator(
                     val oClass = oSession.getClass(type) ?: oSession.createVertexClass(type)
                     val classId = xodus.getEntityTypeId(type)
 
-                    oClass.setCustom(CLASS_ID_CUSTOM_PROPERTY_NAME, classId.toString())
+                    oClass.setCustom(oSession, CLASS_ID_CUSTOM_PROPERTY_NAME, classId.toString())
                     maxClassId = maxOf(maxClassId, classId)
 
                     // create localEntityId property if absent
                     if (oClass.getProperty(LOCAL_ENTITY_ID_PROPERTY_NAME) == null) {
-                        oClass.createProperty(LOCAL_ENTITY_ID_PROPERTY_NAME, OType.LONG)
+                        oClass.createProperty(oSession, LOCAL_ENTITY_ID_PROPERTY_NAME,PropertyType.LONG)
                     }
                 }
                 entityClassesCount = entityTypes.size
             }
 
             // create a sequence to generate classIds
-            check(schemaBuddy.getSequenceOrNull(oSession, CLASS_ID_SEQUENCE_NAME) == null) { "$CLASS_ID_SEQUENCE_NAME is already created. It means that some data migration has happened to the target database before. Such a scenario is not supported." }
+            check(
+                schemaBuddy.getSequenceOrNull(
+                    oSession,
+                    CLASS_ID_SEQUENCE_NAME
+                ) == null
+            ) { "$CLASS_ID_SEQUENCE_NAME is already created. It means that some data migration has happened to the target database before. Such a scenario is not supported." }
             oSession.createClassIdSequenceIfAbsent(maxClassId.toLong())
 
             log.info { "All the types have been copied" }
@@ -189,7 +201,8 @@ internal class XodusToOrientDataMigrator(
     private fun copyPropertiesAndBlobs(): Set<String> {
         log.info { "2. Copy entities, their simple properties and blobs" }
         val edgeClassesToCreate = HashSet<String>()
-        val sequencesToCreate = mutableListOf<Pair<String, Long>>() // sequenceName, largestExistingId
+        val sequencesToCreate =
+            mutableListOf<Pair<String, Long>>() // sequenceName, largestExistingId
         xodus.withReadonlyTx { xTx ->
             orient.withCountingTx(entitiesPerTransaction) { countingTx ->
                 val entityTypes = xTx.entityTypes.toSet()
@@ -308,7 +321,8 @@ internal class XodusToOrientDataMigrator(
 
                                     try {
                                         xTx.getEntity(xTargetEntity.id)
-                                        val oTargetId = xEntityIdToOEntityId.getValue(xTargetEntity.id)
+                                        val oTargetId =
+                                            xEntityIdToOEntityId.getValue(xTargetEntity.id)
                                         oEntity.addLink(linkName, oTargetId)
                                         copiedLinks.add(xTargetEntity.id)
                                         linksCopied++

@@ -15,8 +15,8 @@
  */
 package jetbrains.exodus.entitystore.orientdb
 
-import com.orientechnologies.orient.core.db.ODatabaseRecordThreadLocal
-import com.orientechnologies.orient.core.db.ODatabaseSession
+import com.jetbrains.youtrack.db.api.DatabaseSession
+import com.jetbrains.youtrack.db.internal.core.db.DatabaseRecordThreadLocal
 import jetbrains.exodus.backup.BackupStrategy
 import jetbrains.exodus.bindings.ComparableBinding
 import jetbrains.exodus.entitystore.*
@@ -74,22 +74,22 @@ class OPersistentEntityStore(
         return currentTx
     }
 
-    private fun onTransactionFinished(session: ODatabaseSession, tx: OStoreTransaction) {
+    private fun onTransactionFinished(session: DatabaseSession, tx: OStoreTransaction) {
         check(currentTransaction.get() == tx) { "The current transaction at EntityStore is different for one that just has finished. It must not happen." }
         check(!session.isClosed) { "The session should not be closed at this point." }
         currentTransaction.remove()
         session.close()
     }
 
-    private fun onTransactionDeactivated(session: ODatabaseSession, tx: OStoreTransaction) {
+    private fun onTransactionDeactivated(session: DatabaseSession, tx: OStoreTransaction) {
         check(currentTransaction.get() == tx) { "Impossible to deactivate the transaction. The transaction on the current thread is different from one that wants to suspend. It must not ever happen." }
         check(!tx.isFinished) { "Cannot deactivate a finished transaction" }
         check(!session.isClosed) { "Cannot deactivate a closed session" }
         currentTransaction.remove()
-        ODatabaseRecordThreadLocal.instance().remove()
+        DatabaseRecordThreadLocal.instance().remove()
     }
 
-    private fun onTransactionActivated(session: ODatabaseSession, tx: OStoreTransaction) {
+    private fun onTransactionActivated(session: DatabaseSession, tx: OStoreTransaction) {
         check(currentTransaction.get() == null) { "Impossible to activate the transaction. There is already an active transaction on the current thread." }
         check(!hasActiveSession()) { "There is an active session on the current thread" }
         check(!tx.isFinished) { "Cannot activate a finished transaction" }

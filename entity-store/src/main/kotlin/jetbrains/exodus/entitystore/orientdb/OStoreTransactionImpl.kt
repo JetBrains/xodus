@@ -15,17 +15,17 @@
  */
 package jetbrains.exodus.entitystore.orientdb
 
-import com.orientechnologies.common.concur.lock.OModificationOperationProhibitedException
-import com.orientechnologies.orient.core.db.ODatabaseSession
-import com.orientechnologies.orient.core.db.ODatabaseSessionInternal
-import com.orientechnologies.orient.core.exception.ORecordNotFoundException
-import com.orientechnologies.orient.core.id.OEmptyRecordId
-import com.orientechnologies.orient.core.metadata.schema.OClass
-import com.orientechnologies.orient.core.metadata.sequence.OSequence
-import com.orientechnologies.orient.core.record.ORecord
-import com.orientechnologies.orient.core.record.OVertex
-import com.orientechnologies.orient.core.sql.executor.OResultSet
-import com.orientechnologies.orient.core.tx.OTransaction.TXSTATUS
+import com.jetbrains.youtrack.db.api.DatabaseSession
+import com.jetbrains.youtrack.db.api.exception.ModificationOperationProhibitedException
+import com.jetbrains.youtrack.db.api.exception.RecordNotFoundException
+import com.jetbrains.youtrack.db.api.query.ResultSet
+import com.jetbrains.youtrack.db.api.record.DBRecord
+import com.jetbrains.youtrack.db.api.record.Vertex
+import com.jetbrains.youtrack.db.api.schema.SchemaClass
+import com.jetbrains.youtrack.db.internal.core.db.DatabaseSessionInternal
+import com.jetbrains.youtrack.db.internal.core.id.ImmutableRecordId
+import com.jetbrains.youtrack.db.internal.core.metadata.sequence.DBSequence
+import com.jetbrains.youtrack.db.internal.core.tx.FrontendTransaction
 import jetbrains.exodus.entitystore.*
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.LOCAL_ENTITY_ID_PROPERTY_NAME
 import jetbrains.exodus.entitystore.orientdb.iterate.OEntityOfTypeIterable
@@ -34,10 +34,10 @@ import jetbrains.exodus.entitystore.orientdb.iterate.property.*
 import jetbrains.exodus.entitystore.orientdb.query.OQueryCancellingPolicy
 import jetbrains.exodus.env.ReadonlyTransactionException
 
-internal typealias TransactionEventHandler = (ODatabaseSession, OStoreTransaction) -> Unit
+internal typealias TransactionEventHandler = (DatabaseSession, OStoreTransaction) -> Unit
 
 class OStoreTransactionImpl(
-    private val session: ODatabaseSession,
+    val session: DatabaseSession,
     private val store: OPersistentEntityStore,
     private val schemaBuddy: OSchemaBuddy,
     private val onFinished: TransactionEventHandler,
@@ -56,27 +56,27 @@ class OStoreTransactionImpl(
      */
     private val transactionIdImpl by lazy {
         requireActiveTransaction()
-        (session as ODatabaseSessionInternal).transaction.id.toLong()
+        (session as DatabaseSessionInternal).transaction.id
     }
 
-    private val resultSets: MutableCollection<OResultSet> = arrayListOf()
+    private val resultSets: MutableCollection<ResultSet> = arrayListOf()
 
     override fun getTransactionId(): Long {
         return transactionIdImpl
     }
 
     override fun <T> getRecord(id: OEntityId): T
-            where T : ORecord {
+            where T : DBRecord {
         requireActiveTransaction()
         try {
             return session.load(id.asOId())
-        } catch (e: ORecordNotFoundException) {
+        } catch (e: RecordNotFoundException) {
             throw EntityRemovedInDatabaseException(id.getTypeName(), id)
         }
 
     }
 
-    override fun query(sql: String, params: Map<String, Any>): OResultSet {
+    override fun query(sql: String, params: Map<String, Any>): ResultSet {
         requireActiveTransaction()
         return session.query(sql, params)
     }
@@ -86,7 +86,7 @@ class OStoreTransactionImpl(
     }
 
     override fun isIdempotent(): Boolean {
-        return readOnly || (session as ODatabaseSessionInternal).transaction.recordOperations.none()
+        return readOnly || (session as DatabaseSessionInternal).transaction.recordOperations.none()
     }
 
     override fun isReadonly(): Boolean {
@@ -94,7 +94,7 @@ class OStoreTransactionImpl(
     }
 
     override fun isFinished(): Boolean {
-        return session.status == ODatabaseSession.STATUS.CLOSED
+        return session.status == DatabaseSession.STATUS.CLOSED
     }
 
     override fun isCurrent(): Boolean {
@@ -106,9 +106,15 @@ class OStoreTransactionImpl(
     }
 
     override fun requireActiveTransaction() {
-        check(session.status == ODatabaseSession.STATUS.OPEN) { "The transaction is finished, the internal session state: ${session.status}" }
-        check(session.isActiveOnCurrentThread) { "The active session is no the session the transaction was started in" }
-        check((session as ODatabaseSessionInternal).transaction.status == TXSTATUS.BEGUN) { "The current OTransaction status is ${session.transaction.status}, but the status ${TXSTATUS.BEGUN} was expected." }
+        check(session.status == DatabaseSession.STATUS.OPEN) {
+            "The transaction is finished, the internal session state: ${session.status}"
+        }
+        check(session.isActiveOnCurrentThread) {
+            "The active session is no the session the transaction was started in"
+        }
+        check((session as DatabaseSessionInternal).transaction.status == FrontendTransaction.TXSTATUS.BEGUN) {
+            "The current OTransaction status is ${session.transaction.status}, but the status ${FrontendTransaction.TXSTATUS.BEGUN} was expected."
+        }
     }
 
     override fun requireActiveWritableTransaction() {
@@ -122,13 +128,13 @@ class OStoreTransactionImpl(
     }
 
     override fun activateOnCurrentThread() {
-        check(session.status == ODatabaseSession.STATUS.OPEN) { "The transaction is finished, the internal session state: ${session.status}" }
+        check(session.status == DatabaseSession.STATUS.OPEN) { "The transaction is finished, the internal session state: ${session.status}" }
         check(!session.isActiveOnCurrentThread) { "The transaction is already active on the current thread" }
         onActivated(session, this)
     }
 
     fun begin() {
-        check(session.status == ODatabaseSession.STATUS.OPEN) { "The session status is ${session.status}. But ${ODatabaseSession.STATUS.OPEN} is required." }
+        check(session.status == DatabaseSession.STATUS.OPEN) { "The session status is ${session.status}. But ${DatabaseSession.STATUS.OPEN} is required." }
         check(session.isActiveOnCurrentThread) { "The session is not active on the current thread" }
         check(session.activeTxCount() == 0) { "The session must not have a transaction" }
         try {
@@ -156,7 +162,7 @@ class OStoreTransactionImpl(
         try {
             session.commit()
             session.begin()
-        } catch (_: OModificationOperationProhibitedException) {
+        } catch (_: ModificationOperationProhibitedException) {
             throw ReadonlyTransactionException()
         } finally {
             cleanUpTxIfNeeded()
@@ -174,7 +180,7 @@ class OStoreTransactionImpl(
         }
     }
 
-    override fun bindToSession(vertex: OVertex): OVertex {
+    override fun bindToSession(vertex: Vertex): Vertex {
         requireActiveTransaction()
 
         return session.bindToSession(vertex)
@@ -201,8 +207,8 @@ class OStoreTransactionImpl(
     }
 
     private fun cleanUpTxIfNeeded() {
-        if (session.status == ODatabaseSession.STATUS.OPEN && session.activeTxCount() == 0) {
-            resultSets.forEach(OResultSet::close)
+        if (session.status == DatabaseSession.STATUS.OPEN && session.activeTxCount() == 0) {
+            resultSets.forEach(ResultSet::close)
             resultSets.clear()
             onFinished(session, this)
         }
@@ -217,7 +223,7 @@ class OStoreTransactionImpl(
         schemaBuddy.requireTypeExists(session, entityType)
         val vertex = session.newVertex(entityType)
         session.setLocalEntityId(entityType, vertex)
-        vertex.save<OVertex>()
+        vertex.save()
         return OVertexEntity(vertex, store)
     }
 
@@ -226,13 +232,13 @@ class OStoreTransactionImpl(
         schemaBuddy.requireTypeExists(session, entityType)
         val vertex = session.newVertex(entityType)
         vertex.setProperty(LOCAL_ENTITY_ID_PROPERTY_NAME, localEntityId)
-        vertex.save<OVertex>()
+        vertex.save()
         return OVertexEntity(vertex, store)
     }
 
-    override fun generateEntityId(entityType: String, vertex: OVertex) {
+    override fun generateEntityId(entityType: String, vertex: Vertex) {
         session.setLocalEntityId(entityType, vertex)
-        vertex.save<OVertex>()
+        vertex.save()
     }
 
     override fun saveEntity(entity: Entity) {
@@ -248,16 +254,16 @@ class OStoreTransactionImpl(
             throw EntityRemovedInDatabaseException(oId.getTypeName(), id)
         }
         try {
-            val vertex: OVertex = session.load(oId.asOId())
+            val vertex: Vertex = session.load(oId.asOId())
             return OVertexEntity(vertex, store)
-        } catch (e: ORecordNotFoundException) {
+        } catch (e: RecordNotFoundException) {
             throw EntityRemovedInDatabaseException(oId.getTypeName(), id)
         }
     }
 
     override fun getEntityTypes(): MutableList<String> {
         requireActiveTransaction()
-        return session.metadata.schema.classes.map { it.name }.toMutableList()
+        return session.schema.classes.map { it.name }.toMutableList()
     }
 
     override fun getAll(entityType: String): EntityIterable {
@@ -447,7 +453,10 @@ class OStoreTransactionImpl(
         val legacyId = PersistentEntityId.toEntityId(representation)
         val oEntityId = store.requireOEntityId(legacyId)
         return if (oEntityId == ORIDEntityId.EMPTY_ID) {
-            ORIDEntityId(legacyId.typeId, legacyId.localId, OEmptyRecordId(), null)
+            ORIDEntityId(
+                legacyId.typeId, legacyId.localId,
+                ImmutableRecordId.EMPTY_RECORD_ID, null
+            )
         } else {
             oEntityId
         }
@@ -464,7 +473,7 @@ class OStoreTransactionImpl(
         return OSequenceImpl(sequenceName, store)
     }
 
-    override fun getOSequence(sequenceName: String): OSequence {
+    override fun getOSequence(sequenceName: String): DBSequence {
         requireActiveTransaction()
         return schemaBuddy.getSequence(session, sequenceName)
     }
@@ -483,7 +492,7 @@ class OStoreTransactionImpl(
         linkName: String,
         outClassName: String,
         inClassName: String
-    ): OClass {
+    ): SchemaClass {
         requireActiveTransaction()
         return schemaBuddy.getOrCreateEdgeClass(session, linkName, outClassName, inClassName)
     }
@@ -510,7 +519,7 @@ class OStoreTransactionImpl(
         return schemaBuddy.getType(session, entityTypeId)
     }
 
-    override fun bindResultSet(resultSet: OResultSet) {
+    override fun bindResultSet(resultSet: ResultSet) {
         resultSets.add(resultSet)
     }
 

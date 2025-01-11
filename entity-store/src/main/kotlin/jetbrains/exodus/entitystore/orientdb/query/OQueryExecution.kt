@@ -15,13 +15,13 @@
  */
 package jetbrains.exodus.entitystore.orientdb.query
 
-import com.orientechnologies.orient.core.sql.executor.OResultSet
+import com.jetbrains.youtrack.db.api.query.ResultSet
 import jetbrains.exodus.entitystore.orientdb.OStoreTransaction
 import mu.KLogging
 
 object OQueryExecution : KLogging() {
 
-    fun execute(query: OQuery, tx: OStoreTransaction): OResultSet {
+    fun execute(query: OQuery, tx: OStoreTransaction): ResultSet {
         val sqlQuery = tx.buildSql(query)
         val resultSet = tx.query(sqlQuery.sql, sqlQuery.params)
 

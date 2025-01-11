@@ -15,17 +15,11 @@
  */
 package jetbrains.exodus.entitystore.orientdb
 
-import com.orientechnologies.orient.core.db.ODatabaseSession
-import com.orientechnologies.orient.core.sql.executor.OResultSet
+import com.jetbrains.youtrack.db.api.query.ResultSet
 import jetbrains.exodus.entitystore.Entity
 
 
-fun OResultSet.toEntityIterator(store: OEntityStore): Iterator<Entity> {
+fun ResultSet.toEntityIterator(store: OEntityStore): Iterator<Entity> {
     return this.vertexStream().map { OVertexEntity(it, store) }.iterator()
 }
 
-fun ODatabaseSession.queryEntities(query: String, store: OEntityStore): Iterable<Entity> {
-    return Iterable {
-        query(query).toEntityIterator(store)
-    }
-}

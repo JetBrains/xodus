@@ -15,9 +15,9 @@
  */
 package jetbrains.exodus.entitystore.orientdb
 
-import com.orientechnologies.orient.core.record.OVertex
+import com.jetbrains.youtrack.db.api.record.Vertex
 import jetbrains.exodus.entitystore.PersistentEntityId
-import jetbrains.exodus.entitystore.orientdb.testutil.InMemoryOrientDB
+import jetbrains.exodus.entitystore.orientdb.testutil.InMemoryYouTrackDB
 import jetbrains.exodus.entitystore.orientdb.testutil.createIssue
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -27,40 +27,42 @@ import kotlin.test.assertFailsWith
 class ORIDEntityIdTest {
     @Rule
     @JvmField
-    val orientDb = InMemoryOrientDB()
+    val youTrackDb = InMemoryYouTrackDB()
 
     @Test
     fun `require both classId and localEntityId to create an instance`() {
-        val oClass = orientDb.provider.withSession { oSession ->
-             oSession.createVertexClass("type1")
+        val oClass = youTrackDb.provider.withSession { oSession ->
+            oSession.createVertexClass("type1")
         }
-        val vertex:OVertex = orientDb.withSession { oSession ->
-            oSession.newVertex(oClass)
+        var vertex: Vertex = youTrackDb.withTxSession { oSession ->
+            val v = oSession.newVertex(oClass)
+            v.save()
+            v
         }
-        orientDb.withSession {
+        youTrackDb.withTxSession {
             assertFailsWith<IllegalStateException> {
+                vertex = it.bindToSession(vertex)
                 ORIDEntityId.fromVertex(vertex)
             }
         }
 
-        orientDb.provider.withSession {
-            oClass.setCustom(OVertexEntity.CLASS_ID_CUSTOM_PROPERTY_NAME, 300.toString())
+        youTrackDb.provider.withSession {
+            oClass.setCustom(it, OVertexEntity.CLASS_ID_CUSTOM_PROPERTY_NAME, 300.toString())
         }
-        orientDb.withSession {
-
+        youTrackDb.withTxSession {
+            vertex = it.bindToSession(vertex)
             assertFailsWith<IllegalStateException> {
                 ORIDEntityId.fromVertex(vertex)
             }
 
             vertex.setProperty(OVertexEntity.LOCAL_ENTITY_ID_PROPERTY_NAME, 200L)
-
             ORIDEntityId.fromVertex(vertex)
         }
     }
 
     @Test
     fun `id representation is the same as for PersistentEntityId`() {
-        val id = orientDb.createIssue("trista").id
+        val id = youTrackDb.createIssue("trista").id
         val legacyId = PersistentEntityId(id.typeId, id.localId)
         val idRepresentation = id.toString()
         val legacyIdRepresentation = legacyId.toString()

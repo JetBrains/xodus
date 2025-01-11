@@ -15,19 +15,19 @@
  */
 package jetbrains.exodus.query.metadata
 
-import com.orientechnologies.orient.core.db.ODatabaseSession
-import com.orientechnologies.orient.core.metadata.schema.OClass
-import com.orientechnologies.orient.core.metadata.schema.OProperty
-import com.orientechnologies.orient.core.metadata.schema.OType
-import com.orientechnologies.orient.core.record.ODirection
-import com.orientechnologies.orient.core.record.OEdge
-import com.orientechnologies.orient.core.record.OVertex
+import com.jetbrains.youtrack.db.api.DatabaseSession
+import com.jetbrains.youtrack.db.api.record.Direction
+import com.jetbrains.youtrack.db.api.record.Edge
+import com.jetbrains.youtrack.db.api.record.Vertex
+import com.jetbrains.youtrack.db.api.schema.Property
+import com.jetbrains.youtrack.db.api.schema.SchemaClass
+import com.jetbrains.youtrack.db.internal.core.metadata.schema.SchemaClassInternal
 import jetbrains.exodus.entitystore.orientdb.*
 import org.junit.Assert.*
 
 // assertions
 
-internal fun ODatabaseSession.assertAssociationNotExist(
+internal fun DatabaseSession.assertAssociationNotExist(
     outClassName: String,
     inClassName: String,
     edgeName: String,
@@ -36,20 +36,20 @@ internal fun ODatabaseSession.assertAssociationNotExist(
     val edgeClassName = edgeName.asEdgeClass
     if (requireEdgeClass) {
         val edgeClass = requireEdgeClass(edgeClassName)
-        assertTrue(edgeClass.areIndexed(OEdge.DIRECTION_IN, OEdge.DIRECTION_OUT))
+        assertTrue(edgeClass.areIndexed(this, Edge.DIRECTION_IN, Edge.DIRECTION_OUT))
     }
 
     val inClass = getClass(inClassName)!!
     val outClass = getClass(outClassName)!!
 
-    val outPropName = OVertex.getEdgeLinkFieldName(ODirection.OUT, edgeClassName)
+    val outPropName = Vertex.getEdgeLinkFieldName(Direction.OUT, edgeClassName)
     assertNull(outClass.getProperty(outPropName))
 
-    val inPropName = OVertex.getEdgeLinkFieldName(ODirection.IN, edgeClassName)
+    val inPropName = Vertex.getEdgeLinkFieldName(Direction.IN, edgeClassName)
     assertNull(inClass.getProperty(inPropName))
 }
 
-internal fun ODatabaseSession.assertAssociationExists(
+internal fun DatabaseSession.assertAssociationExists(
     outClassName: String,
     inClassName: String,
     edgeName: String,
@@ -60,21 +60,21 @@ internal fun ODatabaseSession.assertAssociationExists(
     val inClass = getClass(inClassName)!!
     val outClass = getClass(outClassName)!!
 
-    assertTrue(edgeClass.areIndexed(OEdge.DIRECTION_IN, OEdge.DIRECTION_OUT))
+    assertTrue(edgeClass.areIndexed(this, Edge.DIRECTION_IN, Edge.DIRECTION_OUT))
 
     if (cardinality != null) {
-        val outPropName = OVertex.getEdgeLinkFieldName(ODirection.OUT, edgeClassName)
+        val outPropName = Vertex.getEdgeLinkFieldName(Direction.OUT, edgeClassName)
         val directOutProp = outClass.getProperty(outPropName)!!
-        assertEquals(OType.LINKBAG, directOutProp.type)
+        assertEquals(com.jetbrains.youtrack.db.api.schema.PropertyType.LINKBAG, directOutProp.type)
         directOutProp.assertCardinality(cardinality)
 
-        val inPropName = OVertex.getEdgeLinkFieldName(ODirection.IN, edgeClassName)
+        val inPropName = Vertex.getEdgeLinkFieldName(Direction.IN, edgeClassName)
         val directInProp = inClass.getProperty(inPropName)!!
-        assertEquals(OType.LINKBAG, directInProp.type)
+        assertEquals(com.jetbrains.youtrack.db.api.schema.PropertyType.LINKBAG, directInProp.type)
     }
 }
 
-private fun OProperty.assertCardinality(cardinality: AssociationEndCardinality) {
+private fun Property.assertCardinality(cardinality: AssociationEndCardinality) {
     when (cardinality) {
         AssociationEndCardinality._0_1 -> {
             assertTrue(!this.isMandatory)
@@ -102,24 +102,29 @@ private fun OProperty.assertCardinality(cardinality: AssociationEndCardinality) 
     }
 }
 
-internal fun ODatabaseSession.assertVertexClassExists(name: String) {
+internal fun DatabaseSession.assertVertexClassExists(name: String) {
     assertHasSuperClass(name, "V")
 }
 
-internal fun ODatabaseSession.requireEdgeClass(name: String): OClass {
+internal fun DatabaseSession.requireEdgeClass(name: String): SchemaClass {
     val edge = getClass(name)!!
     assertTrue(edge.superClassesNames.contains("E"))
     return edge
 }
 
-internal fun ODatabaseSession.assertHasSuperClass(className: String, superClassName: String) {
+internal fun DatabaseSession.assertHasSuperClass(className: String, superClassName: String) {
     assertTrue(getClass(className)!!.superClassesNames.contains(superClassName))
 }
 
-internal fun ODatabaseSession.checkIndex(className: String, unique: Boolean, vararg fieldNames: String) {
+internal fun DatabaseSession.checkIndex(
+    className: String,
+    unique: Boolean,
+    vararg fieldNames: String
+) {
     val entity = getClass(className)!!
     val indexName = indexName(className, unique, *fieldNames)
-    val index = entity.indexes.first { it.name == indexName }
+    val index =
+        (entity as SchemaClassInternal).getIndexesInternal(this).first { it.name == indexName }
     assertEquals(unique, index.isUnique)
 
     assertEquals(fieldNames.size, index.definition.fields.size)
@@ -198,7 +203,11 @@ internal fun EntityMetaDataImpl.index(vararg fields: IndexedField) {
     this.ownIndexes = this.ownIndexes + setOf(index)
 }
 
-internal fun EntityMetaDataImpl.property(name: String, typeName: String, required: Boolean = false) {
+internal fun EntityMetaDataImpl.property(
+    name: String,
+    typeName: String,
+    required: Boolean = false
+) {
     // regardless of the name, this setter actually ADDS new properties to its internal collection
     this.propertiesMetaData = listOf(SimplePropertyMetaDataImpl(name, typeName))
     if (required) {
@@ -256,39 +265,39 @@ internal fun ModelMetaData.twoDirectionalAssociation(
     )
 }
 
-internal fun ODatabaseSession.createVertexAndSetLocalEntityId(className: String): OVertex {
+internal fun DatabaseSession.createVertexAndSetLocalEntityId(className: String): Vertex {
     val v = newVertex(className)
     setLocalEntityId(className, v)
-    v.save<OVertex>()
+    v.save()
     return v
 }
 
-internal fun OVertex.setPropertyAndSave(propName: String, value: Any) {
+internal fun Vertex.setPropertyAndSave(propName: String, value: Any) {
     setProperty(propName, value)
-    save<OVertex>()
+    save()
 }
 
-internal fun OVertex.addEdge(linkName: String, target: OVertex) {
+internal fun Vertex.addEdge(linkName: String, target: Vertex) {
     val edgeClassName = OVertexEntity.edgeClassName(linkName)
     addEdge(target, edgeClassName)
-    save<OVertex>()
-    target.save<OVertex>()
+    save()
+    target.save()
 }
 
-internal fun OVertex.addIndexedEdge(linkName: String, target: OVertex) {
+internal fun Vertex.addIndexedEdge(linkName: String, target: Vertex) {
     val bag = getTargetLocalEntityIds(linkName)
     addEdge(target, OVertexEntity.edgeClassName(linkName))
     bag.add(target.identity)
     setTargetLocalEntityIds(linkName, bag)
-    save<OVertex>()
-    target.save<OVertex>()
+    save()
+    target.save()
 }
 
-internal fun OVertex.deleteIndexedEdge(linkName: String, target: OVertex) {
+internal fun Vertex.deleteIndexedEdge(linkName: String, target: Vertex) {
     val bag = getTargetLocalEntityIds(linkName)
-    deleteEdge(target, OVertexEntity.edgeClassName(linkName))
+    target.delete()
     bag.remove(target.identity)
     setTargetLocalEntityIds(linkName, bag)
-    save<OVertex>()
-    target.save<OVertex>()
+    save()
+    target.save()
 }

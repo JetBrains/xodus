@@ -15,9 +15,10 @@
  */
 package jetbrains.exodus.entitystore.orientdb
 
-import com.orientechnologies.orient.core.record.OVertex
+import com.jetbrains.youtrack.db.api.record.Vertex
 
-class OReadonlyVertexEntity(vertex: OVertex, store: OEntityStore) : OVertexEntity(vertex, store) {
+
+class OReadonlyVertexEntity(vertex: Vertex, store: OEntityStore) : OVertexEntity(vertex, store) {
     override fun requireActiveWritableTransaction(): OStoreTransaction {
         throw IllegalArgumentException("Can't update readonly entity (id=${id})")
     }

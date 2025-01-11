@@ -15,12 +15,11 @@
  */
 package jetbrains.exodus.entitystore.orientdb
 
-import com.orientechnologies.orient.core.id.ORID
+import com.jetbrains.youtrack.db.api.record.RID
 import jetbrains.exodus.entitystore.EntityId
 
 interface OEntityId : EntityId {
-
-    fun asOId(): ORID
+    fun asOId(): RID
 
     fun getTypeName(): String
 }

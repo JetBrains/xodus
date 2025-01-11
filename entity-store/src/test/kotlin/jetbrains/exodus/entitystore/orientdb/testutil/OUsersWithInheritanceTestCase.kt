@@ -19,7 +19,7 @@ import jetbrains.exodus.entitystore.orientdb.OStoreTransactionImpl
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity
 import jetbrains.exodus.entitystore.orientdb.getOrCreateVertexClass
 
-class OUsersWithInheritanceTestCase(val orientDB: InMemoryOrientDB) {
+class OUsersWithInheritanceTestCase(youTrackDB: InMemoryYouTrackDB) {
 
     val user1: OVertexEntity
     val user2: OVertexEntity
@@ -36,7 +36,7 @@ class OUsersWithInheritanceTestCase(val orientDB: InMemoryOrientDB) {
 
     init {
 
-        orientDB.withSession { session ->
+        youTrackDB.withSession { session ->
             val baseClass = session.getOrCreateVertexClass(BaseUser.CLASS)
             val subclasses = listOf(
                 session.getOrCreateVertexClass(Guest.CLASS),
@@ -45,11 +45,11 @@ class OUsersWithInheritanceTestCase(val orientDB: InMemoryOrientDB) {
                 session.getOrCreateVertexClass(Agent.CLASS),
             )
             subclasses.forEach {
-                it.addSuperClass(baseClass)
+                it.addSuperClass(session, baseClass)
             }
         }
 
-        val tx = orientDB.store.beginTransaction() as OStoreTransactionImpl
+        val tx = youTrackDB.store.beginTransaction() as OStoreTransactionImpl
         user1 = tx.createUser(User.CLASS, "u1")
         user2 = tx.createUser(User.CLASS, "u2")
 

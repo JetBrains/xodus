@@ -15,10 +15,10 @@
  */
 package jetbrains.exodus.entitystore.orientdb
 
-import com.orientechnologies.orient.core.metadata.sequence.OSequence
-import com.orientechnologies.orient.core.record.OVertex
+import com.jetbrains.youtrack.db.internal.core.db.DatabaseSessionInternal
+import com.jetbrains.youtrack.db.internal.core.metadata.sequence.DBSequence
 import jetbrains.exodus.entitystore.PersistentEntityId
-import jetbrains.exodus.entitystore.orientdb.testutil.InMemoryOrientDB
+import jetbrains.exodus.entitystore.orientdb.testutil.InMemoryYouTrackDB
 import jetbrains.exodus.entitystore.orientdb.testutil.Issues
 import jetbrains.exodus.entitystore.orientdb.testutil.OTestMixin
 import org.junit.Assert.assertEquals
@@ -29,13 +29,13 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
-class OSchemaBuddyTest: OTestMixin {
+class OSchemaBuddyTest : OTestMixin {
 
     @Rule
     @JvmField
-    val orientDbRule = InMemoryOrientDB(initializeIssueSchema = false)
+    val orientDbRule = InMemoryYouTrackDB(initializeIssueSchema = false)
 
-    override val orientDb = orientDbRule
+    override val youTrackDb = orientDbRule
 
     @Test
     fun `if autoInitialize is false, explicit initialization is required`() {
@@ -45,7 +45,7 @@ class OSchemaBuddyTest: OTestMixin {
         val issueId = withStoreTx { tx ->
             tx.createIssue("trista").id
         }
-        val buddy = OSchemaBuddyImpl(orientDb.provider, autoInitialize = false)
+        val buddy = OSchemaBuddyImpl(youTrackDb.provider, autoInitialize = false)
 
         val totallyExistingEntityId = PersistentEntityId(issueId.typeId, issueId.localId)
         withSession {
@@ -63,7 +63,7 @@ class OSchemaBuddyTest: OTestMixin {
 
     @Test
     fun `requireTypeExists() fails if the class is absent`() {
-        val buddy = OSchemaBuddyImpl(orientDb.provider)
+        val buddy = OSchemaBuddyImpl(youTrackDb.provider)
         val className = "trista"
         withSession { session ->
             assertNull(session.getClass(className))
@@ -79,7 +79,7 @@ class OSchemaBuddyTest: OTestMixin {
         val issueId = withStoreTx { tx ->
             tx.createIssue("trista").id
         }
-        val buddy = OSchemaBuddyImpl(orientDb.provider, autoInitialize = true)
+        val buddy = OSchemaBuddyImpl(youTrackDb.provider, autoInitialize = true)
 
         val notExistingEntityId = PersistentEntityId(300, 301)
         val partiallyExistingEntityId1 = PersistentEntityId(issueId.typeId, 301)
@@ -99,26 +99,34 @@ class OSchemaBuddyTest: OTestMixin {
     @Test
     fun `sequence does not roll back already generated values if the transaction is rolled back`() {
         withSession { session ->
-            val params = OSequence.CreateParams()
+            val params = DBSequence.CreateParams()
             params.start = 0
-            session.metadata.sequenceLibrary.createSequence("seq", OSequence.SEQUENCE_TYPE.ORDERED, params)
+            (session as DatabaseSessionInternal).metadata.sequenceLibrary.createSequence(
+                "seq",
+                DBSequence.SEQUENCE_TYPE.ORDERED,
+                params
+            )
         }
 
-        orientDb.withTxSession { session ->
-            val res = session.metadata.sequenceLibrary.getSequence("seq").next()
+        youTrackDb.withTxSession { session ->
+            val res =
+                (session as DatabaseSessionInternal).metadata.sequenceLibrary.getSequence("seq")
+                    .next()
             assertEquals(1, res)
             session.rollback()
         }
 
-        orientDb.withTxSession { session ->
-            val res = session.metadata.sequenceLibrary.getSequence("seq").next()
+        youTrackDb.withTxSession { session ->
+            val res =
+                (session as DatabaseSessionInternal).metadata.sequenceLibrary.getSequence("seq")
+                    .next()
             assertEquals(2, res)
         }
     }
 
     @Test
     fun `can create an edge class in a transaction`() {
-        val buddy = OSchemaBuddyImpl(orientDb.provider)
+        val buddy = OSchemaBuddyImpl(youTrackDb.provider)
         val edgeClassName = OVertexEntity.edgeClassName("trista")
 
         // the edge class is not there
@@ -131,7 +139,7 @@ class OSchemaBuddyTest: OTestMixin {
         val issId = withSession { session ->
             session.begin()
             val iss = session.newVertex("issue")
-            iss.save<OVertex>()
+            iss.save()
 
             val edgeClass = buddy.getOrCreateEdgeClass(session, "trista", "issue", "issue")
             assertNotNull(edgeClass)
@@ -149,12 +157,12 @@ class OSchemaBuddyTest: OTestMixin {
 
     @Test
     fun `require both classId and localEntityId to create an instance`() {
-        val oClass = orientDb.provider.withSession { oSession ->
+        val oClass = youTrackDb.provider.withSession { oSession ->
             oSession.createVertexClassWithClassId("type1")
         }
         val typeID = oClass.requireClassId()
-        orientDb.provider.withSession { oSession ->
-            assertEquals("type1", orientDb.schemaBuddy.getType(oSession, typeID))
+        youTrackDb.provider.withSession { oSession ->
+            assertEquals("type1", youTrackDb.schemaBuddy.getType(oSession, typeID))
         }
 
     }

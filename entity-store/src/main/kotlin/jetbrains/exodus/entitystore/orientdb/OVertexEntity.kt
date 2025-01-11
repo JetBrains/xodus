@@ -15,16 +15,17 @@
  */
 package jetbrains.exodus.entitystore.orientdb
 
-import com.orientechnologies.orient.core.db.record.OTrackedSet
-import com.orientechnologies.orient.core.db.record.ridbag.ORidBag
-import com.orientechnologies.orient.core.id.ORID
-import com.orientechnologies.orient.core.id.ORecordId
-import com.orientechnologies.orient.core.metadata.schema.OClass
-import com.orientechnologies.orient.core.record.ODirection
-import com.orientechnologies.orient.core.record.OEdge
-import com.orientechnologies.orient.core.record.ORecordAbstract
-import com.orientechnologies.orient.core.record.OVertex
-import com.orientechnologies.orient.core.record.impl.ORecordBytes
+import com.jetbrains.youtrack.db.api.record.Direction
+import com.jetbrains.youtrack.db.api.record.Edge
+import com.jetbrains.youtrack.db.api.record.RID
+import com.jetbrains.youtrack.db.api.record.Vertex
+import com.jetbrains.youtrack.db.api.schema.SchemaClass
+import com.jetbrains.youtrack.db.internal.core.db.DatabaseSessionInternal
+import com.jetbrains.youtrack.db.internal.core.db.record.TrackedSet
+import com.jetbrains.youtrack.db.internal.core.db.record.ridbag.RidBag
+import com.jetbrains.youtrack.db.internal.core.id.RecordId
+import com.jetbrains.youtrack.db.internal.core.record.RecordAbstract
+import com.jetbrains.youtrack.db.internal.core.record.impl.RecordBytes
 import jetbrains.exodus.ByteIterable
 import jetbrains.exodus.entitystore.Entity
 import jetbrains.exodus.entitystore.EntityId
@@ -43,7 +44,7 @@ import java.io.File
 import java.io.InputStream
 import kotlin.jvm.optionals.getOrNull
 
-open class OVertexEntity(vertex: OVertex, private val store: OEntityStore) : OEntity {
+open class OVertexEntity(vertex: Vertex, private val store: OEntityStore) : OEntity {
 
     companion object : KLogging() {
         const val EDGE_CLASS_SUFFIX = "_link"
@@ -84,7 +85,7 @@ open class OVertexEntity(vertex: OVertex, private val store: OEntityStore) : OEn
         }
     }
 
-    private var vertexRecord: OVertex
+    private var vertexRecord: Vertex
     private var oEntityId: ORIDEntityId
 
     init {
@@ -99,7 +100,7 @@ open class OVertexEntity(vertex: OVertex, private val store: OEntityStore) : OEn
         vertexRecord = v
     }
 
-    val vertex: OVertex
+    val vertex: Vertex
         get() {
             if (vertexRecord.isUnloaded) {
                 val session = store.requireActiveTransaction()
@@ -130,11 +131,10 @@ open class OVertexEntity(vertex: OVertex, private val store: OEntityStore) : OEn
     override fun resetToNew() {
         val clusterId = vertexRecord.identity.clusterId
 
-        vertexRecord.identity.reset()
-
-        (vertexRecord as ORecordAbstract).also {
+        (vertexRecord.identity as RecordId).reset()
+        (vertexRecord as RecordAbstract).also {
             it.resetToNew()
-            (it.identity as ORecordId).clusterId = clusterId
+            (it.identity as RecordId).clusterId = clusterId
         }
     }
 
@@ -173,7 +173,7 @@ open class OVertexEntity(vertex: OVertex, private val store: OEntityStore) : OEn
             return false
         } else {
             vertex.setProperty(propertyName, value)
-            vertex.save<OVertex>()
+            vertex.save()
             return true
         }
     }
@@ -184,15 +184,15 @@ open class OVertexEntity(vertex: OVertex, private val store: OEntityStore) : OEn
         } else {
             vertex.setProperty(propertyName, value)
         }
-        vertex.save<OVertex>()
-        return vertex.getProperty<OTrackedSet<*>>(propertyName)?.isTransactionModified == true
+        vertex.save()
+        return vertex.getProperty<TrackedSet<*>>(propertyName)?.isTransactionModified == true
     }
 
     override fun deleteProperty(propertyName: String): Boolean {
         requireActiveWritableTransaction()
         if (vertex.hasProperty(propertyName)) {
             vertex.removeProperty<Any>(propertyName)
-            vertex.save<OVertex>()
+            vertex.save()
             return true
         } else {
             return false
@@ -215,7 +215,7 @@ open class OVertexEntity(vertex: OVertex, private val store: OEntityStore) : OEn
 
     override fun getBlob(blobName: String): InputStream? {
         requireActiveTx()
-        val blob: ORecordBytes = vertex.getProperty(blobName) ?: return null
+        val blob: RecordBytes = vertex.getProperty(blobName) ?: return null
         return ByteArrayInputStream(blob.toStream())
     }
 
@@ -233,10 +233,10 @@ open class OVertexEntity(vertex: OVertex, private val store: OEntityStore) : OEn
         }
 
         val allBytes = blob.readAllBytes()
-        val oBlob = ORecordBytes(allBytes)
+        val oBlob = RecordBytes(allBytes)
         vertex.setProperty(blobName, oBlob)
         vertex.setProperty(blobSizeProperty(blobName), allBytes.size.toLong())
-        vertex.save<OVertex>()
+        vertex.save()
     }
 
     override fun deleteBlob(blobName: String): Boolean {
@@ -245,7 +245,7 @@ open class OVertexEntity(vertex: OVertex, private val store: OEntityStore) : OEn
             vertex.removeProperty<Any>(blobName)
             vertex.removeProperty<Any>(blobSizeProperty(blobName))
             vertex.removeProperty<Any>(blobHashProperty(blobName))
-            vertex.save<OVertex>()
+            vertex.save()
             return true
         }
         return false
@@ -253,7 +253,7 @@ open class OVertexEntity(vertex: OVertex, private val store: OEntityStore) : OEn
 
     override fun getBlobString(blobName: String): String? {
         requireActiveTx()
-        val blob: ORecordBytes = vertex.getProperty(blobName) ?: return null
+        val blob: RecordBytes = vertex.getProperty(blobName) ?: return null
         return UTFUtil.readUTF(ByteArrayInputStream(blob.toStream()))
     }
 
@@ -282,11 +282,11 @@ open class OVertexEntity(vertex: OVertex, private val store: OEntityStore) : OEn
             vertex.removeProperty<Any>(blobName)
         }
 
-        val oBlob = ORecordBytes(baos.toByteArray())
+        val oBlob = RecordBytes(baos.toByteArray())
         vertex.setProperty(blobName, oBlob)
         vertex.setProperty(blobHashProperty(blobName), blobString.hashCode())
         vertex.setProperty(blobSizeProperty(blobName), baos.size().toLong())
-        vertex.save<OVertex>()
+        vertex.save()
         return true
     }
 
@@ -312,14 +312,14 @@ open class OVertexEntity(vertex: OVertex, private val store: OEntityStore) : OEn
             return false
         }
         try {
-            val target = currentTx.getRecord<OVertex>(targetOId)
+            val target = currentTx.getRecord<Vertex>(targetOId)
             return currentTx.addLinkImpl(linkName, target)
         } catch (e: EntityRemovedInDatabaseException) {
             return false
         }
     }
 
-    private fun OStoreTransaction.addLinkImpl(linkName: String, target: OVertex): Boolean {
+    private fun OStoreTransaction.addLinkImpl(linkName: String, target: Vertex): Boolean {
         val outClassName = vertex.requireSchemaClass().name
         val inClassName = target.requireSchemaClass().name
         val edgeClass = getOrCreateEdgeClass(linkName, outClassName, inClassName)
@@ -337,8 +337,13 @@ open class OVertexEntity(vertex: OVertex, private val store: OEntityStore) : OEn
         Well, during the data migration process, there are no any indices and
         skipping this findEdge(...) call is exactly what we need.
          */
-        val currentEdge: OEdge? =
-            if (edgeClass.areIndexed(OEdge.DIRECTION_IN, OEdge.DIRECTION_OUT)) {
+        val currentEdge: Edge? =
+            if (edgeClass.areIndexed(
+                    vertex.boundedToSession,
+                    Edge.DIRECTION_IN,
+                    Edge.DIRECTION_OUT
+                )
+            ) {
                 findEdge(edgeClassName, target.identity)
             } else null
 
@@ -346,17 +351,18 @@ open class OVertexEntity(vertex: OVertex, private val store: OEntityStore) : OEn
             vertex.addEdge(target, edgeClassName)
             // If the link is indexed, we have to update the complementary internal property.
             vertex.addTargetEntityIdIfLinkIndexed(linkName, target.identity)
-            vertex.save<OVertex>()
+            vertex.save()
             return true
         } else {
             return false
         }
     }
 
-    private fun OVertex.addTargetEntityIdIfLinkIndexed(linkName: String, targetId: ORID) {
+    private fun Vertex.addTargetEntityIdIfLinkIndexed(linkName: String, targetId: RID) {
         val linkTargetEntityIdPropertyName = linkTargetEntityIdPropertyName(linkName)
         if (requireSchemaClass().existsProperty(linkTargetEntityIdPropertyName)) {
-            val bag = getProperty<ORidBag>(linkTargetEntityIdPropertyName) ?: ORidBag()
+            val bag = getProperty<RidBag>(linkTargetEntityIdPropertyName)
+                ?: RidBag(boundedToSession as DatabaseSessionInternal)
             bag.add(targetId)
             setProperty(linkTargetEntityIdPropertyName, bag)
         }
@@ -381,14 +387,14 @@ open class OVertexEntity(vertex: OVertex, private val store: OEntityStore) : OEn
     override fun deleteLinks(linkName: String) {
         requireActiveWritableTransaction()
         val edgeClassName = edgeClassName(linkName)
-        vertex.getEdges(ODirection.OUT, edgeClassName).forEach {
+        vertex.getEdges(Direction.OUT, edgeClassName).forEach {
             it.delete()
         }
         vertex.deleteAllTargetEntityIdsIfLinkIndexed(linkName)
-        vertex.save<OVertex>()
+        vertex.save()
     }
 
-    private fun OStoreTransaction.deleteLinkImpl(linkName: String, targetId: ORID): Boolean {
+    private fun OStoreTransaction.deleteLinkImpl(linkName: String, targetId: RID): Boolean {
         val edgeClassName = edgeClassName(linkName)
 
         val edge = findEdge(edgeClassName, targetId)
@@ -396,26 +402,27 @@ open class OVertexEntity(vertex: OVertex, private val store: OEntityStore) : OEn
             edge.delete()
             // if the link in a composite index, we have to update the complementary internal property.
             vertex.deleteTargetEntityIdIfLinkIndexed(linkName, targetId)
-            vertex.save<OVertex>()
+            vertex.save()
             return true
         }
 
         return false
     }
 
-    private fun OVertex.deleteTargetEntityIdIfLinkIndexed(linkName: String, targetId: ORID) {
+    private fun Vertex.deleteTargetEntityIdIfLinkIndexed(linkName: String, targetId: RID) {
         val linkTargetEntityIdPropertyName = linkTargetEntityIdPropertyName(linkName)
         if (requireSchemaClass().existsProperty(linkTargetEntityIdPropertyName)) {
-            val bag = getProperty<ORidBag>(linkTargetEntityIdPropertyName) ?: ORidBag()
+            val bag = getProperty<RidBag>(linkTargetEntityIdPropertyName)
+                ?: RidBag(boundedToSession as DatabaseSessionInternal)
             bag.remove(targetId)
             setProperty(linkTargetEntityIdPropertyName, bag)
         }
     }
 
-    private fun OVertex.deleteAllTargetEntityIdsIfLinkIndexed(linkName: String) {
+    private fun Vertex.deleteAllTargetEntityIdsIfLinkIndexed(linkName: String) {
         val propName = linkTargetEntityIdPropertyName(linkName)
         if (requireSchemaClass().existsProperty(propName)) {
-            setProperty(propName, ORidBag())
+            setProperty(propName, RidBag(boundedToSession as DatabaseSessionInternal))
         }
     }
 
@@ -435,14 +442,14 @@ open class OVertexEntity(vertex: OVertex, private val store: OEntityStore) : OEn
             return false
         }
         try {
-            val target = currentTx.getRecord<OVertex>(targetOId)
+            val target = currentTx.getRecord<Vertex>(targetOId)
             return currentTx.setLinkImpl(linkName, target)
         } catch (e: EntityRemovedInDatabaseException) {
             return false
         }
     }
 
-    private fun OStoreTransaction.setLinkImpl(linkName: String, target: OVertex?): Boolean {
+    private fun OStoreTransaction.setLinkImpl(linkName: String, target: Vertex?): Boolean {
         val currentLink = getLinkImpl(linkName)
 
         if (currentLink == target) {
@@ -464,15 +471,15 @@ open class OVertexEntity(vertex: OVertex, private val store: OEntityStore) : OEn
         return getLinkImpl(linkName).toOEntityOrNull()
     }
 
-    private fun getLinkImpl(linkName: String): OVertex? {
+    private fun getLinkImpl(linkName: String): Vertex? {
         val edgeClassName = edgeClassName(linkName)
-        return vertex.getVertices(ODirection.OUT, edgeClassName).firstOrNull()
+        return vertex.getVertices(Direction.OUT, edgeClassName).firstOrNull()
     }
 
     override fun getLinks(linkName: String): EntityIterable {
         val txn = requireActiveTx()
         val edgeClassName = edgeClassName(linkName)
-        val links = vertex.getVertices(ODirection.OUT, edgeClassName)
+        val links = vertex.getVertices(Direction.OUT, edgeClassName)
         return OVertexEntityIterable(txn, links, store, linkName, this.oEntityId)
     }
 
@@ -499,14 +506,14 @@ open class OVertexEntity(vertex: OVertex, private val store: OEntityStore) : OEn
     override fun getLinkNames(): List<String> {
         requireActiveTx()
         return ArrayList(
-            vertex.getEdgeNames(ODirection.OUT)
+            vertex.getEdgeNames(Direction.OUT)
                 .filter { it.endsWith(EDGE_CLASS_SUFFIX) }
                 .map { it.substringBefore(EDGE_CLASS_SUFFIX) })
     }
 
-    private fun OStoreTransaction.findEdge(edgeClassName: String, targetId: ORID): OEdge? {
+    private fun OStoreTransaction.findEdge(edgeClassName: String, targetId: RID): Edge? {
         val query =
-            "SELECT FROM $edgeClassName WHERE ${OEdge.DIRECTION_OUT} = :outId AND ${OEdge.DIRECTION_IN} = :inId"
+            "SELECT FROM $edgeClassName WHERE ${Edge.DIRECTION_OUT} = :outId AND ${Edge.DIRECTION_IN} = :inId"
         val result = query(query, mapOf("outId" to vertex.identity, "inId" to targetId))
         val foundEdge = result.edgeStream().findFirst()
         return foundEdge.getOrNull()
@@ -528,7 +535,7 @@ open class OVertexEntity(vertex: OVertex, private val store: OEntityStore) : OEn
 
     override fun save(): OVertexEntity {
         requireActiveWritableTransaction()
-        vertex.save<OVertex>()
+        vertex.save()
         return this
     }
 
@@ -538,27 +545,28 @@ open class OVertexEntity(vertex: OVertex, private val store: OEntityStore) : OEn
         return store.requireActiveWritableTransaction()
     }
 
-    private fun OVertex?.toOEntityOrNull(): OEntity? = this?.let { OVertexEntity(this, store) }
+    private fun Vertex?.toOEntityOrNull(): OEntity? = this?.let { OVertexEntity(this, store) }
 }
 
-fun OClass.requireClassId(): Int {
+fun SchemaClass.requireClassId(): Int {
     return getCustom(CLASS_ID_CUSTOM_PROPERTY_NAME)?.toInt()
         ?: throw IllegalStateException("classId not found for ${this.name}")
 }
 
-fun OVertex.getTargetLocalEntityIds(linkName: String): ORidBag {
-    return getProperty<ORidBag>(linkTargetEntityIdPropertyName(linkName)) ?: ORidBag()
+fun Vertex.getTargetLocalEntityIds(linkName: String): RidBag {
+    return getProperty<RidBag>(linkTargetEntityIdPropertyName(linkName))
+        ?: RidBag(boundedToSession as DatabaseSessionInternal)
 }
 
-fun OVertex.setTargetLocalEntityIds(linkName: String, ids: ORidBag) {
+fun Vertex.setTargetLocalEntityIds(linkName: String, ids: RidBag) {
     setProperty(linkTargetEntityIdPropertyName(linkName), ids)
 }
 
-fun OVertex.requireSchemaClass(): OClass {
+fun Vertex.requireSchemaClass(): SchemaClass {
     return schemaClass ?: throw IllegalStateException("schemaClass not found for $this")
 }
 
-fun OVertex.requireLocalEntityId(): Long {
+fun Vertex.requireLocalEntityId(): Long {
     return getProperty<Long>(LOCAL_ENTITY_ID_PROPERTY_NAME)
         ?: throw IllegalStateException("localEntityId not found for the vertex")
 }

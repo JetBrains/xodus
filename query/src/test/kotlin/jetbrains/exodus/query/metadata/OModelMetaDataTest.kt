@@ -15,11 +15,10 @@
  */
 package jetbrains.exodus.query.metadata
 
-import com.orientechnologies.orient.core.record.OVertex
 import jetbrains.exodus.entitystore.PersistentEntityId
 import jetbrains.exodus.entitystore.orientdb.*
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.linkTargetEntityIdPropertyName
-import jetbrains.exodus.entitystore.orientdb.testutil.InMemoryOrientDB
+import jetbrains.exodus.entitystore.orientdb.testutil.InMemoryYouTrackDB
 import jetbrains.exodus.entitystore.orientdb.testutil.OTestMixin
 import org.junit.Assert
 import org.junit.Assert.assertEquals
@@ -32,25 +31,25 @@ import kotlin.test.assertTrue
 class OModelMetaDataTest : OTestMixin {
     @Rule
     @JvmField
-    val orientDbRule = InMemoryOrientDB(initializeIssueSchema = false)
+    val orientDbRule = InMemoryYouTrackDB(initializeIssueSchema = false)
 
-    override val orientDb = orientDbRule
+    override val youTrackDb = orientDbRule
 
     @Test
     fun `prepare() applies the schema to OrientDB`() {
-        val model = oModel(orientDb.provider) {
+        val model = oModel(youTrackDb.provider) {
             entity("type1")
             entity("type2")
         }
 
-        orientDb.withSession { session ->
+        youTrackDb.withSession { session ->
             Assert.assertNull(session.getClass("type1"))
             Assert.assertNull(session.getClass("type2"))
         }
 
         model.prepare()
 
-        orientDb.withSession { session ->
+        youTrackDb.withSession { session ->
             session.assertVertexClassExists("type1")
             session.assertVertexClassExists("type2")
         }
@@ -58,13 +57,13 @@ class OModelMetaDataTest : OTestMixin {
 
     @Test
     fun `addAssociation() implicitly call prepare() and applies the schema to OrientDB`() {
-        oModel(orientDb.provider) {
+        oModel(youTrackDb.provider) {
             entity("type1")
             entity("type2")
             association("type2", "ass1", "type1", AssociationEndCardinality._1)
         }
 
-        orientDb.withSession { session ->
+        youTrackDb.withSession { session ->
             session.assertVertexClassExists("type1")
             session.assertVertexClassExists("type2")
             session.assertAssociationExists("type2", "type1", "ass1", AssociationEndCardinality._1)
@@ -73,7 +72,7 @@ class OModelMetaDataTest : OTestMixin {
 
     @Test
     fun addAssociation() {
-        val model = oModel(orientDb.provider) {
+        val model = oModel(youTrackDb.provider) {
             entity("type1")
             entity("type2")
         }
@@ -86,19 +85,19 @@ class OModelMetaDataTest : OTestMixin {
             null, false, false, false, false
         )
 
-        orientDb.withSession { session ->
+        youTrackDb.withSession { session ->
             session.assertAssociationExists("type2", "type1", "ass1", AssociationEndCardinality._1)
         }
     }
 
     @Test
     fun `if there is an active session on the current thread, the model uses it`() {
-        val model = oModel(orientDb.provider) {
+        val model = oModel(youTrackDb.provider) {
             entity("type1")
             entity("type2")
         }
 
-        orientDb.provider.acquireSession().use {
+        youTrackDb.provider.acquireSession().use {
             model.prepare()
             model.addAssociation(
                 "type2", "type1", AssociationType.Directed, "ass1", AssociationEndCardinality._1,
@@ -111,12 +110,12 @@ class OModelMetaDataTest : OTestMixin {
 
     @Test
     fun `if there is an active transaction, throw an exception`() {
-        val model = oModel(orientDb.provider) {
+        val model = oModel(youTrackDb.provider) {
             entity("type1")
             entity("type2")
         }
 
-        orientDb.withSession { session ->
+        youTrackDb.withSession { session ->
             session.begin()
             assertFailsWith<AssertionError> {
                 model.prepare()
@@ -148,21 +147,21 @@ class OModelMetaDataTest : OTestMixin {
 
     @Test
     fun removeAssociation() {
-        val model = oModel(orientDb.provider) {
+        val model = oModel(youTrackDb.provider) {
             entity("type1")
             entity("type2")
             association("type2", "ass1", "type1", AssociationEndCardinality._1)
         }
 
         model.removeAssociation("type2", "ass1")
-        orientDb.withSession { session ->
+        youTrackDb.withSession { session ->
             session.assertAssociationNotExist("type2", "type1", "ass1", requireEdgeClass = true)
         }
     }
 
     @Test
     fun `prepare() creates indices`() {
-        val model = oModel(orientDb.provider) {
+        val model = oModel(youTrackDb.provider) {
             entity("type1") {
                 property("prop1", "int")
                 property("prop2", "long")
@@ -173,7 +172,7 @@ class OModelMetaDataTest : OTestMixin {
 
         model.prepare()
 
-        orientDb.withSession { session ->
+        youTrackDb.withSession { session ->
             session.checkIndex("type1", true, "prop1", "prop2")
         }
     }
@@ -181,36 +180,36 @@ class OModelMetaDataTest : OTestMixin {
     @Test
     fun `prepare() initializes the classId map`() {
         val model =
-            oModel(orientDb.provider, OSchemaBuddyImpl(orientDb.provider, autoInitialize = false)) {
+            oModel(youTrackDb.provider, OSchemaBuddyImpl(youTrackDb.provider, autoInitialize = false)) {
                 entity("type1")
             }
 
         // We have not yet called prepare() for the model, autoInitialize is disabled
-        orientDb.provider.acquireSession().use {
+        youTrackDb.provider.acquireSession().use {
             it.createVertexClassWithClassId("type1")
         }
-        val entityId = orientDb.withStoreTx { tx ->
+        val entityId = youTrackDb.withStoreTx { tx ->
             tx.newEntity("type1").id
         }
 
         val oldSchoolEntityId = PersistentEntityId(entityId.typeId, entityId.localId)
 
         // model does not find the id because internal data structures are not initialized yet
-        orientDb.withSession {
+        youTrackDb.withSession {
             assertEquals(ORIDEntityId.EMPTY_ID, model.getOEntityId(it, oldSchoolEntityId))
         }
 
         // prepare() must initialize internal data structures in the end
         model.prepare()
 
-        orientDb.withSession { session ->
+        youTrackDb.withSession { session ->
             assertEquals(entityId, model.getOEntityId(session, oldSchoolEntityId))
         }
     }
 
     @Test
     fun `addAssociation() initializes complementary properties for indexed links`() {
-        oModel(orientDb.provider, OSchemaBuddyImpl(orientDb.provider, autoInitialize = false)) {
+        oModel(youTrackDb.provider, OSchemaBuddyImpl(youTrackDb.provider, autoInitialize = false)) {
             entity("type2")
             entity("type1")
             association("type1", "ass1", "type2", AssociationEndCardinality._0_n)
@@ -219,7 +218,7 @@ class OModelMetaDataTest : OTestMixin {
 
         // the schema is already initialized because addAssociation implicitly calls prepare()
 
-        val (id11, id12, id21) = orientDb.withTxSession { oSession ->
+        val (id11, id12, id21) = youTrackDb.withTxSession { oSession ->
             val v11 = oSession.createVertexAndSetLocalEntityId("type1")
             val v12 = oSession.createVertexAndSetLocalEntityId("type1")
             val v21 = oSession.createVertexAndSetLocalEntityId("type2")
@@ -228,21 +227,21 @@ class OModelMetaDataTest : OTestMixin {
             v21.addEdge("ass2", v11)
             v21.addEdge("ass2", v12)
 
-            v11.save<OVertex>()
-            v12.save<OVertex>()
-            v21.save<OVertex>()
+            v11.save()
+            v12.save()
+            v21.save()
             Triple(v11.identity, v12.identity, v21.identity)
         }
 
         // links are not indexes, so there are no complementary properties
-        orientDb.withTxSession { session ->
+        youTrackDb.withTxSession { session ->
             val type1 = session.getClass("type1")
             val type2 = session.getClass("type2")
             assertFalse(type1.existsProperty(linkTargetEntityIdPropertyName("ass1")))
             assertFalse(type2.existsProperty(linkTargetEntityIdPropertyName("ass2")))
         }
 
-        oModel(orientDb.provider, OSchemaBuddyImpl(orientDb.provider, autoInitialize = false)) {
+        oModel(youTrackDb.provider, OSchemaBuddyImpl(youTrackDb.provider, autoInitialize = false)) {
             entity("type2") {
                 index(IndexedField("ass2", isProperty = false))
             }
@@ -254,7 +253,7 @@ class OModelMetaDataTest : OTestMixin {
         }
 
         // prepare() must have called initializeComplementaryPropertiesForNewIndexedLinks
-        orientDb.withTxSession { session ->
+        youTrackDb.withTxSession { session ->
             val v11 = session.loadVertex(id11)
             val v12 = session.loadVertex(id12)
             val v21 = session.loadVertex(id21)
@@ -275,13 +274,13 @@ class OModelMetaDataTest : OTestMixin {
 
     @Test
     fun `oModel creates the schema for links if it is absent`() {
-        val model = oModel(orientDb.provider) {
+        val model = oModel(youTrackDb.provider) {
             entity("type1")
             entity("type2")
         }
         // initialize the entity types
         model.prepare()
-        val store = OPersistentEntityStore(orientDb.provider, orientDb.dbName, model)
+        val store = OPersistentEntityStore(youTrackDb.provider, youTrackDb.dbName, model)
 
         // check that the links do not exist
         withSession { session ->
@@ -328,13 +327,13 @@ class OModelMetaDataTest : OTestMixin {
 
     @Test
     fun `adding new link type does not cause OConcurrentModificationException`() {
-        val model = oModel(orientDb.provider) {
+        val model = oModel(youTrackDb.provider) {
             entity("type1")
             entity("type2")
         }
         // initialize the entity types
         model.prepare()
-        val store = OPersistentEntityStore(orientDb.provider, orientDb.dbName, model)
+        val store = OPersistentEntityStore(youTrackDb.provider, youTrackDb.dbName, model)
 
         // entity1 has already existed for a while
         val id1 = store.computeInTransaction { tx ->

@@ -15,7 +15,7 @@
  */
 package jetbrains.exodus.query.metadata
 
-import com.orientechnologies.orient.core.db.OrientDB
+import com.jetbrains.youtrack.db.api.YouTrackDB
 import jetbrains.exodus.entitystore.PersistentEntityStores
 import jetbrains.exodus.entitystore.orientdb.*
 import jetbrains.exodus.env.Environments
@@ -42,7 +42,7 @@ val VERTEX_CLASSES_TO_SKIP_MIGRATION = 10
  */
 data class MigrateToOrientConfig(
     val databaseProvider: ODatabaseProvider,
-    val db: OrientDB,
+    val db: YouTrackDB,
     val orientConfig: ODatabaseConfig,
     val closeOnFinish: Boolean = false
 )
@@ -88,7 +88,7 @@ class XodusToOrientDataMigratorLauncher(
 
         val dbName = orient.orientConfig.databaseName
         val classesCount = dbProvider.withSession {
-            it.metadata.schema.classes.filter { !it.name.startsWith("O") }.size
+            it.schema.classes.filter { !it.name.startsWith("O") }.size
         }
         if (classesCount > VERTEX_CLASSES_TO_SKIP_MIGRATION) {
             log.info { "There are already $classesCount classes in the database so it's considered as migrated" }

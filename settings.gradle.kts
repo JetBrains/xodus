@@ -1,7 +1,7 @@
 pluginManagement {
     plugins {
-        id("org.jetbrains.kotlin.jvm") version ("1.9.21")
-        id("org.jetbrains.dokka") version ("1.8.10")
+        id("org.jetbrains.kotlin.jvm") version ("2.1.0")
+        id("org.jetbrains.dokka") version ("2.0.0")
         id("com.github.hierynomus.license") version ("0.16.1")
         id("io.codearte.nexus-staging") version ("0.30.0")
         id("com.github.johnrengelman.shadow") version ("8.1.1")
@@ -19,8 +19,8 @@ pluginManagement {
 dependencyResolutionManagement {
     versionCatalogs {
         create("libs") {
-            version("kotlin-lang", "1.9")
-            version("kotlin", "1.9.21")
+            version("kotlin-lang", "2.1")
+            version("kotlin", "2.1.0")
 
             version("kotlin-logging", "3.0.5")
             version("lz4", "1.8.0")

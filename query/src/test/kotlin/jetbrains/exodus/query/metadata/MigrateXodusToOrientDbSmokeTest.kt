@@ -15,11 +15,11 @@
  */
 package jetbrains.exodus.query.metadata
 
-import com.orientechnologies.orient.core.config.OGlobalConfiguration
-import com.orientechnologies.orient.core.db.ODatabaseType
-import com.orientechnologies.orient.core.db.OrientDBConfig
-import com.orientechnologies.orient.core.record.ODirection
-import com.orientechnologies.orient.core.record.OVertex
+import com.jetbrains.youtrack.db.api.DatabaseType
+import com.jetbrains.youtrack.db.api.config.GlobalConfiguration
+import com.jetbrains.youtrack.db.api.config.YouTrackDBConfig
+import com.jetbrains.youtrack.db.api.record.Direction
+import com.jetbrains.youtrack.db.api.record.Vertex
 import jetbrains.exodus.TestUtil
 import jetbrains.exodus.entitystore.PersistentEntityStoreImpl
 import jetbrains.exodus.entitystore.PersistentEntityStores
@@ -41,14 +41,13 @@ class MigrateXodusToOrientDbSmokeTest {
         val username = "admin"
         val password = "password"
         val dbName = "testDB"
-        val url = "memory"
         // create the database
-        val builder = OrientDBConfig.builder()
-        builder.addConfig(OGlobalConfiguration.NON_TX_READS_WARNING_MODE, "SILENT")
+        val builder = YouTrackDBConfig.builder()
+        builder.addGlobalConfigurationParameter(GlobalConfiguration.NON_TX_READS_WARNING_MODE, "SILENT")
         val connectionConfig = ODatabaseConnectionConfig.builder()
             .withPassword(password)
             .withUserName(username)
-            .withDatabaseType(ODatabaseType.MEMORY)
+            .withDatabaseType(DatabaseType.MEMORY)
             .withDatabaseRoot("")
             .build()
 
@@ -57,7 +56,7 @@ class MigrateXodusToOrientDbSmokeTest {
             .withDatabaseName("MEMORY")
             .build()
 
-        val db = initOrientDbServer(connectionConfig)
+        val db = iniYouTrackDb(connectionConfig)
         db.execute("create database $dbName MEMORY users ( $username identified by '$password' role admin )")
         // create a provider
         val dbProvider = ODatabaseProviderImpl(config, db)
@@ -119,11 +118,11 @@ class MigrateXodusToOrientDbSmokeTest {
             val type2 = session.getClass("type2")!!
 
             assertTrue(type1.existsProperty("prop4"))
-            assertTrue(type1.existsProperty(OVertex.getEdgeLinkFieldName(ODirection.IN, "link1".asEdgeClass)))
-            assertTrue(type1.existsProperty(OVertex.getEdgeLinkFieldName(ODirection.OUT, "link1".asEdgeClass)))
+            assertTrue(type1.existsProperty(Vertex.getEdgeLinkFieldName(Direction.IN, "link1".asEdgeClass)))
+            assertTrue(type1.existsProperty(Vertex.getEdgeLinkFieldName(Direction.OUT, "link1".asEdgeClass)))
 
             assertTrue(type2.existsProperty("pop4"))
-            assertTrue(type2.existsProperty(OVertex.getEdgeLinkFieldName(ODirection.OUT, "link1".asEdgeClass)))
+            assertTrue(type2.existsProperty(Vertex.getEdgeLinkFieldName(Direction.OUT, "link1".asEdgeClass)))
         }
     }
 

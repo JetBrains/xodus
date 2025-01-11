@@ -15,16 +15,16 @@
  */
 package jetbrains.exodus.entitystore.orientdb
 
-import com.orientechnologies.orient.core.command.OCommandOutputListener
-import com.orientechnologies.orient.core.db.ODatabaseSessionInternal
-import com.orientechnologies.orient.core.db.OrientDB
-import com.orientechnologies.orient.core.db.tool.ODatabaseExport
-import com.orientechnologies.orient.core.db.tool.ODatabaseImport
+import com.jetbrains.youtrack.db.api.YouTrackDB
+import com.jetbrains.youtrack.db.internal.core.command.CommandOutputListener
+import com.jetbrains.youtrack.db.internal.core.db.DatabaseSessionInternal
+import com.jetbrains.youtrack.db.internal.core.db.tool.DatabaseExport
+import com.jetbrains.youtrack.db.internal.core.db.tool.DatabaseImport
 import mu.KLogging
 import java.io.File
 
 class ODatabaseCompacter(
-    private val db: OrientDB,
+    private val db: YouTrackDB,
     private val dbProvider: ODatabaseProvider,
     private val config: ODatabaseConfig
 ) {
@@ -34,11 +34,11 @@ class ODatabaseCompacter(
         val databaseLocation = File(dbProvider.databaseLocation)
         val backupFile = File(databaseLocation, "temp${System.currentTimeMillis()}")
         backupFile.parentFile.mkdirs()
-        val listener = OCommandOutputListener { iText -> logger.info("Compacting database: $iText") }
+        val listener = CommandOutputListener { iText -> logger.info("Compacting database: $iText") }
 
         dbProvider.withSession { session ->
-            val exporter = ODatabaseExport(
-                session as ODatabaseSessionInternal,
+            val exporter = DatabaseExport(
+                session as DatabaseSessionInternal,
                 backupFile.outputStream(),
                 listener
             )
@@ -49,12 +49,13 @@ class ODatabaseCompacter(
         logger.info("Dropping existing database...")
         db.drop(config.databaseName)
 
-        db.create(config.databaseName, config.databaseType)
+        db.create(config.databaseName, config.databaseType,
+            config.connectionConfig.userName, config.connectionConfig.password, "admin")
 
         dbProvider.withSession { session ->
             logger.info("Importing database from dump")
-            val importer = ODatabaseImport(
-                session as ODatabaseSessionInternal,
+            val importer = DatabaseImport(
+                session as DatabaseSessionInternal,
                 backupFile.inputStream(),
                 listener
             )

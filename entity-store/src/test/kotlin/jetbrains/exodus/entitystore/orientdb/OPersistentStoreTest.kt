@@ -15,14 +15,14 @@
  */
 package jetbrains.exodus.entitystore.orientdb
 
-import com.orientechnologies.orient.core.id.OEmptyRecordId
-import com.orientechnologies.orient.core.metadata.schema.OClass
-import com.orientechnologies.orient.core.metadata.schema.OType
-import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
+import com.jetbrains.youtrack.db.api.exception.RecordDuplicatedException
+import com.jetbrains.youtrack.db.api.schema.PropertyType
+import com.jetbrains.youtrack.db.api.schema.SchemaClass
+import com.jetbrains.youtrack.db.internal.core.id.ChangeableRecordId
 import jetbrains.exodus.entitystore.EntityRemovedInDatabaseException
 import jetbrains.exodus.entitystore.PersistentEntityId
 import jetbrains.exodus.entitystore.StoreTransaction
-import jetbrains.exodus.entitystore.orientdb.testutil.InMemoryOrientDB
+import jetbrains.exodus.entitystore.orientdb.testutil.InMemoryYouTrackDB
 import jetbrains.exodus.entitystore.orientdb.testutil.Issues
 import jetbrains.exodus.entitystore.orientdb.testutil.Issues.CLASS
 import jetbrains.exodus.entitystore.orientdb.testutil.OTestMixin
@@ -33,31 +33,36 @@ import org.junit.Rule
 import org.junit.Test
 import kotlin.test.assertFailsWith
 
-class OPersistentStoreTest: OTestMixin {
+class OPersistentStoreTest : OTestMixin {
 
     @Rule
     @JvmField
-    val orientDbRule = InMemoryOrientDB()
+    val orientDbRule = InMemoryYouTrackDB()
 
-    override val orientDb = orientDbRule
+    override val youTrackDb = orientDbRule
 
     @Test
     fun `renameEntityType() works only inside a transaction`() {
         // make sure the schema class is created
-        orientDb.createIssue("trista")
+        youTrackDb.createIssue("trista")
 
-        assertFailsWith<IllegalStateException> { orientDb.store.renameEntityType(CLASS, "NewName") }
+        assertFailsWith<IllegalStateException> {
+            youTrackDb.store.renameEntityType(
+                CLASS,
+                "NewName"
+            )
+        }
 
-        orientDb.store.executeInTransaction {
-            orientDb.store.renameEntityType(CLASS, "NewName")
+        youTrackDb.store.executeInTransaction {
+            youTrackDb.store.renameEntityType(CLASS, "NewName")
         }
     }
 
     @Test
     fun renameClassTest() {
         val summary = "Hello, your product does not work"
-        orientDb.createIssue(summary)
-        val store = orientDb.store
+        youTrackDb.createIssue(summary)
+        val store = youTrackDb.store
 
         val newClassName = "Other${CLASS}"
         store.executeInTransaction {
@@ -74,8 +79,8 @@ class OPersistentStoreTest: OTestMixin {
 
     @Test
     fun transactionPropertiesTest() {
-        val issue = orientDb.createIssue("Hello, nothing works")
-        val store = orientDb.store
+        val issue = youTrackDb.createIssue("Hello, nothing works")
+        val store = youTrackDb.store
         store.computeInTransaction {
             Assert.assertTrue(it.isIdempotent)
             issue.setProperty("version", "22")
@@ -85,7 +90,7 @@ class OPersistentStoreTest: OTestMixin {
 
     @Test
     fun `create and increment sequence`() {
-        val store = orientDb.store
+        val store = youTrackDb.store
         val sequence = store.computeInTransaction {
             it.getSequence("first")
         }
@@ -102,7 +107,7 @@ class OPersistentStoreTest: OTestMixin {
 
     @Test
     fun `create sequence with starting from`() {
-        val store = orientDb.store
+        val store = youTrackDb.store
         val sequence = store.computeInTransaction {
             it.getSequence("first", 99)
         }
@@ -113,7 +118,7 @@ class OPersistentStoreTest: OTestMixin {
 
     @Test
     fun `can set actual value to sequence`() {
-        val store = orientDb.store
+        val store = youTrackDb.store
         val sequence = store.computeInTransaction {
             it.getSequence("first", 99)
         }
@@ -127,12 +132,12 @@ class OPersistentStoreTest: OTestMixin {
 
     @Test
     fun `getEntity() works with both ORIDEntityId and PersistentEntityId`() {
-        val aId = orientDb.createIssue("A").id
-        val bId = orientDb.createIssue("B").id
-        val store = orientDb.store
+        val aId = youTrackDb.createIssue("A").id
+        val bId = youTrackDb.createIssue("B").id
+        val store = youTrackDb.store
 
         // use default ids
-        orientDb.store.executeInTransaction {
+        youTrackDb.store.executeInTransaction {
             val a = store.getEntity(aId)
             val b = store.getEntity(bId)
 
@@ -141,7 +146,7 @@ class OPersistentStoreTest: OTestMixin {
         }
 
         // use legacy ids
-        orientDb.store.executeInTransaction {
+        youTrackDb.store.executeInTransaction {
             val legacyIdA = PersistentEntityId(aId.typeId, aId.localId)
             val legacyIdB = PersistentEntityId(bId.typeId, bId.localId)
             val a = store.getEntity(legacyIdA)
@@ -155,73 +160,79 @@ class OPersistentStoreTest: OTestMixin {
 
     @Test
     fun `getEntity() throw exception the entity is not found`() {
-        val aId = orientDb.createIssue("A").id
+        val aId = youTrackDb.createIssue("A").id
 
         // delete the issue
-        orientDb.withTxSession { oSession ->
+        youTrackDb.withTxSession { oSession ->
             oSession.delete(aId.asOId())
         }
 
         // entity not found
-        orientDb.store.executeInTransaction { tx ->
+        youTrackDb.store.executeInTransaction { tx ->
             assertFailsWith<EntityRemovedInDatabaseException> {
-                orientDb.store.getEntity(aId)
+                youTrackDb.store.getEntity(aId)
             }
             assertFailsWith<EntityRemovedInDatabaseException> {
-                orientDb.store.getEntity(PersistentEntityId(300, 300))
+                youTrackDb.store.getEntity(PersistentEntityId(300, 300))
             }
             assertFailsWith<EntityRemovedInDatabaseException> {
-                orientDb.store.getEntity(PersistentEntityId.EMPTY_ID)
+                youTrackDb.store.getEntity(PersistentEntityId.EMPTY_ID)
             }
             assertFailsWith<EntityRemovedInDatabaseException> {
-                orientDb.store.getEntity(ORIDEntityId.EMPTY_ID)
+                youTrackDb.store.getEntity(ORIDEntityId.EMPTY_ID)
             }
         }
     }
 
     @Test
     fun `getting OEntityId for not existing EntityId gives EMPTY_ID`() {
-        val issueId = orientDb.createIssue("trista").id
+        val issueId = youTrackDb.createIssue("trista").id
         val notExistingEntityId = PersistentEntityId(300, 301)
         val partiallyExistingEntityId1 = PersistentEntityId(issueId.typeId, 301)
         val partiallyExistingEntityId2 = PersistentEntityId(300, issueId.localId)
         val totallyExistingEntityId = PersistentEntityId(issueId.typeId, issueId.localId)
-        orientDb.store.executeInTransaction {
-            assertEquals(ORIDEntityId.EMPTY_ID, orientDb.store.getOEntityId(notExistingEntityId))
-            assertEquals(ORIDEntityId.EMPTY_ID, orientDb.store.getOEntityId(partiallyExistingEntityId1))
-            assertEquals(ORIDEntityId.EMPTY_ID, orientDb.store.getOEntityId(partiallyExistingEntityId2))
-            assertEquals(issueId, orientDb.store.getOEntityId(totallyExistingEntityId))
+        youTrackDb.store.executeInTransaction {
+            assertEquals(ORIDEntityId.EMPTY_ID, youTrackDb.store.getOEntityId(notExistingEntityId))
+            assertEquals(
+                ORIDEntityId.EMPTY_ID,
+                youTrackDb.store.getOEntityId(partiallyExistingEntityId1)
+            )
+            assertEquals(
+                ORIDEntityId.EMPTY_ID,
+                youTrackDb.store.getOEntityId(partiallyExistingEntityId2)
+            )
+            assertEquals(issueId, youTrackDb.store.getOEntityId(totallyExistingEntityId))
         }
     }
 
     @Test
     fun `toEntityId(presentation) from not existent idString will return OEntityId with correct xodus part and empty orient`() {
-        val issueId = orientDb.createIssue("trista").id
+        val issueId = youTrackDb.createIssue("trista").id
         val notExistingEntityId = PersistentEntityId(300, 301)
         val partiallyExistingEntityId1 = PersistentEntityId(issueId.typeId, 301)
         val partiallyExistingEntityId2 = PersistentEntityId(300, issueId.localId)
         val totallyExistingEntityId = PersistentEntityId(issueId.typeId, issueId.localId)
-        val empty = OEmptyRecordId()
-        orientDb.store.executeInTransaction { txn->
-            with(txn.toEntityId(notExistingEntityId.toString()) as OEntityId){
+        val empty = ChangeableRecordId()
+        youTrackDb.store.executeInTransaction { txn ->
+            with(txn.toEntityId(notExistingEntityId.toString()) as OEntityId) {
                 assertEquals(notExistingEntityId.localId, localId)
                 assertEquals(notExistingEntityId.typeId, typeId)
                 assertEquals(empty.clusterId, asOId().clusterId)
                 assertEquals(empty.clusterPosition, asOId().clusterPosition)
             }
-            with(txn.toEntityId(partiallyExistingEntityId1.toString()) as OEntityId){
+            with(txn.toEntityId(partiallyExistingEntityId1.toString()) as OEntityId) {
                 assertEquals(partiallyExistingEntityId1.localId, localId)
                 assertEquals(partiallyExistingEntityId1.typeId, typeId)
                 assertEquals(empty.clusterId, asOId().clusterId)
                 assertEquals(empty.clusterPosition, asOId().clusterPosition)
             }
-            with(txn.toEntityId(partiallyExistingEntityId2.toString()) as OEntityId){
+            with(txn.toEntityId(partiallyExistingEntityId2.toString()) as OEntityId) {
                 assertEquals(partiallyExistingEntityId2.localId, localId)
                 assertEquals(partiallyExistingEntityId2.typeId, typeId)
                 assertEquals(empty.clusterId, asOId().clusterId)
                 assertEquals(empty.clusterPosition, asOId().clusterPosition)
             }
-            with(txn.toEntityId(totallyExistingEntityId.toString()) as OEntityId){
+            with(txn.toEntityId(totallyExistingEntityId.toString()) as OEntityId) {
                 assertEquals(totallyExistingEntityId.localId, localId)
                 assertEquals(totallyExistingEntityId.typeId, typeId)
                 assertEquals(issueId.asOId(), asOId())
@@ -231,7 +242,7 @@ class OPersistentStoreTest: OTestMixin {
 
     @Test
     fun `propertyNames does not count internal properties`() {
-        val issue = orientDb.store.computeInTransaction {  txn ->
+        val issue = youTrackDb.store.computeInTransaction { txn ->
             txn as OStoreTransaction
             val issue = txn.createIssue("Hello", "Critical")
             val project = txn.createProject("World")
@@ -241,19 +252,33 @@ class OPersistentStoreTest: OTestMixin {
             issue.setProperty("hello", 1995)
             issue
         }
-        orientDb.store.executeInTransaction {
-            assertEquals(listOf(Issues.Props.PRIORITY, "name", "hello").sorted(), issue.propertyNames.sorted())
+        youTrackDb.store.executeInTransaction {
+            assertEquals(
+                listOf(Issues.Props.PRIORITY, "name", "hello").sorted(),
+                issue.propertyNames.sorted()
+            )
         }
     }
 
     @Test
     fun `requireOEntityId works correctly with different types of EntityId`() {
-        val issueId = orientDb.createIssue("trista").id
+        val issueId = youTrackDb.createIssue("trista").id
 
-        orientDb.store.executeInTransaction {
-            assertEquals(issueId, orientDb.store.requireOEntityId(issueId))
-            assertEquals(issueId, orientDb.store.requireOEntityId(PersistentEntityId(issueId.typeId, issueId.localId)))
-            assertEquals(ORIDEntityId.EMPTY_ID, orientDb.store.requireOEntityId(PersistentEntityId.EMPTY_ID))
+        youTrackDb.store.executeInTransaction {
+            assertEquals(issueId, youTrackDb.store.requireOEntityId(issueId))
+            assertEquals(
+                issueId,
+                youTrackDb.store.requireOEntityId(
+                    PersistentEntityId(
+                        issueId.typeId,
+                        issueId.localId
+                    )
+                )
+            )
+            assertEquals(
+                ORIDEntityId.EMPTY_ID,
+                youTrackDb.store.requireOEntityId(PersistentEntityId.EMPTY_ID)
+            )
         }
     }
 
@@ -261,8 +286,8 @@ class OPersistentStoreTest: OTestMixin {
     fun `computeInTransaction and Co handle exceptions properly`() {
         withSession { session ->
             val t1 = session.getOrCreateVertexClass("type1")
-            t1.createProperty("name", OType.STRING)
-            t1.createIndex("opca_index", OClass.INDEX_TYPE.UNIQUE, "name")
+            t1.createProperty(session, "name", PropertyType.STRING)
+            t1.createIndex(session, "opca_index", SchemaClass.INDEX_TYPE.UNIQUE, "name")
         }
         fun StoreTransaction.violateIndexRestriction() {
             val e1 = this.newEntity("type1")
@@ -270,22 +295,23 @@ class OPersistentStoreTest: OTestMixin {
             e1.setProperty("name", "trista")
             e2.setProperty("name", "trista")
         }
+
         /**
          * Here we check that nothing happens with the exception on the way up.
          * Our code that finishes the transaction must work correctly if there is no active session.
          */
-        val store = orientDb.store
-        assertFailsWith<ORecordDuplicatedException> {
+        val store = youTrackDb.store
+        assertFailsWith<RecordDuplicatedException> {
             store.computeInTransaction { tx ->
                 tx.violateIndexRestriction()
             }
         }
-        assertFailsWith<ORecordDuplicatedException> {
+        assertFailsWith<RecordDuplicatedException> {
             store.executeInTransaction { tx ->
                 tx.violateIndexRestriction()
             }
         }
-        assertFailsWith<ORecordDuplicatedException> {
+        assertFailsWith<RecordDuplicatedException> {
             withStoreTx { tx ->
                 tx.violateIndexRestriction()
             }

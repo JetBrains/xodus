@@ -15,7 +15,7 @@
  */
 package jetbrains.exodus.query.metadata
 
-import com.orientechnologies.orient.core.db.ODatabaseSession
+import com.jetbrains.youtrack.db.api.DatabaseSession
 import jetbrains.exodus.entitystore.PersistentEntityStore
 import jetbrains.exodus.entitystore.StoreTransaction
 
@@ -33,7 +33,7 @@ fun <R> PersistentEntityStore.withReadonlyTx(block: (StoreTransaction) -> R): R 
     }
 }
 
-fun <R> ODatabaseSession.withTx(block: (ODatabaseSession) -> R): R {
+fun <R> DatabaseSession.withTx(block: (DatabaseSession) -> R): R {
     this.begin()
     try {
         val result = block(this)

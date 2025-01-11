@@ -15,7 +15,6 @@
  */
 package jetbrains.exodus.query
 
-import jetbrains.exodus.entitystore.EntityIterable
 import jetbrains.exodus.entitystore.orientdb.iterate.OEntityOfTypeIterable
 import jetbrains.exodus.entitystore.orientdb.testutil.*
 import jetbrains.exodus.query.metadata.entity
@@ -29,28 +28,28 @@ import kotlin.test.assertContentEquals
 class OBinaryOperationsWithSortTest : OTestMixin {
     @Rule
     @JvmField
-    val orientDbRule = InMemoryOrientDB()
+    val orientDbRule = InMemoryYouTrackDB()
 
-    override val orientDb = orientDbRule
+    override val youTrackDb = orientDbRule
 
     lateinit var testCase: OUsersWithInheritanceTestCase
 
     @Test
     fun union() {
-        testCase = OUsersWithInheritanceTestCase(orientDb)
+        testCase = OUsersWithInheritanceTestCase(youTrackDb)
 
         val model = givenModel()
 
-        val engine = QueryEngine(model, orientDb.store)
+        val engine = QueryEngine(model, youTrackDb.store)
         engine.sortEngine = SortEngine()
-        orientDb.withStoreTx { txn ->
+        youTrackDb.withStoreTx { txn ->
             val users = OEntityOfTypeIterable(txn, User.CLASS)
             val agents = OEntityOfTypeIterable(txn, Agent.CLASS)
             val union = engine.union(users, agents)
             val sorted = engine.query(union, BaseUser.CLASS, SortByProperty(null, "name", true))
             assertContentEquals(
                 listOf("u1", "u2"),
-                (sorted as EntityIterable).skip(2).take(2).toList().map { it.getProperty("name") })
+                sorted.skip(2).take(2).toList().map { it.getProperty("name") })
         }
     }
 
@@ -58,16 +57,16 @@ class OBinaryOperationsWithSortTest : OTestMixin {
     @Test
     @Ignore
     fun intersect() {
-        testCase = OUsersWithInheritanceTestCase(orientDb)
+        testCase = OUsersWithInheritanceTestCase(youTrackDb)
 
         val model = givenModel()
 
-        val engine = QueryEngine(model, orientDb.store)
+        val engine = QueryEngine(model, youTrackDb.store)
         engine.sortEngine = SortEngine()
-        orientDb.withStoreTx { txn ->
+        youTrackDb.withStoreTx { txn ->
             txn.createUser(Agent.CLASS, "u1")
         }
-        orientDb.withStoreTx { txn ->
+        youTrackDb.withStoreTx { txn ->
             val users = engine.query(User.CLASS, PropertyEqual("name", "u1"))
             val all = engine.query(BaseUser.CLASS, PropertyEqual("name", "u1"))
             val intersect = engine.intersect(users, all)
@@ -75,20 +74,20 @@ class OBinaryOperationsWithSortTest : OTestMixin {
             Assert.assertEquals(2, all.size())
             assertContentEquals(
                 listOf("u1"),
-                (sorted as EntityIterable).toList().map { it.getProperty("name") })
+                sorted.toList().map { it.getProperty("name") })
         }
     }
 
     @Test
     @Ignore
     fun minus() {
-        testCase = OUsersWithInheritanceTestCase(orientDb)
+        testCase = OUsersWithInheritanceTestCase(youTrackDb)
 
         val model = givenModel()
 
-        val engine = QueryEngine(model, orientDb.store)
+        val engine = QueryEngine(model, youTrackDb.store)
         engine.sortEngine = SortEngine()
-        orientDb.withStoreTx { txn ->
+        youTrackDb.withStoreTx { txn ->
             val users = OEntityOfTypeIterable(txn, User.CLASS)
             val u1 = engine.query(BaseUser.CLASS, PropertyEqual("name", "u1"))
             val minus = engine.exclude(users, u1)
@@ -96,12 +95,12 @@ class OBinaryOperationsWithSortTest : OTestMixin {
             Assert.assertEquals(1, minus.count())
             assertContentEquals(
                 listOf("u2"),
-                (sorted as EntityIterable).toList().map { it.getProperty("name") })
+                sorted.toList().map { it.getProperty("name") })
         }
     }
 
 
-    private fun givenModel() = oModel(orientDb.provider) {
+    private fun givenModel() = oModel(youTrackDb.provider) {
         entity(BaseUser.CLASS)
         entity(User.CLASS, BaseUser.CLASS)
         entity(Admin.CLASS, BaseUser.CLASS)

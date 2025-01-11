@@ -15,13 +15,13 @@
  */
 package jetbrains.exodus.entitystore.orientdb
 
-import com.orientechnologies.orient.core.db.ODatabaseType
+import com.jetbrains.youtrack.db.api.DatabaseType
 
 class ODatabaseConnectionConfig private constructor(
     val databaseRoot: String,
     val userName: String,
     val password: String,
-    val databaseType: ODatabaseType,
+    val databaseType: DatabaseType,
     val closeAfterDelayTimeout: Int
 ) {
     companion object {
@@ -35,13 +35,13 @@ class ODatabaseConnectionConfig private constructor(
         private lateinit var databaseRoot: String
         private lateinit var userName: String
         private lateinit var password: String
-        private var databaseType: ODatabaseType = ODatabaseType.MEMORY
+        private var databaseType: DatabaseType = DatabaseType.MEMORY
         private var closeAfterDelayTimeout: Int = 10
 
         fun withDatabaseRoot(databaseURL: String) = apply { this.databaseRoot = databaseURL }
         fun withUserName(userName: String) = apply { this.userName = userName }
         fun withPassword(password: String) = apply { this.password = password }
-        fun withDatabaseType(databaseType: ODatabaseType) = apply { this.databaseType = databaseType }
+        fun withDatabaseType(databaseType: DatabaseType) = apply { this.databaseType = databaseType }
         fun withCloseAfterDelayTimeout(closeAfterDelayTimeout: Int) =
             apply { this.closeAfterDelayTimeout = closeAfterDelayTimeout }
 

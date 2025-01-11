@@ -49,7 +49,7 @@ fun shouldApplyDokka(project: Project): Boolean {
 }
 
 tasks.wrapper {
-    gradleVersion = "8.5"
+    gradleVersion = "8.12"
 }
 
 defaultTasks("assemble")
@@ -64,7 +64,7 @@ nexusStaging {
 allprojects {
     repositories {
         mavenCentral()
-        maven { url = uri("https://packages.jetbrains.team/maven/p/xodus/orientdb-daily") }
+        maven { url = uri("https://packages.jetbrains.team/maven/p/xodus/youtrackdb-daily") }
     }
 }
 
@@ -158,7 +158,7 @@ subprojects {
         isFailOnError = false
         options.quiet()
         (options as CoreJavadocOptions).addStringOption("Xdoclint:none", "-quiet")
-        (options as CoreJavadocOptions).addStringOption("source", 17.toString())
+        (options as CoreJavadocOptions).addStringOption("source", 21.toString())
     }
 
 
@@ -186,7 +186,7 @@ subprojects {
         withSourcesJar()
 
         toolchain {
-            languageVersion.set(JavaLanguageVersion.of(17))
+            languageVersion.set(JavaLanguageVersion.of(21))
         }
     }
 

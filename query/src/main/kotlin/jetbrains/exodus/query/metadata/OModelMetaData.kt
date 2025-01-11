@@ -15,8 +15,8 @@
  */
 package jetbrains.exodus.query.metadata
 
-import com.orientechnologies.orient.core.db.ODatabaseSession
-import com.orientechnologies.orient.core.metadata.schema.OClass
+import com.jetbrains.youtrack.db.api.DatabaseSession
+import com.jetbrains.youtrack.db.api.schema.SchemaClass
 import jetbrains.exodus.entitystore.orientdb.*
 
 class OModelMetaData(
@@ -46,11 +46,11 @@ class OModelMetaData(
     }
 
     override fun getOrCreateEdgeClass(
-        session: ODatabaseSession,
+        session: DatabaseSession,
         linkName: String,
         outClassName: String,
         inClassName: String
-    ): OClass {
+    ): SchemaClass {
         /**
          * It is enough to check the existence of the edge class.
          * We reuse the same edge class for all the links with the same name.
