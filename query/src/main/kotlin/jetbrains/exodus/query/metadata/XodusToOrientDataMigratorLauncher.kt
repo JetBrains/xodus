@@ -102,6 +102,7 @@ class XodusToOrientDataMigratorLauncher(
         log.info { "2. Open Xodus" }
         val env = Environments.newInstance(xodus.databaseDirectory, newEnvironmentConfig {
             isLogProceedDataRestoredAtAnyCost = true
+            isGcEnabled = false
             if (xodus.cipherKey != null) {
                 setCipherId("jetbrains.exodus.crypto.streamciphers.JBChaChaStreamCipherProvider")
                 setCipherKey(xodus.cipherKey)
