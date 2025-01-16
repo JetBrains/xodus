@@ -70,7 +70,7 @@ class OStoreTransactionImpl(
         requireActiveTransaction()
         try {
             return session.load(id.asOId())
-        } catch (e: RecordNotFoundException) {
+        } catch (_: RecordNotFoundException) {
             throw EntityRemovedInDatabaseException(id.getTypeName(), id)
         }
 
@@ -259,7 +259,7 @@ class OStoreTransactionImpl(
         try {
             val vertex: Vertex = session.load(oId.asOId())
             return OVertexEntity(vertex, store)
-        } catch (e: RecordNotFoundException) {
+        } catch (_: RecordNotFoundException) {
             throw EntityRemovedInDatabaseException(oId.getTypeName(), id)
         }
     }
@@ -276,7 +276,7 @@ class OStoreTransactionImpl(
 
     override fun getSingletonIterable(entity: Entity): EntityIterable {
         requireActiveTransaction()
-        return OSingleEntityIterable(this, entity)
+        return OMultipleEntitiesIterable(this, listOf(entity))
     }
 
     override fun find(
