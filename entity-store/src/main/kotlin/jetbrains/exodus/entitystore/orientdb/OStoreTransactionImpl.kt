@@ -37,7 +37,7 @@ import jetbrains.exodus.env.ReadonlyTransactionException
 internal typealias TransactionEventHandler = (DatabaseSession, OStoreTransaction) -> Unit
 
 class OStoreTransactionImpl(
-    val session: DatabaseSession,
+    private val session: DatabaseSession,
     private val store: OPersistentEntityStore,
     private val schemaBuddy: OSchemaBuddy,
     private val onFinished: TransactionEventHandler,
@@ -100,6 +100,9 @@ class OStoreTransactionImpl(
     override fun isCurrent(): Boolean {
         return !isFinished && session.isActiveOnCurrentThread
     }
+
+    override val databaseSession: DatabaseSession
+        get() = session
 
     override fun getOEntityStore(): OEntityStore {
         return store

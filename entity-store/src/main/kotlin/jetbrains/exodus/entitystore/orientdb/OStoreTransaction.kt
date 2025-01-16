@@ -15,6 +15,7 @@
  */
 package jetbrains.exodus.entitystore.orientdb
 
+import com.jetbrains.youtrack.db.api.DatabaseSession
 import com.jetbrains.youtrack.db.api.query.ResultSet
 import com.jetbrains.youtrack.db.api.record.DBRecord
 import com.jetbrains.youtrack.db.api.record.Vertex
@@ -24,11 +25,11 @@ import jetbrains.exodus.entitystore.PersistentEntityId
 import jetbrains.exodus.entitystore.StoreTransaction
 
 interface OStoreTransaction : StoreTransaction {
+    val databaseSession: DatabaseSession
 
     fun getOEntityStore(): OEntityStore
 
     fun getTransactionId(): Long
-
 
     fun requireActiveTransaction()
 
