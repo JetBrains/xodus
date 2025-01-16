@@ -15,10 +15,12 @@
  */
 package jetbrains.exodus.entitystore.orientdb
 
+import com.jetbrains.youtrack.db.api.DatabaseSession
 import jetbrains.exodus.entitystore.EntityStore
 import jetbrains.exodus.entitystore.PersistentEntityId
 
 interface OEntityStore : EntityStore {
+    val databaseSession: DatabaseSession
 
     fun requireActiveTransaction(): OStoreTransaction
 

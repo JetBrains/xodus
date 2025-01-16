@@ -29,6 +29,12 @@ class OPersistentEntityStore(
 
     private val currentTransaction = ThreadLocal<OStoreTransaction>()
 
+    override val databaseSession: DatabaseSession
+        get() {
+            val tx = currentTransaction.get() ?: throw IllegalStateException("There is no active database session")
+            return tx.databaseSession
+        }
+
     override fun close() {
         //or it should be closed independently
         currentTransaction.get()?.abort()
