@@ -27,10 +27,7 @@ import com.jetbrains.youtrack.db.internal.core.id.RecordId
 import com.jetbrains.youtrack.db.internal.core.record.RecordAbstract
 import com.jetbrains.youtrack.db.internal.core.record.impl.RecordBytes
 import jetbrains.exodus.ByteIterable
-import jetbrains.exodus.entitystore.Entity
-import jetbrains.exodus.entitystore.EntityId
-import jetbrains.exodus.entitystore.EntityIterable
-import jetbrains.exodus.entitystore.EntityRemovedInDatabaseException
+import jetbrains.exodus.entitystore.*
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.CLASS_ID_CUSTOM_PROPERTY_NAME
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.LOCAL_ENTITY_ID_PROPERTY_NAME
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.linkTargetEntityIdPropertyName
@@ -140,6 +137,7 @@ open class OVertexEntity(vertex: Vertex, private val store: OEntityStore) : OEnt
 
     override fun generateId() {
         val type = oEntityId.getTypeName()
+        vertexRecord =  store.currentTransaction!!.asOStoreTransaction().bindToSession(vertexRecord)
         store.requireActiveTransaction().generateEntityId(type, vertexRecord)
         oEntityId = ORIDEntityId.fromVertex(vertexRecord)
     }
@@ -569,10 +567,6 @@ fun Vertex.requireSchemaClass(): SchemaClass {
 fun Vertex.requireLocalEntityId(): Long {
     return getProperty<Long>(LOCAL_ENTITY_ID_PROPERTY_NAME)
         ?: throw IllegalStateException("localEntityId not found for the vertex")
-}
-
-fun OVertexEntity.asReadonly(): OReadonlyVertexEntity {
-    return OReadonlyVertexEntity(vertex, store as OPersistentEntityStore)
 }
 
 
