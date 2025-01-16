@@ -20,7 +20,6 @@ import jetbrains.exodus.entitystore.orientdb.testutil.*
 import jetbrains.exodus.query.metadata.entity
 import jetbrains.exodus.query.metadata.oModel
 import org.junit.Assert
-import org.junit.Ignore
 import org.junit.Rule
 import org.junit.Test
 import kotlin.test.assertContentEquals
