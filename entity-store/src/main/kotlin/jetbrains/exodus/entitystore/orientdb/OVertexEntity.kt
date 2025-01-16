@@ -130,10 +130,8 @@ open class OVertexEntity(vertex: Vertex, private val store: OEntityStore) : OEnt
         val clusterId = identity.clusterId
         identity.reset()
 
-        vertexRecord = store.requireActiveTransaction().databaseSession.newVertex(oEntityId.getTypeName())
-        (vertexRecord as RecordAbstract).also {
-            (it.identity as RecordId).clusterId = clusterId
-        }
+        identity.clusterId = clusterId
+        vertexRecord = (store.databaseSession as DatabaseSessionInternal).newVertex(identity)
     }
 
     override fun generateId() {
