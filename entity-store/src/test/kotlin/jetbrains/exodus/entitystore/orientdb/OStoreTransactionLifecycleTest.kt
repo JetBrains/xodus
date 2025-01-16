@@ -106,10 +106,10 @@ class OStoreTransactionLifecycleTest : OTestMixin {
             val tx = beginTransaction()
 
 
-            val trista1 = tx.session.newVertex("trista")
+            val trista1 = tx.databaseSession.newVertex("trista")
             trista1.setProperty("name", "dvesti")
             trista1.save()
-            val trista2 = tx.session.newVertex("trista")
+            val trista2 = tx.databaseSession.newVertex("trista")
             trista2.setProperty("name", "dvesti")
             trista2.save()
 
