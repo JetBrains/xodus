@@ -25,7 +25,7 @@ import jetbrains.exodus.entitystore.orientdb.iterate.binop.OMinusEntityIterable
 import jetbrains.exodus.entitystore.orientdb.iterate.binop.OUnionEntityIterable
 import jetbrains.exodus.entitystore.orientdb.iterate.link.OLinkIterableToEntityIterableFiltered
 import jetbrains.exodus.entitystore.orientdb.iterate.link.OLinkSelectEntityIterable
-import jetbrains.exodus.entitystore.orientdb.iterate.link.OSingleEntityIterable
+import jetbrains.exodus.entitystore.orientdb.iterate.link.OMultipleEntitiesIterable
 import jetbrains.exodus.entitystore.orientdb.query.*
 import jetbrains.exodus.entitystore.util.unsupported
 
@@ -224,7 +224,7 @@ abstract class OEntityIterableBase(tx: OStoreTransaction) : OEntityIterable {
 
     override fun contains(entity: Entity): Boolean {
         val currentTx = oStore.requireActiveTransaction()
-        return OIntersectionEntityIterable(currentTx, this, OSingleEntityIterable(currentTx, entity)).iterator().hasNext()
+        return OIntersectionEntityIterable(currentTx, this, OMultipleEntitiesIterable(currentTx, listOf(entity))).iterator().hasNext()
     }
 
     override fun unwrap() = this

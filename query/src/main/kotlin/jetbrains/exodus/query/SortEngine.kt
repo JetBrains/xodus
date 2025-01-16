@@ -21,6 +21,7 @@ import jetbrains.exodus.entitystore.EntityIterable
 import jetbrains.exodus.entitystore.orientdb.OEntityIterable
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity
 import jetbrains.exodus.entitystore.orientdb.iterate.OEntityIterableBase
+import jetbrains.exodus.entitystore.orientdb.iterate.link.OMultipleEntitiesIterable
 import jetbrains.exodus.query.metadata.ModelMetaData
 
 open class SortEngine {
@@ -68,7 +69,7 @@ open class SortEngine {
         source: Iterable<Entity>,
         asc: Boolean
     ): Iterable<Entity> {
-        if (source is OEntityIterable) {
+        if (source is OEntityIterable && source !is OMultipleEntitiesIterable) {
             val txn = queryEngine.persistentStore.andCheckCurrentTransaction
             return txn.sort(entityType, "${OVertexEntity.edgeClassName(linkName)}.$propName", source.unwrap(), asc)
         } else {

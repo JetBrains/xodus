@@ -49,10 +49,61 @@ class OMultipleEntitiesIterable(tx: OStoreTransaction, val entities: List<Entity
     }
 
     override fun skip(number: Int): EntityIterable {
-        return OMultipleEntitiesIterable(transaction as OStoreTransaction, entities.drop(number) )
+        return if (number > entities.size){
+            EMPTY
+        } else {
+            OMultipleEntitiesIterable(transaction as OStoreTransaction, entities.drop(number))
+        }
     }
 
     override fun take(number: Int): EntityIterable {
         return OMultipleEntitiesIterable(transaction as OStoreTransaction, entities.take(number) )
+    }
+
+    override fun union(right: EntityIterable): EntityIterable {
+        return if (right is OMultipleEntitiesIterable) {
+            OMultipleEntitiesIterable(transaction as OStoreTransaction,  entities.union(right.entities).toList())
+        } else super.union(right)
+    }
+
+    override fun intersect(right: EntityIterable): EntityIterable {
+        return if (right is OMultipleEntitiesIterable) {
+            val otherEntitiesAsSet = right.entities.toSet()
+            val intersect = entities.filter { otherEntitiesAsSet.contains(it) }
+            if (intersect.isEmpty()){
+                EMPTY
+            } else {
+                OMultipleEntitiesIterable(transaction as OStoreTransaction, intersect)
+            }
+        } else super.intersect(right)
+    }
+
+    override fun intersectSavingOrder(right: EntityIterable): EntityIterable {
+        return if (right is OMultipleEntitiesIterable) {
+            val otherEntitiesAsSet = right.entities.toSet()
+            val intersect = entities.filter { otherEntitiesAsSet.contains(it) }
+            if (intersect.isEmpty()){
+                EMPTY
+            } else {
+                OMultipleEntitiesIterable(transaction as OStoreTransaction, intersect)
+            }
+        } else super.intersectSavingOrder(right)
+    }
+
+    override fun concat(right: EntityIterable): EntityIterable {
+        return if (right is OMultipleEntitiesIterable) {
+            OMultipleEntitiesIterable(transaction as OStoreTransaction,  entities + right.entities)
+        } else super.concat(right)
+    }
+
+    override fun minus(right: EntityIterable): EntityIterable {
+        return if (right is OMultipleEntitiesIterable) {
+            val minus = entities.toSet().minus(right.entities)
+            if (minus.isEmpty()){
+                EMPTY
+            } else {
+                OMultipleEntitiesIterable(transaction as OStoreTransaction,  entities + right.entities)
+            }
+        } else super.minus(right)
     }
 }
