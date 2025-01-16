@@ -22,6 +22,7 @@ import jetbrains.exodus.entitystore.Entity
 import jetbrains.exodus.entitystore.EntityIterable
 import jetbrains.exodus.entitystore.orientdb.OStoreTransaction
 import jetbrains.exodus.entitystore.orientdb.iterate.OEntityIterableBase
+import jetbrains.exodus.entitystore.orientdb.iterate.link.OMultipleEntitiesIterable
 import jetbrains.exodus.entitystore.orientdb.testutil.*
 import jetbrains.exodus.query.metadata.EntityMetaData
 import jetbrains.exodus.query.metadata.ModelMetaData
@@ -53,7 +54,13 @@ class OQueryEngineTest(
                         it.id.typeId >= 0
                     }
                     InMemoryEntityIterable(filteringSequence.asIterable(), currentTx, engine)
-                }, "InMemory")
+                }, "InMemory"),
+                arrayOf({ engine: QueryEngine, currentTx: OStoreTransaction ->
+                    val filteringSequence = engine.instantiateGetAll(Issues.CLASS).asSequence().filter {
+                        it.id.typeId >= 0
+                    }
+                    OMultipleEntitiesIterable(currentTx, filteringSequence.toList())
+                }, "MultipleEntitiesIterable")
             )
         }
     }
@@ -641,6 +648,37 @@ class OQueryEngineTest(
             // As sorted by project name
             assertOrderedNamesExactly(issueAsc, "issue3", "issue2", "issue1")
             assertOrderedNamesExactly(issuesDesc, "issue1", "issue2", "issue3")
+        }
+    }
+
+    @Test
+    fun `should query by property sorted`() {
+        // Given
+        val test = givenTestCase()
+
+        val metadata = givenModelMetadata().withEntityMetaData(Issues.CLASS)
+        val engine = givenOQueryEngine(metadata)
+
+        // When
+        withStoreTx { tx ->
+            val sortByPropertyAsc = SortByProperty(
+                null, // child node
+                "name", // link property name
+                true // ascending
+            )
+            val issuesAsc = engine.query(iterableGetter(engine, tx), Issues.CLASS, sortByPropertyAsc)
+
+            val sortByLinkPropertyDesc = SortByProperty(
+                null, // child node
+                "name", // link property name
+                false // descending
+            )
+            val issuesDesc = engine.query(iterableGetter(engine, tx), Issues.CLASS, sortByLinkPropertyDesc)
+
+            // Then
+            // As sorted by project name
+            assertOrderedNamesExactly(issuesDesc, "issue3", "issue2", "issue1")
+            assertOrderedNamesExactly(issuesAsc, "issue1", "issue2", "issue3")
         }
     }
 
