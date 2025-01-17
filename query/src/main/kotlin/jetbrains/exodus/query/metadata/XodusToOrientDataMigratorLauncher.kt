@@ -258,6 +258,11 @@ class XodusToOrientDataMigratorLauncher(
             }
             log.info("Blobs removed")
 
+            log.info("Deleting compactTemp files...")
+            File(xodus.databaseDirectory)
+                .listFiles { file -> file.isDirectory && file.name.startsWith("compactTemp") }
+                ?.forEach { FileUtils.deleteDirectory(it) }
+
             log.info("Removing text index...")
             val textIndex = File(xodus.databaseDirectory, "textindex")
             if (textIndex.exists()){
@@ -270,7 +275,7 @@ class XodusToOrientDataMigratorLauncher(
             if (dbDirectory.exists() && dbDirectory.isDirectory){
                 dbDirectory.listFiles { file ->
                     val name = file.name
-                    name.endsWith(".xd") || xodusSystemFilenames.contains(name)
+                    name.endsWith(".xd") || name.endsWith(".del") || xodusSystemFilenames.contains(name)
                 }?.forEach {
                     it.delete()
                 }
@@ -289,12 +294,18 @@ class XodusToOrientDataMigratorLauncher(
             if (textIndex.exists()){
                 FileUtils.moveDirectory(textIndex, File(newRoot, "textIndex"))
             }
+
+            log.info("Deleting compactTemp files...")
+            File(xodus.databaseDirectory)
+                .listFiles { file -> file.isDirectory && file.name.startsWith("compactTemp") }
+                ?.forEach { FileUtils.deleteDirectory(it) }
+
             log.info("Moving xd files...")
             val dbDirectory = File(xodus.databaseDirectory)
             if (dbDirectory.exists() && dbDirectory.isDirectory){
                 dbDirectory.listFiles { file ->
                     val name = file.name
-                    name.endsWith(".xd") || xodusSystemFilenames.contains(name)
+                    name.endsWith(".xd") || name.endsWith(".del") || xodusSystemFilenames.contains(name)
                 }?.forEach {
                     FileUtils.moveFile(it, File(newRoot, it.name))
                 }
