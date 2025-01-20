@@ -21,7 +21,7 @@ import jetbrains.exodus.env.EnvironmentTestsBase
 import jetbrains.exodus.env.Environments
 import jetbrains.exodus.env.Transaction
 import jetbrains.exodus.log.LogConfig
-import jetbrains.exodus.lucene2.codecs.Lucene87CodecWithNoFieldCompression
+import jetbrains.exodus.lucene2.codecs.Lucene101CodecWithNoFieldCompression
 import org.apache.lucene.analysis.Analyzer
 import org.apache.lucene.analysis.CharArraySet
 import org.apache.lucene.analysis.StopwordAnalyzerBase
@@ -86,7 +86,7 @@ abstract class XodusLuceneTestsBase : EnvironmentTestsBase() {
     protected fun createIndexWriterConfig() {
         indexConfig = IndexWriterConfig(analyzer)
         indexConfig.mergeScheduler = SerialMergeScheduler()
-        indexConfig.codec = Lucene87CodecWithNoFieldCompression()
+        indexConfig.codec = Lucene101CodecWithNoFieldCompression()
     }
 
     protected fun createIndexWriter() {
