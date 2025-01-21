@@ -49,7 +49,7 @@ class YTDBMultipleEntitiesIterable(tx: YTDBStoreTransaction, val entities: List<
     }
 
     override fun skip(number: Int): EntityIterable {
-        return if (number > entities.size){
+        return if (number > entities.size) {
             EMPTY
         } else {
             YTDBMultipleEntitiesIterable(transaction as YTDBStoreTransaction, entities.drop(number))
@@ -57,12 +57,12 @@ class YTDBMultipleEntitiesIterable(tx: YTDBStoreTransaction, val entities: List<
     }
 
     override fun take(number: Int): EntityIterable {
-        return YTDBMultipleEntitiesIterable(transaction as YTDBStoreTransaction, entities.take(number) )
+        return YTDBMultipleEntitiesIterable(transaction as YTDBStoreTransaction, entities.take(number))
     }
 
     override fun union(right: EntityIterable): EntityIterable {
         return if (right is YTDBMultipleEntitiesIterable) {
-            YTDBMultipleEntitiesIterable(transaction as YTDBStoreTransaction,  entities.union(right.entities).toList())
+            YTDBMultipleEntitiesIterable(transaction as YTDBStoreTransaction, entities.union(right.entities).toList())
         } else super.union(right)
     }
 
@@ -70,7 +70,7 @@ class YTDBMultipleEntitiesIterable(tx: YTDBStoreTransaction, val entities: List<
         return if (right is YTDBMultipleEntitiesIterable) {
             val otherEntitiesAsSet = right.entities.toSet()
             val intersect = entities.filter { otherEntitiesAsSet.contains(it) }
-            if (intersect.isEmpty()){
+            if (intersect.isEmpty()) {
                 EMPTY
             } else {
                 YTDBMultipleEntitiesIterable(transaction as YTDBStoreTransaction, intersect)
@@ -82,7 +82,7 @@ class YTDBMultipleEntitiesIterable(tx: YTDBStoreTransaction, val entities: List<
         return if (right is YTDBMultipleEntitiesIterable) {
             val otherEntitiesAsSet = right.entities.toSet()
             val intersect = entities.filter { otherEntitiesAsSet.contains(it) }
-            if (intersect.isEmpty()){
+            if (intersect.isEmpty()) {
                 EMPTY
             } else {
                 YTDBMultipleEntitiesIterable(transaction as YTDBStoreTransaction, intersect)
@@ -92,17 +92,17 @@ class YTDBMultipleEntitiesIterable(tx: YTDBStoreTransaction, val entities: List<
 
     override fun concat(right: EntityIterable): EntityIterable {
         return if (right is YTDBMultipleEntitiesIterable) {
-            YTDBMultipleEntitiesIterable(transaction as YTDBStoreTransaction,  entities + right.entities)
+            YTDBMultipleEntitiesIterable(transaction as YTDBStoreTransaction, entities + right.entities)
         } else super.concat(right)
     }
 
     override fun minus(right: EntityIterable): EntityIterable {
         return if (right is YTDBMultipleEntitiesIterable) {
-            val minus = entities.toSet().minus(right.entities)
-            if (minus.isEmpty()){
+            val minus = entities.toSet().minus(right.entities.toSet())
+            if (minus.isEmpty()) {
                 EMPTY
             } else {
-                YTDBMultipleEntitiesIterable(transaction as YTDBStoreTransaction,  entities + right.entities)
+                YTDBMultipleEntitiesIterable(transaction as YTDBStoreTransaction, entities - right.entities.toSet())
             }
         } else super.minus(right)
     }
