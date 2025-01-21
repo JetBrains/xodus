@@ -19,7 +19,7 @@ import com.jetbrains.youtrack.db.api.DatabaseSession
 import com.jetbrains.youtrack.db.api.record.Direction
 import com.jetbrains.youtrack.db.api.record.Edge
 import com.jetbrains.youtrack.db.api.record.Vertex
-import com.jetbrains.youtrack.db.api.schema.Property
+import com.jetbrains.youtrack.db.api.schema.SchemaProperty
 import com.jetbrains.youtrack.db.api.schema.PropertyType
 import com.jetbrains.youtrack.db.api.schema.SchemaClass
 import com.jetbrains.youtrack.db.internal.core.collate.CaseInsensitiveCollate
@@ -456,7 +456,7 @@ internal class YouTrackDbSchemaInitializer(
         appendLine()
     }
 
-    private fun Property.applyCardinality(cardinality: AssociationEndCardinality) {
+    private fun SchemaProperty.applyCardinality(cardinality: AssociationEndCardinality) {
         when (cardinality) {
             AssociationEndCardinality._0_1 -> {
                 setRequirement(false)
@@ -484,7 +484,7 @@ internal class YouTrackDbSchemaInitializer(
         }
     }
 
-    private fun Property.setMaxIfDifferent(max: String?) {
+    private fun SchemaProperty.setMaxIfDifferent(max: String?) {
         append(", max $max")
         if (this.max == max) {
             append(" already set")
@@ -494,7 +494,7 @@ internal class YouTrackDbSchemaInitializer(
         }
     }
 
-    private fun Property.setMinIfDifferent(min: String?) {
+    private fun SchemaProperty.setMinIfDifferent(min: String?) {
         append(", min $min")
         if (this.min == min) {
             append(" already set")
@@ -668,7 +668,7 @@ internal class YouTrackDbSchemaInitializer(
         appendLine()
     }
 
-    private fun Property.setRequirement(required: Boolean) {
+    private fun SchemaProperty.setRequirement(required: Boolean) {
         if (required) {
             append(", required")
             if (!isMandatory) {
@@ -683,7 +683,7 @@ internal class YouTrackDbSchemaInitializer(
         }
     }
 
-    private fun Property.setNotNullIfDifferent(notNull: Boolean) {
+    private fun SchemaProperty.setNotNullIfDifferent(notNull: Boolean) {
         if (notNull) {
             append(", not nullable")
             if (!isNotNull) {
@@ -700,7 +700,7 @@ internal class YouTrackDbSchemaInitializer(
     private fun SchemaClass.createPropertyIfAbsent(
         propertyName: String,
         oType: PropertyType
-    ): Property {
+    ): SchemaProperty {
         append(", type is $oType")
         val oProperty = if (existsProperty(propertyName)) {
             append(", already created")
@@ -734,7 +734,7 @@ internal class YouTrackDbSchemaInitializer(
     *
     * But we still can set linkedClassType for direct link out-properties.
     * */
-    private fun SchemaClass.createLinkPropertyIfAbsent(propertyName: String): Property {
+    private fun SchemaClass.createLinkPropertyIfAbsent(propertyName: String): SchemaProperty {
         val oProperty = if (existsProperty(propertyName)) {
             append(", already created")
             getProperty(propertyName)
@@ -751,7 +751,7 @@ internal class YouTrackDbSchemaInitializer(
     private fun SchemaClass.createEmbeddedSetPropertyIfAbsent(
         propertyName: String,
         oType: PropertyType
-    ): Property {
+    ): SchemaProperty {
         append(", type of the set is $oType")
         val oProperty = if (existsProperty(propertyName)) {
             append(", already created")

@@ -266,7 +266,7 @@ class OStoreTransactionImpl(
 
     override fun getEntityTypes(): MutableList<String> {
         requireActiveTransaction()
-        return session.schema.classes.map { it.name }.toMutableList()
+        return session.schema.getClasses(session).map { it.name }.toMutableList()
     }
 
     override fun getAll(entityType: String): EntityIterable {
