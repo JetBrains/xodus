@@ -19,7 +19,7 @@ import com.jetbrains.youtrack.db.api.DatabaseSession
 import com.jetbrains.youtrack.db.api.record.Direction
 import com.jetbrains.youtrack.db.api.record.Edge
 import com.jetbrains.youtrack.db.api.record.Vertex
-import com.jetbrains.youtrack.db.api.schema.Property
+import com.jetbrains.youtrack.db.api.schema.SchemaProperty
 import com.jetbrains.youtrack.db.api.schema.SchemaClass
 import com.jetbrains.youtrack.db.internal.core.metadata.schema.SchemaClassInternal
 import jetbrains.exodus.entitystore.orientdb.*
@@ -74,7 +74,7 @@ internal fun DatabaseSession.assertAssociationExists(
     }
 }
 
-private fun Property.assertCardinality(cardinality: AssociationEndCardinality) {
+private fun SchemaProperty.assertCardinality(cardinality: AssociationEndCardinality) {
     when (cardinality) {
         AssociationEndCardinality._0_1 -> {
             assertTrue(!this.isMandatory)

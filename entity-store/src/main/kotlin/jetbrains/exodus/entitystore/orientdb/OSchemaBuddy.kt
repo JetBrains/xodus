@@ -85,7 +85,7 @@ class OSchemaBuddyImpl(
 
     override fun initialize(session: DatabaseSession) {
         session.createClassIdSequenceIfAbsent()
-        for (oClass in session.schema.classes) {
+        for (oClass in session.schema.getClasses(session)) {
             if (oClass.isVertexType && !INTERNAL_CLASS_NAMES.contains(oClass.name)) {
                 classIdToOClassId[oClass.requireClassId()] = oClass.clusterIds[0] to oClass.name
             }
@@ -199,7 +199,7 @@ class OSchemaBuddyImpl(
         entityTypeId: Int
     ): String {
         val (_, typeName) = classIdToOClassId.computeIfAbsent(entityTypeId) {
-            val oClass = session.schema.classes.find { oClass ->
+            val oClass = session.schema.getClasses(session).find { oClass ->
                 oClass.getCustom(CLASS_ID_CUSTOM_PROPERTY_NAME)?.toInt() == entityTypeId
             } ?: throw EntityRemovedInDatabaseException("Invalid type ID $entityTypeId")
             oClass.requireClassId() to oClass.name

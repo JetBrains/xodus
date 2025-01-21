@@ -16,7 +16,7 @@
 package jetbrains.exodus.query.metadata
 
 import com.jetbrains.youtrack.db.api.exception.RecordDuplicatedException
-import com.jetbrains.youtrack.db.api.schema.Property
+import com.jetbrains.youtrack.db.api.schema.SchemaProperty
 import com.jetbrains.youtrack.db.api.schema.PropertyType
 import com.jetbrains.youtrack.db.internal.core.db.DatabaseSessionInternal
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.LOCAL_ENTITY_ID_PROPERTY_NAME
@@ -576,7 +576,7 @@ class YouTrackDbSchemaInitializerTest {
             }
         }
 
-    private fun Property.check(required: Boolean, notNull: Boolean) {
+    private fun SchemaProperty.check(required: Boolean, notNull: Boolean) {
         assertEquals(required, isMandatory)
         assertEquals(notNull, isNotNull)
     }
