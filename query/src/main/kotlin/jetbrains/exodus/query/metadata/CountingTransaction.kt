@@ -15,9 +15,9 @@
  */
 package jetbrains.exodus.query.metadata
 
-import jetbrains.exodus.entitystore.orientdb.OPersistentEntityStore
-import jetbrains.exodus.entitystore.orientdb.OStoreTransaction
-import jetbrains.exodus.entitystore.orientdb.OVertexEntity
+import jetbrains.exodus.entitystore.youtrackdb.YTDBPersistentEntityStore
+import jetbrains.exodus.entitystore.youtrackdb.YTDBStoreTransaction
+import jetbrains.exodus.entitystore.youtrackdb.YTDBVertexEntity
 
 
 /**
@@ -32,11 +32,11 @@ import jetbrains.exodus.entitystore.orientdb.OVertexEntity
  * @property commitEvery The number of changes increments before a commit is triggered.
  */
 internal class CountingTransaction(
-    private val store: OPersistentEntityStore,
+    private val store: YTDBPersistentEntityStore,
     private val commitEvery: Int
 ) {
     private var counter = 0
-    private lateinit var txn : OStoreTransaction
+    private lateinit var txn : YTDBStoreTransaction
 
     var transactionsCommited: Long = 0
         private set
@@ -51,7 +51,7 @@ internal class CountingTransaction(
     }
 
     fun begin() {
-        txn = store.beginTransaction() as OStoreTransaction
+        txn = store.beginTransaction() as YTDBStoreTransaction
     }
 
     fun commit() {
@@ -67,12 +67,12 @@ internal class CountingTransaction(
         }
     }
 
-    fun newVertex(type: String, localEntityId: Long): OVertexEntity {
+    fun newVertex(type: String, localEntityId: Long): YTDBVertexEntity {
         return txn.newEntity(type, localEntityId)
     }
 }
 
-internal fun <R> OPersistentEntityStore.withCountingTx(commitEvery: Int, block: (CountingTransaction) -> R): R {
+internal fun <R> YTDBPersistentEntityStore.withCountingTx(commitEvery: Int, block: (CountingTransaction) -> R): R {
     val tx = CountingTransaction(this, commitEvery)
     tx.begin()
     try {

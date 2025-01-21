@@ -18,7 +18,7 @@ package jetbrains.exodus.query;
 
 import jetbrains.exodus.core.dataStructures.NanoSet;
 import jetbrains.exodus.entitystore.Entity;
-import jetbrains.exodus.entitystore.orientdb.iterate.OEntityOfTypeIterable;
+import jetbrains.exodus.entitystore.youtrackdb.iterate.YTDBEntityOfTypeIterable;
 import jetbrains.exodus.query.metadata.ModelMetaData;
 
 public class GetAll extends NodeBase {
@@ -26,7 +26,7 @@ public class GetAll extends NodeBase {
     @Override
     public Iterable<Entity> instantiate(String entityType, QueryEngine queryEngine, ModelMetaData metaData, InstantiateContext context) {
         var txn = queryEngine.getOStore().requireActiveTransaction();
-        return new OEntityOfTypeIterable(txn, entityType);
+        return new YTDBEntityOfTypeIterable(txn, entityType);
     }
 
     @Override

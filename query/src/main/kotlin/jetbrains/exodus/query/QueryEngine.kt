@@ -21,12 +21,12 @@ import jetbrains.exodus.entitystore.PersistentEntityStore
 import jetbrains.exodus.entitystore.StoreTransaction
 import jetbrains.exodus.entitystore.iterate.EntityIdSet
 import jetbrains.exodus.entitystore.iterate.SingleEntityIterable
-import jetbrains.exodus.entitystore.orientdb.OEntityIterable
-import jetbrains.exodus.entitystore.orientdb.OEntityStore
-import jetbrains.exodus.entitystore.orientdb.OStoreTransaction
-import jetbrains.exodus.entitystore.orientdb.iterate.OEntityIterableBase
-import jetbrains.exodus.entitystore.orientdb.iterate.binop.OIntersectionEntityIterable
-import jetbrains.exodus.entitystore.orientdb.iterate.link.OMultipleEntitiesIterable
+import jetbrains.exodus.entitystore.youtrackdb.YTDBEntityIterable
+import jetbrains.exodus.entitystore.youtrackdb.YTDBEntityStore
+import jetbrains.exodus.entitystore.youtrackdb.YTDBStoreTransaction
+import jetbrains.exodus.entitystore.youtrackdb.iterate.YTDBEntityIterableBase
+import jetbrains.exodus.entitystore.youtrackdb.iterate.binop.YTDBIntersectionEntityIterable
+import jetbrains.exodus.entitystore.youtrackdb.iterate.link.YTDBMultipleEntitiesIterable
 import jetbrains.exodus.entitystore.util.EntityIdSetFactory
 import jetbrains.exodus.kotlin.notNull
 import jetbrains.exodus.query.metadata.ModelMetaData
@@ -36,7 +36,7 @@ open class QueryEngine(val modelMetaData: ModelMetaData?, val persistentStore: P
 
     private var _sortEngine: SortEngine? = null
 
-    val oStore: OEntityStore = persistentStore as OEntityStore
+    val oStore: YTDBEntityStore = persistentStore as YTDBEntityStore
 
     open var sortEngine: SortEngine?
         get() = _sortEngine
@@ -89,7 +89,7 @@ open class QueryEngine(val modelMetaData: ModelMetaData?, val persistentStore: P
             return left
         }
         if (left.isEmpty || right.isEmpty) {
-            return OEntityIterableBase.EMPTY
+            return YTDBEntityIterableBase.EMPTY
         }
         return if (left is EntityIterable && right is EntityIterable) {
             @Suppress("USELESS_CAST")
@@ -135,7 +135,7 @@ open class QueryEngine(val modelMetaData: ModelMetaData?, val persistentStore: P
 
     open fun exclude(left: Iterable<Entity>, right: Iterable<Entity>): Iterable<Entity> {
         if (left.isEmpty || left === right) {
-            return OEntityIterableBase.EMPTY
+            return YTDBEntityIterableBase.EMPTY
         }
         if (right.isEmpty) {
             return left
@@ -152,7 +152,7 @@ open class QueryEngine(val modelMetaData: ModelMetaData?, val persistentStore: P
         return if (it is EntityIterable) {
             it.selectDistinct(linkName)
         } else {
-            it?.let { inMemorySelectDistinct(it, linkName) } ?: OEntityIterableBase.EMPTY
+            it?.let { inMemorySelectDistinct(it, linkName) } ?: YTDBEntityIterableBase.EMPTY
         }
 
     }
@@ -161,7 +161,7 @@ open class QueryEngine(val modelMetaData: ModelMetaData?, val persistentStore: P
         return if (it is EntityIterable) {
             it.selectManyDistinct(linkName)
         } else {
-            return it?.let { inMemorySelectManyDistinct(it, linkName) } ?: OEntityIterableBase.EMPTY
+            return it?.let { inMemorySelectManyDistinct(it, linkName) } ?: YTDBEntityIterableBase.EMPTY
         }
     }
 
@@ -205,26 +205,26 @@ open class QueryEngine(val modelMetaData: ModelMetaData?, val persistentStore: P
         val sequence: kotlin.sequences.Sequence<Entity>
 
         val txn = persistentStore.andCheckCurrentTransaction
-        if (left is OEntityIterable) {
+        if (left is YTDBEntityIterable) {
             //May be rewrite it. Constant from nowhere
             val rightValues = right.take(20)
             if (rightValues.size < 20) {
-                return OIntersectionEntityIterable(
-                    txn as OStoreTransaction,
+                return YTDBIntersectionEntityIterable(
+                    txn as YTDBStoreTransaction,
                     left,
-                    OMultipleEntitiesIterable(txn, rightValues.toList())
+                    YTDBMultipleEntitiesIterable(txn, rightValues.toList())
                 )
             } else {
                 ids = getAsEntityIdSet(left)
                 sequence = right.asSequence()
             }
-        } else if (right is OEntityIterable) {
+        } else if (right is YTDBEntityIterable) {
             val leftValues = left.take(20)
             if (leftValues.size < 20) {
-                return OIntersectionEntityIterable(
-                    txn as OStoreTransaction,
+                return YTDBIntersectionEntityIterable(
+                    txn as YTDBStoreTransaction,
                     right,
-                    OMultipleEntitiesIterable(txn, leftValues.toList())
+                    YTDBMultipleEntitiesIterable(txn, leftValues.toList())
                 )
             } else {
                 ids = getAsEntityIdSet(left)
@@ -267,9 +267,9 @@ open class QueryEngine(val modelMetaData: ModelMetaData?, val persistentStore: P
 
 private val Iterable<Entity>?.isEmpty: Boolean
     get() {
-        return this == null || this === OEntityIterableBase.EMPTY
+        return this == null || this === YTDBEntityIterableBase.EMPTY
     }
 
-private val Iterable<Entity>?.isPersistent: Boolean get() = this is OEntityIterableBase
+private val Iterable<Entity>?.isPersistent: Boolean get() = this is YTDBEntityIterableBase
 
 

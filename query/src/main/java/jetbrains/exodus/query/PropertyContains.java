@@ -16,7 +16,7 @@
 package jetbrains.exodus.query;
 
 import jetbrains.exodus.entitystore.Entity;
-import jetbrains.exodus.entitystore.orientdb.iterate.property.OPropertyContainsIterable;
+import jetbrains.exodus.entitystore.youtrackdb.iterate.property.YTDBPropertyContainsIterable;
 import jetbrains.exodus.query.metadata.ModelMetaData;
 
 import static jetbrains.exodus.query.Utils.safe_equals;
@@ -36,7 +36,7 @@ public class PropertyContains extends NodeBase {
     @Override
     public Iterable<Entity> instantiate(String entityType, QueryEngine queryEngine, ModelMetaData metaData, InstantiateContext context) {
         var txn = queryEngine.getOStore().requireActiveTransaction();
-        return new OPropertyContainsIterable(txn, entityType, name, contains, ignoreCase);
+        return new YTDBPropertyContainsIterable(txn, entityType, name, contains, ignoreCase);
     }
 
     @Override

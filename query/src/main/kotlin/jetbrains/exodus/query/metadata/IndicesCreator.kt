@@ -19,9 +19,9 @@ import com.jetbrains.youtrack.db.api.DatabaseSession
 import com.jetbrains.youtrack.db.api.record.Direction
 import com.jetbrains.youtrack.db.api.record.Vertex
 import com.jetbrains.youtrack.db.api.schema.SchemaClass
-import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.edgeClassName
-import jetbrains.exodus.entitystore.orientdb.getTargetLocalEntityIds
-import jetbrains.exodus.entitystore.orientdb.setTargetLocalEntityIds
+import jetbrains.exodus.entitystore.youtrackdb.YTDBVertexEntity.Companion.edgeClassName
+import jetbrains.exodus.entitystore.youtrackdb.getTargetLocalEntityIds
+import jetbrains.exodus.entitystore.youtrackdb.setTargetLocalEntityIds
 import mu.KotlinLogging
 
 private val log = KotlinLogging.logger {}
@@ -35,21 +35,23 @@ internal class IndicesCreator(
 ) {
     private val logger = PaddedLogger.logger(log)
 
-    fun createIndices(oSession: DatabaseSession) {
+    fun createIndices(dbSession: DatabaseSession) {
         try {
-            with (logger) {
+            with(logger) {
                 appendLine("applying indices to OrientDB")
 
                 appendLine("creating indices if absent:")
                 for ((ownerVertexName, indices) in indicesByOwnerVertexName) {
-                    val oClass = oSession.getClass(ownerVertexName) ?: throw IllegalStateException("$ownerVertexName not found")
-                    appendLine("${oClass.name}:")
+                    val dbClass =
+                        dbSession.getClass(ownerVertexName) ?: throw IllegalStateException("$ownerVertexName not found")
+                    appendLine("${dbClass.name}:")
                     withPadding {
                         for ((_, indexName, properties, unique) in indices) {
                             append(indexName)
-                            if (!oClass.areIndexed(oSession, *properties.toTypedArray())) {
-                                val indexType = if (unique) SchemaClass.INDEX_TYPE.UNIQUE else SchemaClass.INDEX_TYPE.NOTUNIQUE
-                                oClass.createIndex(oSession, indexName, indexType, *properties.toTypedArray())
+                            if (!dbSession.schema.indexExists(dbSession, indexName)) {
+                                val indexType =
+                                    if (unique) SchemaClass.INDEX_TYPE.UNIQUE else SchemaClass.INDEX_TYPE.NOTUNIQUE
+                                dbClass.createIndex(dbSession, indexName, indexType, *properties.toTypedArray())
                                 appendLine(", created")
                             } else {
                                 appendLine(", already created")
@@ -115,7 +117,7 @@ internal data class DeferredIndex(
     val properties: Set<String>,
     val unique: Boolean
 ) {
-    constructor(ownerVertexName: String, properties: Set<String>, unique: Boolean): this(
+    constructor(ownerVertexName: String, properties: Set<String>, unique: Boolean) : this(
         ownerVertexName,
         indexName = "${ownerVertexName}_${properties.sorted().joinToString("_")}${if (unique) "_unique" else ""}",
         properties,

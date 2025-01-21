@@ -17,7 +17,7 @@ package jetbrains.exodus.query.metadata
 
 import com.jetbrains.youtrack.db.api.YouTrackDB
 import jetbrains.exodus.entitystore.PersistentEntityStores
-import jetbrains.exodus.entitystore.orientdb.*
+import jetbrains.exodus.entitystore.youtrackdb.*
 import jetbrains.exodus.env.Environments
 import jetbrains.exodus.env.newEnvironmentConfig
 import jetbrains.exodus.log.BackupMetadata
@@ -41,9 +41,9 @@ val VERTEX_CLASSES_TO_SKIP_MIGRATION = 10
  * @param closeOnFinish Flag indicating whether to close the database upon completion of migration.
  */
 data class MigrateToOrientConfig(
-    val databaseProvider: ODatabaseProvider,
+    val databaseProvider: YTDBDatabaseProvider,
     val db: YouTrackDB,
-    val orientConfig: ODatabaseConfig,
+    val orientConfig: YTDBDatabaseConfig,
     val closeOnFinish: Boolean = false
 )
 
@@ -117,13 +117,13 @@ class XodusToOrientDataMigratorLauncher(
         // 1.2 Create OModelMetadata
         // it is important to disable autoInitialize for the schemaBuddy,
         // dataMigrator does not like anything existing in the database before it migrated the data
-        val schemaBuddy = OSchemaBuddyImpl(dbProvider, autoInitialize = false)
-        val oModelMetadata = OModelMetaData(dbProvider, schemaBuddy)
+        val schemaBuddy = YTDBSchemaBuddyImpl(dbProvider, autoInitialize = false)
+        val oModelMetadata = YTDBModelMetaData(dbProvider, schemaBuddy)
 
         // 1.3 Create OPersistentEntityStore
         // it is important to pass the oModelMetadata to the entityStore as schemaBuddy.
         // it (oModelMetadata) must handle all the schema-related logic.
-        val oEntityStore = OPersistentEntityStore(dbProvider, dbName, schemaBuddy = oModelMetadata)
+        val oEntityStore = YTDBPersistentEntityStore(dbProvider, dbName, schemaBuddy = oModelMetadata)
 
         // 1.4 Create TransientEntityStore
         // val oTransientEntityStore = TransientEntityStoreImpl(oModelMetadata, oEntityStore)
