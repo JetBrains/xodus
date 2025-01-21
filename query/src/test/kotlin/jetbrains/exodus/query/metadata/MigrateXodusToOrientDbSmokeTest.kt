@@ -23,7 +23,7 @@ import com.jetbrains.youtrack.db.api.record.Vertex
 import jetbrains.exodus.TestUtil
 import jetbrains.exodus.entitystore.PersistentEntityStoreImpl
 import jetbrains.exodus.entitystore.PersistentEntityStores
-import jetbrains.exodus.entitystore.orientdb.*
+import jetbrains.exodus.entitystore.youtrackdb.*
 import org.junit.Test
 import java.io.File
 import kotlin.test.assertEquals
@@ -44,14 +44,14 @@ class MigrateXodusToOrientDbSmokeTest {
         // create the database
         val builder = YouTrackDBConfig.builder()
         builder.addGlobalConfigurationParameter(GlobalConfiguration.NON_TX_READS_WARNING_MODE, "SILENT")
-        val connectionConfig = ODatabaseConnectionConfig.builder()
+        val connectionConfig = YTDBDatabaseConnectionConfig.builder()
             .withPassword(password)
             .withUserName(username)
             .withDatabaseType(DatabaseType.MEMORY)
             .withDatabaseRoot("")
             .build()
 
-        val config = ODatabaseConfig.builder()
+        val config = YTDBDatabaseConfig.builder()
             .withConnectionConfig(connectionConfig)
             .withDatabaseName("MEMORY")
             .build()
@@ -59,17 +59,17 @@ class MigrateXodusToOrientDbSmokeTest {
         val db = iniYouTrackDb(connectionConfig)
         db.execute("create database $dbName MEMORY users ( $username identified by '$password' role admin )")
         // create a provider
-        val dbProvider = ODatabaseProviderImpl(config, db)
+        val dbProvider = YTDBDatabaseProviderImpl(config, db)
 
         // 1.2 Create OModelMetadata
         // it is important to disable autoInitialize for the schemaBuddy,
         // dataMigrator does not like anything existing in the database before it migrated the data
-        val oModelMetadata = OModelMetaData(dbProvider, OSchemaBuddyImpl(dbProvider, autoInitialize = false))
+        val oModelMetadata = YTDBModelMetaData(dbProvider, YTDBSchemaBuddyImpl(dbProvider, autoInitialize = false))
 
         // 1.3 Create OPersistentEntityStore
         // it is important to pass the oModelMetadata to the entityStore as schemaBuddy.
         // it (oModelMetadata) must handle all the schema-related logic.
-        val oEntityStore = OPersistentEntityStore(dbProvider, dbName, schemaBuddy = oModelMetadata)
+        val oEntityStore = YTDBPersistentEntityStore(dbProvider, dbName, schemaBuddy = oModelMetadata)
 
         // 1.4 Create TransientEntityStore
         // val oTransientEntityStore = TransientEntityStoreImpl(oModelMetadata, oEntityStore)
@@ -106,13 +106,13 @@ class MigrateXodusToOrientDbSmokeTest {
         db.close()
     }
 
-    private fun OPersistentEntityStore.checkContainsAllTheEntities(entities: PileOfEntities) {
+    private fun YTDBPersistentEntityStore.checkContainsAllTheEntities(entities: PileOfEntities) {
         executeInTransaction { tx ->
             tx.assertOrientContainsAllTheEntities(entities)
         }
     }
 
-    private fun ODatabaseProvider.checkSchemaCreated() {
+    private fun YTDBDatabaseProvider.checkSchemaCreated() {
         withSession { session ->
             val type1 = session.getClass("type1")!!
             val type2 = session.getClass("type2")!!
@@ -126,7 +126,7 @@ class MigrateXodusToOrientDbSmokeTest {
         }
     }
 
-    private fun OPersistentEntityStore.checkLinksWork() {
+    private fun YTDBPersistentEntityStore.checkLinksWork() {
         executeInTransaction { tx ->
             for (entity in tx.getAll("type2")) {
                 if (entity.getProperty("id") == 7) {
@@ -147,7 +147,7 @@ class MigrateXodusToOrientDbSmokeTest {
         }
     }
 
-    private fun OModelMetaData.createTestSchema() {
+    private fun YTDBModelMetaData.createTestSchema() {
         entity("type1") {
             property("prop1", "string")
             property("prop2", "boolean")

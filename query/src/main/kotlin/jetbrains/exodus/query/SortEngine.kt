@@ -18,10 +18,10 @@ package jetbrains.exodus.query
 import jetbrains.exodus.entitystore.ComparableGetter
 import jetbrains.exodus.entitystore.Entity
 import jetbrains.exodus.entitystore.EntityIterable
-import jetbrains.exodus.entitystore.orientdb.OEntityIterable
-import jetbrains.exodus.entitystore.orientdb.OVertexEntity
-import jetbrains.exodus.entitystore.orientdb.iterate.OEntityIterableBase
-import jetbrains.exodus.entitystore.orientdb.iterate.link.OMultipleEntitiesIterable
+import jetbrains.exodus.entitystore.youtrackdb.YTDBEntityIterable
+import jetbrains.exodus.entitystore.youtrackdb.YTDBVertexEntity
+import jetbrains.exodus.entitystore.youtrackdb.iterate.YTDBEntityIterableBase
+import jetbrains.exodus.entitystore.youtrackdb.iterate.link.YTDBMultipleEntitiesIterable
 import jetbrains.exodus.query.metadata.ModelMetaData
 
 open class SortEngine {
@@ -47,11 +47,11 @@ open class SortEngine {
                 val i = queryEngine.toEntityIterable(source)
                 if (queryEngine.isPersistentIterable(i)) {
                     val it = (i as EntityIterable).unwrap()
-                    if (it === OEntityIterableBase.EMPTY) {
-                        OEntityIterableBase.EMPTY
+                    if (it === YTDBEntityIterableBase.EMPTY) {
+                        YTDBEntityIterableBase.EMPTY
                     }
                     return if (it.roughCount == 0L && it.count() == 0L) {
-                        OEntityIterableBase.EMPTY
+                        YTDBEntityIterableBase.EMPTY
                     } else {
                         txn.sort(entityType, propertyName, (source as EntityIterable).unwrap(), asc)
                     }
@@ -69,9 +69,9 @@ open class SortEngine {
         source: Iterable<Entity>,
         asc: Boolean
     ): Iterable<Entity> {
-        if (source is OEntityIterable && source !is OMultipleEntitiesIterable) {
+        if (source is YTDBEntityIterable && source !is YTDBMultipleEntitiesIterable) {
             val txn = queryEngine.persistentStore.andCheckCurrentTransaction
-            return txn.sort(entityType, "${OVertexEntity.edgeClassName(linkName)}.$propName", source.unwrap(), asc)
+            return txn.sort(entityType, "${YTDBVertexEntity.edgeClassName(linkName)}.$propName", source.unwrap(), asc)
         } else {
             val mmd = queryEngine.modelMetaData!!
             val emd = mmd.getEntityMetaData(entityType)!!
@@ -122,7 +122,7 @@ open class SortEngine {
         queryEngine.assertOperational()
         val emd = mmd?.getEntityMetaData(entityType)
         var it = if (emd != null && emd.isAbstract)
-            OEntityIterableBase.EMPTY
+            YTDBEntityIterableBase.EMPTY
         else
             queryEngine.instantiateGetAll(entityType)
         if (emd != null) {
@@ -138,7 +138,7 @@ open class SortEngine {
     }
 
     private interface IterableGetter {
-        fun getIterable(type: String): OEntityIterableBase
+        fun getIterable(type: String): YTDBEntityIterableBase
     }
 
     private class EntityComparator(private val selector: ComparableGetter) : Comparator<Entity> {

@@ -16,8 +16,8 @@
 package jetbrains.exodus.entitystore
 
 import com.jetbrains.youtrack.db.api.DatabaseType
-import jetbrains.exodus.entitystore.orientdb.ODatabaseConnectionConfig
-import jetbrains.exodus.entitystore.orientdb.iniYouTrackDb
+import jetbrains.exodus.entitystore.youtrackdb.YTDBDatabaseConnectionConfig
+import jetbrains.exodus.entitystore.youtrackdb.iniYouTrackDb
 import java.nio.file.Files
 import kotlin.io.path.absolutePathString
 import kotlin.test.Test
@@ -26,7 +26,7 @@ class WrongUsernameTest {
 
     @Test(expected = IllegalArgumentException::class)
     fun cannotCreateDatabaseWithWrongUsername() {
-        val cfg = ODatabaseConnectionConfig
+        val cfg = YTDBDatabaseConnectionConfig
             .builder()
             .withPassword("hello")
             .withUserName(";drop database users")

@@ -16,10 +16,10 @@
 package jetbrains.exodus.query.metadata
 
 import jetbrains.exodus.entitystore.PersistentEntityId
-import jetbrains.exodus.entitystore.orientdb.*
-import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.linkTargetEntityIdPropertyName
-import jetbrains.exodus.entitystore.orientdb.testutil.InMemoryYouTrackDB
-import jetbrains.exodus.entitystore.orientdb.testutil.OTestMixin
+import jetbrains.exodus.entitystore.youtrackdb.*
+import jetbrains.exodus.entitystore.youtrackdb.YTDBVertexEntity.Companion.linkTargetEntityIdPropertyName
+import jetbrains.exodus.entitystore.youtrackdb.testutil.InMemoryYouTrackDB
+import jetbrains.exodus.entitystore.youtrackdb.testutil.OTestMixin
 import org.junit.Assert
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -180,7 +180,7 @@ class OModelMetaDataTest : OTestMixin {
     @Test
     fun `prepare() initializes the classId map`() {
         val model =
-            oModel(youTrackDb.provider, OSchemaBuddyImpl(youTrackDb.provider, autoInitialize = false)) {
+            oModel(youTrackDb.provider, YTDBSchemaBuddyImpl(youTrackDb.provider, autoInitialize = false)) {
                 entity("type1")
             }
 
@@ -196,7 +196,7 @@ class OModelMetaDataTest : OTestMixin {
 
         // model does not find the id because internal data structures are not initialized yet
         youTrackDb.withSession {
-            assertEquals(ORIDEntityId.EMPTY_ID, model.getOEntityId(it, oldSchoolEntityId))
+            assertEquals(RIDEntityId.EMPTY_ID, model.getOEntityId(it, oldSchoolEntityId))
         }
 
         // prepare() must initialize internal data structures in the end
@@ -209,7 +209,7 @@ class OModelMetaDataTest : OTestMixin {
 
     @Test
     fun `addAssociation() initializes complementary properties for indexed links`() {
-        oModel(youTrackDb.provider, OSchemaBuddyImpl(youTrackDb.provider, autoInitialize = false)) {
+        oModel(youTrackDb.provider, YTDBSchemaBuddyImpl(youTrackDb.provider, autoInitialize = false)) {
             entity("type2")
             entity("type1")
             association("type1", "ass1", "type2", AssociationEndCardinality._0_n)
@@ -241,7 +241,7 @@ class OModelMetaDataTest : OTestMixin {
             assertFalse(type2.existsProperty(linkTargetEntityIdPropertyName("ass2")))
         }
 
-        oModel(youTrackDb.provider, OSchemaBuddyImpl(youTrackDb.provider, autoInitialize = false)) {
+        oModel(youTrackDb.provider, YTDBSchemaBuddyImpl(youTrackDb.provider, autoInitialize = false)) {
             entity("type2") {
                 index(IndexedField("ass2", isProperty = false))
             }
@@ -280,7 +280,7 @@ class OModelMetaDataTest : OTestMixin {
         }
         // initialize the entity types
         model.prepare()
-        val store = OPersistentEntityStore(youTrackDb.provider, youTrackDb.dbName, model)
+        val store = YTDBPersistentEntityStore(youTrackDb.provider, youTrackDb.dbName, model)
 
         // check that the links do not exist
         withSession { session ->
@@ -333,7 +333,7 @@ class OModelMetaDataTest : OTestMixin {
         }
         // initialize the entity types
         model.prepare()
-        val store = OPersistentEntityStore(youTrackDb.provider, youTrackDb.dbName, model)
+        val store = YTDBPersistentEntityStore(youTrackDb.provider, youTrackDb.dbName, model)
 
         // entity1 has already existed for a while
         val id1 = store.computeInTransaction { tx ->

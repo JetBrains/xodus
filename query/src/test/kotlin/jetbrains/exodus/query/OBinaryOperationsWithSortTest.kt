@@ -15,8 +15,8 @@
  */
 package jetbrains.exodus.query
 
-import jetbrains.exodus.entitystore.orientdb.iterate.OEntityOfTypeIterable
-import jetbrains.exodus.entitystore.orientdb.testutil.*
+import jetbrains.exodus.entitystore.youtrackdb.iterate.YTDBEntityOfTypeIterable
+import jetbrains.exodus.entitystore.youtrackdb.testutil.*
 import jetbrains.exodus.query.metadata.entity
 import jetbrains.exodus.query.metadata.oModel
 import org.junit.Assert
@@ -42,8 +42,8 @@ class OBinaryOperationsWithSortTest : OTestMixin {
         val engine = QueryEngine(model, youTrackDb.store)
         engine.sortEngine = SortEngine()
         youTrackDb.withStoreTx { txn ->
-            val users = OEntityOfTypeIterable(txn, User.CLASS)
-            val agents = OEntityOfTypeIterable(txn, Agent.CLASS)
+            val users = YTDBEntityOfTypeIterable(txn, User.CLASS)
+            val agents = YTDBEntityOfTypeIterable(txn, Agent.CLASS)
             val union = engine.union(users, agents)
             val sorted = engine.query(union, BaseUser.CLASS, SortByProperty(null, "name", true))
             assertContentEquals(
@@ -85,7 +85,7 @@ class OBinaryOperationsWithSortTest : OTestMixin {
         val engine = QueryEngine(model, youTrackDb.store)
         engine.sortEngine = SortEngine()
         youTrackDb.withStoreTx { txn ->
-            val users = OEntityOfTypeIterable(txn, User.CLASS)
+            val users = YTDBEntityOfTypeIterable(txn, User.CLASS)
             val u1 = engine.query(BaseUser.CLASS, PropertyEqual("name", "u1"))
             val minus = engine.exclude(users, u1)
             val sorted = engine.query(minus, BaseUser.CLASS, SortByProperty(null, "name", true))

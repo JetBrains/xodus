@@ -15,9 +15,9 @@
  */
 package jetbrains.exodus.entitystore
 
-import jetbrains.exodus.entitystore.orientdb.OEntityIterable
-import jetbrains.exodus.entitystore.orientdb.OEntityStore
-import jetbrains.exodus.entitystore.orientdb.OStoreTransaction
+import jetbrains.exodus.entitystore.youtrackdb.YTDBEntityIterable
+import jetbrains.exodus.entitystore.youtrackdb.YTDBEntityStore
+import jetbrains.exodus.entitystore.youtrackdb.YTDBStoreTransaction
 
 
 /**
@@ -35,16 +35,16 @@ fun PersistentEntityStore.asPersistent(): PersistentEntityStoreImpl {
     return this as PersistentEntityStoreImpl
 }
 
-fun StoreTransaction.asOStoreTransaction(): OStoreTransaction {
-    return this as OStoreTransaction
+fun StoreTransaction.asOStoreTransaction(): YTDBStoreTransaction {
+    return this as YTDBStoreTransaction
 }
 
-fun EntityIterable.asOQueryIterable(): OEntityIterable {
-    require(this is OEntityIterable) { "Only OEntityIterableBase is supported, but was ${this.javaClass.simpleName}" }
+fun EntityIterable.asOQueryIterable(): YTDBEntityIterable {
+    require(this is YTDBEntityIterable) { "Only OEntityIterableBase is supported, but was ${this.javaClass.simpleName}" }
     return this
 }
 
-fun EntityStore.asOStore(): OEntityStore {
-    require(this is OEntityStore) { "Only OEntityStore is supported, but was ${this.javaClass.simpleName}" }
+fun EntityStore.asOStore(): YTDBEntityStore {
+    require(this is YTDBEntityStore) { "Only OEntityStore is supported, but was ${this.javaClass.simpleName}" }
     return this
 }

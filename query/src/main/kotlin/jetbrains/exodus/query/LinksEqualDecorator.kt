@@ -16,7 +16,7 @@
 package jetbrains.exodus.query
 
 import jetbrains.exodus.entitystore.Entity
-import jetbrains.exodus.entitystore.orientdb.iterate.OEntityOfTypeIterable
+import jetbrains.exodus.entitystore.youtrackdb.iterate.YTDBEntityOfTypeIterable
 import jetbrains.exodus.query.Utils.safe_equals
 import jetbrains.exodus.query.metadata.ModelMetaData
 
@@ -30,7 +30,7 @@ class LinksEqualDecorator(val linkName: String, var decorated: NodeBase, val lin
         context: InstantiateContext
     ): Iterable<Entity> {
         val txn = queryEngine.oStore.requireActiveTransaction()
-        return OEntityOfTypeIterable(txn, entityType).findLinks(
+        return YTDBEntityOfTypeIterable(txn, entityType).findLinks(
             decorated.instantiate(linkEntityType, queryEngine, metaData, context), linkName
         )
     }

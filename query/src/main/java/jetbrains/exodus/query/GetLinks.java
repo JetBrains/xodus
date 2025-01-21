@@ -18,8 +18,8 @@ package jetbrains.exodus.query;
 
 import jetbrains.exodus.entitystore.Entity;
 import jetbrains.exodus.entitystore.EntityId;
-import jetbrains.exodus.entitystore.orientdb.iterate.OEntityIterableBase;
-import jetbrains.exodus.entitystore.orientdb.iterate.property.OPropertyEqualIterable;
+import jetbrains.exodus.entitystore.youtrackdb.iterate.YTDBEntityIterableBase;
+import jetbrains.exodus.entitystore.youtrackdb.iterate.property.YTDBPropertyEqualIterable;
 import jetbrains.exodus.query.metadata.ModelMetaData;
 
 import static jetbrains.exodus.query.Utils.safe_equals;
@@ -42,9 +42,9 @@ public class GetLinks extends NodeBase {
     public Iterable<Entity> instantiate(String entityType, QueryEngine queryEngine, ModelMetaData metaData, InstantiateContext context) {
         if (id != null) {
             var txn = queryEngine.getOStore().requireActiveTransaction();
-            return new OPropertyEqualIterable(txn, entityType, linkName, id);
+            return new YTDBPropertyEqualIterable(txn, entityType, linkName, id);
         }
-        return OEntityIterableBase.Companion.getEMPTY();
+        return YTDBEntityIterableBase.Companion.getEMPTY();
     }
 
     @Override

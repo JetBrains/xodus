@@ -21,11 +21,11 @@ import jetbrains.exodus.bindings.ComparableSet
 import jetbrains.exodus.entitystore.EntityId
 import jetbrains.exodus.entitystore.EntityRemovedInDatabaseException
 import jetbrains.exodus.entitystore.PersistentEntityStore
-import jetbrains.exodus.entitystore.orientdb.*
-import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.CLASS_ID_CUSTOM_PROPERTY_NAME
-import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.CLASS_ID_SEQUENCE_NAME
-import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.LOCAL_ENTITY_ID_PROPERTY_NAME
-import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.localEntityIdSequenceName
+import jetbrains.exodus.entitystore.youtrackdb.*
+import jetbrains.exodus.entitystore.youtrackdb.YTDBVertexEntity.Companion.CLASS_ID_CUSTOM_PROPERTY_NAME
+import jetbrains.exodus.entitystore.youtrackdb.YTDBVertexEntity.Companion.CLASS_ID_SEQUENCE_NAME
+import jetbrains.exodus.entitystore.youtrackdb.YTDBVertexEntity.Companion.LOCAL_ENTITY_ID_PROPERTY_NAME
+import jetbrains.exodus.entitystore.youtrackdb.YTDBVertexEntity.Companion.localEntityIdSequenceName
 import mu.KotlinLogging
 import kotlin.time.Duration
 import kotlin.time.measureTime
@@ -35,9 +35,9 @@ private val log = KotlinLogging.logger { }
 
 fun migrateDataFromXodusToOrientDb(
     xodus: PersistentEntityStore,
-    orient: OPersistentEntityStore,
-    orientProvider: ODatabaseProvider,
-    schemaBuddy: OSchemaBuddy,
+    orient: YTDBPersistentEntityStore,
+    orientProvider: YTDBDatabaseProvider,
+    schemaBuddy: YTDBSchemaBuddy,
     /*
     * How many entities should be copied in a single transaction
     * */
@@ -87,9 +87,9 @@ data class XodusToOrientMigrationStats(
  */
 internal class XodusToOrientDataMigrator(
     private val xodus: PersistentEntityStore,
-    private val orient: OPersistentEntityStore,
-    private val orientProvider: ODatabaseProvider,
-    private val schemaBuddy: OSchemaBuddy,
+    private val orient: YTDBPersistentEntityStore,
+    private val orientProvider: YTDBDatabaseProvider,
+    private val schemaBuddy: YTDBSchemaBuddy,
     /*
     * How many entities should be copied in a single transaction
     * */
@@ -228,7 +228,7 @@ internal class XodusToOrientDataMigrator(
                             for (propName in xEntity.propertyNames) {
                                 val propValue = xEntity.getProperty(propName)
                                 val comparableValue = if (propValue is ComparableSet<*>) {
-                                    OComparableSet(propValue.toHashSet())
+                                    YTDBComparableSet(propValue.toHashSet())
                                 } else {
                                     propValue as Comparable<*>
                                 }

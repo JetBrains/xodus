@@ -18,10 +18,10 @@ package jetbrains.exodus.query.metadata
 import com.jetbrains.youtrack.db.api.exception.RecordDuplicatedException
 import com.jetbrains.youtrack.db.api.record.Direction
 import com.jetbrains.youtrack.db.api.record.Vertex
-import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.edgeClassName
-import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.linkTargetEntityIdPropertyName
-import jetbrains.exodus.entitystore.orientdb.getTargetLocalEntityIds
-import jetbrains.exodus.entitystore.orientdb.testutil.InMemoryYouTrackDB
+import jetbrains.exodus.entitystore.youtrackdb.YTDBVertexEntity.Companion.edgeClassName
+import jetbrains.exodus.entitystore.youtrackdb.YTDBVertexEntity.Companion.linkTargetEntityIdPropertyName
+import jetbrains.exodus.entitystore.youtrackdb.getTargetLocalEntityIds
+import jetbrains.exodus.entitystore.youtrackdb.testutil.InMemoryYouTrackDB
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test

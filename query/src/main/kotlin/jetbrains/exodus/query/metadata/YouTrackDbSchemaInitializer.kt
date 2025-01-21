@@ -23,12 +23,12 @@ import com.jetbrains.youtrack.db.api.schema.SchemaProperty
 import com.jetbrains.youtrack.db.api.schema.PropertyType
 import com.jetbrains.youtrack.db.api.schema.SchemaClass
 import com.jetbrains.youtrack.db.internal.core.collate.CaseInsensitiveCollate
-import jetbrains.exodus.entitystore.orientdb.OVertexEntity
-import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.LOCAL_ENTITY_ID_PROPERTY_NAME
-import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.linkTargetEntityIdPropertyName
-import jetbrains.exodus.entitystore.orientdb.createClassIdSequenceIfAbsent
-import jetbrains.exodus.entitystore.orientdb.createLocalEntityIdSequenceIfAbsent
-import jetbrains.exodus.entitystore.orientdb.setClassIdIfAbsent
+import jetbrains.exodus.entitystore.youtrackdb.YTDBVertexEntity
+import jetbrains.exodus.entitystore.youtrackdb.YTDBVertexEntity.Companion.LOCAL_ENTITY_ID_PROPERTY_NAME
+import jetbrains.exodus.entitystore.youtrackdb.YTDBVertexEntity.Companion.linkTargetEntityIdPropertyName
+import jetbrains.exodus.entitystore.youtrackdb.createClassIdSequenceIfAbsent
+import jetbrains.exodus.entitystore.youtrackdb.createLocalEntityIdSequenceIfAbsent
+import jetbrains.exodus.entitystore.youtrackdb.setClassIdIfAbsent
 import mu.KotlinLogging
 
 private val log = KotlinLogging.logger {}
@@ -333,7 +333,7 @@ internal class YouTrackDbSchemaInitializer(
     }
 
     private fun DatabaseSession.createEdgeClassIfAbsent(name: String): SchemaClass {
-        val className = OVertexEntity.edgeClassName(name)
+        val className = YTDBVertexEntity.edgeClassName(name)
         var oClass: SchemaClass? = getClass(className)
         if (oClass == null) {
             oClass = oSession.createEdgeClass(className)!!
@@ -512,7 +512,7 @@ internal class YouTrackDbSchemaInitializer(
     private fun removeEdge(className: String, associationName: String, direction: Direction) {
         append(className)
         val sourceClass = oSession.getClass(className)
-        val edgeClassName = OVertexEntity.edgeClassName(associationName)
+        val edgeClassName = YTDBVertexEntity.edgeClassName(associationName)
         if (sourceClass != null) {
             val propOutName = Vertex.getEdgeLinkFieldName(direction, edgeClassName)
             append(".$propOutName")
