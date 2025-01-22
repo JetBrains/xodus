@@ -5,7 +5,7 @@ plugins {
 dependencies {
     implementation(project(":xodus-crypto"))
     implementation(project(":xodus-environment"))
-    implementation(project(":xodus-entity-store"))
+    implementation(project(":xodus-persistent-entity-store"))
     implementation(project(":xodus-compress"))
     api(project(":xodus-openAPI"))
     implementation(project(":xodus-utils"))
