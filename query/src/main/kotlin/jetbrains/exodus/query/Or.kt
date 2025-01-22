@@ -16,14 +16,8 @@
 package jetbrains.exodus.query
 
 import jetbrains.exodus.entitystore.Entity
-import jetbrains.exodus.entitystore.EntityId
 import jetbrains.exodus.entitystore.EntityIterable
-import jetbrains.exodus.entitystore.PersistentStoreTransaction
-import jetbrains.exodus.entitystore.iterate.EntityIdSetIterable
-import jetbrains.exodus.entitystore.iterate.EntityIterableBase
 import jetbrains.exodus.query.metadata.ModelMetaData
-import java.util.*
-import kotlin.collections.HashSet
 
 @Suppress("EqualsOrHashCode")
 class Or(left: NodeBase, right: NodeBase) : CommutativeOperator(left, right) {

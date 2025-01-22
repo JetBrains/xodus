@@ -164,6 +164,9 @@ project(":environment").name = "xodus-environment"
 include("entity-store")
 project(":entity-store").name = "xodus-entity-store"
 
+include("persistent-entity-store")
+project(":persistent-entity-store").name = "xodus-persistent-entity-store"
+
 include("query")
 project(":query").name = "xodus-query"
 
