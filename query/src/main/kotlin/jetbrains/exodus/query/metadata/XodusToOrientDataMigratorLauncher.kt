@@ -17,7 +17,7 @@ package jetbrains.exodus.query.metadata
 
 import com.jetbrains.youtrack.db.api.YouTrackDB
 import jetbrains.exodus.entitystore.PersistentEntityStores
-import jetbrains.exodus.entitystore.orientdb.*
+import jetbrains.exodus.entitystore.youtrackdb.*
 import jetbrains.exodus.env.Environments
 import jetbrains.exodus.env.newEnvironmentConfig
 import jetbrains.exodus.log.BackupMetadata
@@ -41,9 +41,9 @@ val VERTEX_CLASSES_TO_SKIP_MIGRATION = 10
  * @param closeOnFinish Flag indicating whether to close the database upon completion of migration.
  */
 data class MigrateToOrientConfig(
-    val databaseProvider: ODatabaseProvider,
+    val databaseProvider: YTDBDatabaseProvider,
     val db: YouTrackDB,
-    val orientConfig: ODatabaseConfig,
+    val orientConfig: YTDBDatabaseConfig,
     val closeOnFinish: Boolean = false
 )
 
@@ -87,8 +87,8 @@ class XodusToOrientDataMigratorLauncher(
         val dbProvider = orient.databaseProvider
 
         val dbName = orient.orientConfig.databaseName
-        val classesCount = dbProvider.withSession {
-            it.schema.classes.filter { !it.name.startsWith("O") }.size
+        val classesCount = dbProvider.withSession { session ->
+            session.schema.getClasses(session).filter { schemaClass -> !schemaClass.name.startsWith("O") }.size
         }
         if (classesCount > VERTEX_CLASSES_TO_SKIP_MIGRATION) {
             log.info { "There are already $classesCount classes in the database so it's considered as migrated" }
@@ -117,13 +117,13 @@ class XodusToOrientDataMigratorLauncher(
         // 1.2 Create OModelMetadata
         // it is important to disable autoInitialize for the schemaBuddy,
         // dataMigrator does not like anything existing in the database before it migrated the data
-        val schemaBuddy = OSchemaBuddyImpl(dbProvider, autoInitialize = false)
-        val oModelMetadata = OModelMetaData(dbProvider, schemaBuddy)
+        val schemaBuddy = YTDBSchemaBuddyImpl(dbProvider, autoInitialize = false)
+        val oModelMetadata = YTDBModelMetaData(dbProvider, schemaBuddy)
 
         // 1.3 Create OPersistentEntityStore
         // it is important to pass the oModelMetadata to the entityStore as schemaBuddy.
         // it (oModelMetadata) must handle all the schema-related logic.
-        val oEntityStore = OPersistentEntityStore(dbProvider, dbName, schemaBuddy = oModelMetadata)
+        val oEntityStore = YTDBPersistentEntityStore(dbProvider, dbName, schemaBuddy = oModelMetadata)
 
         // 1.4 Create TransientEntityStore
         // val oTransientEntityStore = TransientEntityStoreImpl(oModelMetadata, oEntityStore)
@@ -258,6 +258,11 @@ class XodusToOrientDataMigratorLauncher(
             }
             log.info("Blobs removed")
 
+            log.info("Deleting compactTemp files...")
+            File(xodus.databaseDirectory)
+                .listFiles { file -> file.isDirectory && file.name.startsWith("compactTemp") }
+                ?.forEach { FileUtils.deleteDirectory(it) }
+
             log.info("Removing text index...")
             val textIndex = File(xodus.databaseDirectory, "textindex")
             if (textIndex.exists()){
@@ -270,7 +275,7 @@ class XodusToOrientDataMigratorLauncher(
             if (dbDirectory.exists() && dbDirectory.isDirectory){
                 dbDirectory.listFiles { file ->
                     val name = file.name
-                    name.endsWith(".xd") || xodusSystemFilenames.contains(name)
+                    name.endsWith(".xd") || name.endsWith(".del") || xodusSystemFilenames.contains(name)
                 }?.forEach {
                     it.delete()
                 }
@@ -289,12 +294,18 @@ class XodusToOrientDataMigratorLauncher(
             if (textIndex.exists()){
                 FileUtils.moveDirectory(textIndex, File(newRoot, "textIndex"))
             }
+
+            log.info("Deleting compactTemp files...")
+            File(xodus.databaseDirectory)
+                .listFiles { file -> file.isDirectory && file.name.startsWith("compactTemp") }
+                ?.forEach { FileUtils.deleteDirectory(it) }
+
             log.info("Moving xd files...")
             val dbDirectory = File(xodus.databaseDirectory)
             if (dbDirectory.exists() && dbDirectory.isDirectory){
                 dbDirectory.listFiles { file ->
                     val name = file.name
-                    name.endsWith(".xd") || xodusSystemFilenames.contains(name)
+                    name.endsWith(".xd") || name.endsWith(".del") || xodusSystemFilenames.contains(name)
                 }?.forEach {
                     FileUtils.moveFile(it, File(newRoot, it.name))
                 }

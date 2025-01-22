@@ -19,9 +19,9 @@ import jetbrains.exodus.bindings.ComparableSet
 import jetbrains.exodus.entitystore.EntityId
 import jetbrains.exodus.entitystore.EntityRemovedInDatabaseException
 import jetbrains.exodus.entitystore.PersistentEntityStore
-import jetbrains.exodus.entitystore.orientdb.OComparableSet
-import jetbrains.exodus.entitystore.orientdb.OPersistentEntityStore
-import jetbrains.exodus.entitystore.orientdb.OVertexEntity
+import jetbrains.exodus.entitystore.youtrackdb.YTDBComparableSet
+import jetbrains.exodus.entitystore.youtrackdb.YTDBPersistentEntityStore
+import jetbrains.exodus.entitystore.youtrackdb.YTDBVertexEntity
 import mu.KotlinLogging
 import java.io.InputStream
 import kotlin.time.Duration
@@ -30,7 +30,7 @@ import kotlin.time.measureTimedValue
 
 private val log = KotlinLogging.logger { }
 
-fun checkDataIsSame(xStore: PersistentEntityStore, oStore: OPersistentEntityStore, xEntityIdToOEntityId: Map<EntityId, EntityId>): DataAfterMigrationCheckingStats {
+fun checkDataIsSame(xStore: PersistentEntityStore, oStore: YTDBPersistentEntityStore, xEntityIdToOEntityId: Map<EntityId, EntityId>): DataAfterMigrationCheckingStats {
     return DataAfterMigrationChecker(xStore, oStore, xEntityIdToOEntityId).checkDataIsSame()
 }
 
@@ -47,7 +47,7 @@ data class DataAfterMigrationCheckingStats(
 @OptIn(ExperimentalStdlibApi::class)
 internal class DataAfterMigrationChecker(
     private val xStore: PersistentEntityStore,
-    private val oStore: OPersistentEntityStore,
+    private val oStore: YTDBPersistentEntityStore,
     private val xEntityIdToOEntityId: Map<EntityId, EntityId>,
     private val printProgressAtLeastOnceIn: Int = 5_000
 ) {
@@ -80,7 +80,7 @@ internal class DataAfterMigrationChecker(
             oStore.withReadonlyTx { oTx ->
                 val xTypes = xTx.entityTypes.toSet()
                 val oTypes = oTx.entityTypes.toSet()
-                    .filterNot { it.contains(OVertexEntity.EDGE_CLASS_SUFFIX) } - oEntityStoreExtraEntityTypes
+                    .filterNot { it.contains(YTDBVertexEntity.EDGE_CLASS_SUFFIX) } - oEntityStoreExtraEntityTypes
                 log.info { "xStore entity types: ${xTypes.size}" }
                 log.info { "oStore entity types excluding extra types: ${xTypes.size}" }
                 when {
@@ -134,7 +134,7 @@ internal class DataAfterMigrationChecker(
                                         checkSets(
                                             setsInfo = "$type $entityIdx/$xSize ${e1.id} $propName sets",
                                             xSet = v1.toSet(),
-                                            oSet = (v2 as OComparableSet<*>).toSet()
+                                            oSet = (v2 as YTDBComparableSet<*>).toSet()
                                         )
                                     }
                                     v1 is String -> {

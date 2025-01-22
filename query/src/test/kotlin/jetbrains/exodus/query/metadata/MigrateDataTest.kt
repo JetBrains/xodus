@@ -25,13 +25,13 @@ import jetbrains.exodus.bindings.StringBinding
 import jetbrains.exodus.entitystore.PersistentEntityStore
 import jetbrains.exodus.entitystore.StoreTransaction
 import jetbrains.exodus.entitystore.XodusTestDB
-import jetbrains.exodus.entitystore.orientdb.OVertexEntity
-import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.CLASS_ID_SEQUENCE_NAME
-import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.localEntityIdSequenceName
-import jetbrains.exodus.entitystore.orientdb.createVertexClassWithClassId
-import jetbrains.exodus.entitystore.orientdb.requireClassId
-import jetbrains.exodus.entitystore.orientdb.requireLocalEntityId
-import jetbrains.exodus.entitystore.orientdb.testutil.InMemoryYouTrackDB
+import jetbrains.exodus.entitystore.youtrackdb.YTDBVertexEntity
+import jetbrains.exodus.entitystore.youtrackdb.YTDBVertexEntity.Companion.CLASS_ID_SEQUENCE_NAME
+import jetbrains.exodus.entitystore.youtrackdb.YTDBVertexEntity.Companion.localEntityIdSequenceName
+import jetbrains.exodus.entitystore.youtrackdb.createVertexClassWithClassId
+import jetbrains.exodus.entitystore.youtrackdb.requireClassId
+import jetbrains.exodus.entitystore.youtrackdb.requireLocalEntityId
+import jetbrains.exodus.entitystore.youtrackdb.testutil.InMemoryYouTrackDB
 import jetbrains.exodus.util.ByteArraySizedInputStream
 import jetbrains.exodus.util.LightOutputStream
 import jetbrains.exodus.util.UTFUtil
@@ -55,6 +55,7 @@ class MigrateDataTest {
     @JvmField
     val xodus = XodusTestDB()
 
+    @OptIn(ExperimentalStdlibApi::class)
     @Test
     @Ignore
     fun `Xodus home UTF-8 is broken, example`() {
@@ -180,6 +181,7 @@ class MigrateDataTest {
      *
      * So, this test is an illustration of the situation.
      */
+    @OptIn(ExperimentalStdlibApi::class)
     @Test
     fun `broken strings from Xodus`() {
         // it is how the string is stored in Classic Xodus on the disk
@@ -521,14 +523,14 @@ class MigrateDataTest {
 
 internal fun StoreTransaction.assertOrientContainsAllTheEntities(pile: PileOfEntities) {
     for (type in pile.types) {
-        for (record in this.getAll(type).map { it as OVertexEntity }) {
+        for (record in this.getAll(type).map { it as YTDBVertexEntity }) {
             val entity = pile.getEntity(type, record.getTestId())
             record.assertEquals(entity)
         }
     }
 }
 
-internal fun OVertexEntity.assertEquals(expected: Entity) {
+internal fun YTDBVertexEntity.assertEquals(expected: Entity) {
     val actualDocument = this
     val actual = this
 
@@ -561,7 +563,7 @@ internal fun OVertexEntity.assertEquals(expected: Entity) {
     }
 }
 
-internal fun OVertexEntity.getTestId(): Int = getProperty("id") as Int
+internal fun YTDBVertexEntity.getTestId(): Int = getProperty("id") as Int
 
 internal fun Vertex.getTestId(): Int = getProperty<Int>("id") as Int
 

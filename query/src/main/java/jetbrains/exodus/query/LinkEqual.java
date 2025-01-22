@@ -19,9 +19,9 @@ package jetbrains.exodus.query;
 import jetbrains.exodus.entitystore.Entity;
 import jetbrains.exodus.entitystore.EntityId;
 import jetbrains.exodus.entitystore.PersistentEntityId;
-import jetbrains.exodus.entitystore.orientdb.OEntityId;
-import jetbrains.exodus.entitystore.orientdb.iterate.link.OLinkIsNullEntityIterable;
-import jetbrains.exodus.entitystore.orientdb.iterate.link.OLinkToEntityIterable;
+import jetbrains.exodus.entitystore.youtrackdb.YTDBEntityId;
+import jetbrains.exodus.entitystore.youtrackdb.iterate.link.YTDBLinkIsNullEntityIterable;
+import jetbrains.exodus.entitystore.youtrackdb.iterate.link.YTDBLinkToEntityIterable;
 import jetbrains.exodus.query.metadata.ModelMetaData;
 
 import static jetbrains.exodus.query.Utils.safe_equals;
@@ -46,9 +46,9 @@ public class LinkEqual extends NodeBase {
     public Iterable<Entity> instantiate(String entityType, QueryEngine queryEngine, ModelMetaData metaData, InstantiateContext context) {
         var txn = queryEngine.getOStore().requireActiveTransaction();
         if (entity == null) {
-            return new OLinkIsNullEntityIterable(txn, entityType, name);
+            return new YTDBLinkIsNullEntityIterable(txn, entityType, name);
         }
-        return new OLinkToEntityIterable(txn, name, (OEntityId) entity.getId());
+        return new YTDBLinkToEntityIterable(txn, name, (YTDBEntityId) entity.getId());
     }
 
     @Override

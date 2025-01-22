@@ -19,16 +19,16 @@ import com.jetbrains.youtrack.db.api.DatabaseSession
 import com.jetbrains.youtrack.db.api.record.Direction
 import com.jetbrains.youtrack.db.api.record.Edge
 import com.jetbrains.youtrack.db.api.record.Vertex
-import com.jetbrains.youtrack.db.api.schema.Property
+import com.jetbrains.youtrack.db.api.schema.SchemaProperty
 import com.jetbrains.youtrack.db.api.schema.PropertyType
 import com.jetbrains.youtrack.db.api.schema.SchemaClass
 import com.jetbrains.youtrack.db.internal.core.collate.CaseInsensitiveCollate
-import jetbrains.exodus.entitystore.orientdb.OVertexEntity
-import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.LOCAL_ENTITY_ID_PROPERTY_NAME
-import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.linkTargetEntityIdPropertyName
-import jetbrains.exodus.entitystore.orientdb.createClassIdSequenceIfAbsent
-import jetbrains.exodus.entitystore.orientdb.createLocalEntityIdSequenceIfAbsent
-import jetbrains.exodus.entitystore.orientdb.setClassIdIfAbsent
+import jetbrains.exodus.entitystore.youtrackdb.YTDBVertexEntity
+import jetbrains.exodus.entitystore.youtrackdb.YTDBVertexEntity.Companion.LOCAL_ENTITY_ID_PROPERTY_NAME
+import jetbrains.exodus.entitystore.youtrackdb.YTDBVertexEntity.Companion.linkTargetEntityIdPropertyName
+import jetbrains.exodus.entitystore.youtrackdb.createClassIdSequenceIfAbsent
+import jetbrains.exodus.entitystore.youtrackdb.createLocalEntityIdSequenceIfAbsent
+import jetbrains.exodus.entitystore.youtrackdb.setClassIdIfAbsent
 import mu.KotlinLogging
 
 private val log = KotlinLogging.logger {}
@@ -333,7 +333,7 @@ internal class YouTrackDbSchemaInitializer(
     }
 
     private fun DatabaseSession.createEdgeClassIfAbsent(name: String): SchemaClass {
-        val className = OVertexEntity.edgeClassName(name)
+        val className = YTDBVertexEntity.edgeClassName(name)
         var oClass: SchemaClass? = getClass(className)
         if (oClass == null) {
             oClass = oSession.createEdgeClass(className)!!
@@ -456,7 +456,7 @@ internal class YouTrackDbSchemaInitializer(
         appendLine()
     }
 
-    private fun Property.applyCardinality(cardinality: AssociationEndCardinality) {
+    private fun SchemaProperty.applyCardinality(cardinality: AssociationEndCardinality) {
         when (cardinality) {
             AssociationEndCardinality._0_1 -> {
                 setRequirement(false)
@@ -484,7 +484,7 @@ internal class YouTrackDbSchemaInitializer(
         }
     }
 
-    private fun Property.setMaxIfDifferent(max: String?) {
+    private fun SchemaProperty.setMaxIfDifferent(max: String?) {
         append(", max $max")
         if (this.max == max) {
             append(" already set")
@@ -494,7 +494,7 @@ internal class YouTrackDbSchemaInitializer(
         }
     }
 
-    private fun Property.setMinIfDifferent(min: String?) {
+    private fun SchemaProperty.setMinIfDifferent(min: String?) {
         append(", min $min")
         if (this.min == min) {
             append(" already set")
@@ -512,7 +512,7 @@ internal class YouTrackDbSchemaInitializer(
     private fun removeEdge(className: String, associationName: String, direction: Direction) {
         append(className)
         val sourceClass = oSession.getClass(className)
-        val edgeClassName = OVertexEntity.edgeClassName(associationName)
+        val edgeClassName = YTDBVertexEntity.edgeClassName(associationName)
         if (sourceClass != null) {
             val propOutName = Vertex.getEdgeLinkFieldName(direction, edgeClassName)
             append(".$propOutName")
@@ -668,7 +668,7 @@ internal class YouTrackDbSchemaInitializer(
         appendLine()
     }
 
-    private fun Property.setRequirement(required: Boolean) {
+    private fun SchemaProperty.setRequirement(required: Boolean) {
         if (required) {
             append(", required")
             if (!isMandatory) {
@@ -683,7 +683,7 @@ internal class YouTrackDbSchemaInitializer(
         }
     }
 
-    private fun Property.setNotNullIfDifferent(notNull: Boolean) {
+    private fun SchemaProperty.setNotNullIfDifferent(notNull: Boolean) {
         if (notNull) {
             append(", not nullable")
             if (!isNotNull) {
@@ -700,7 +700,7 @@ internal class YouTrackDbSchemaInitializer(
     private fun SchemaClass.createPropertyIfAbsent(
         propertyName: String,
         oType: PropertyType
-    ): Property {
+    ): SchemaProperty {
         append(", type is $oType")
         val oProperty = if (existsProperty(propertyName)) {
             append(", already created")
@@ -734,7 +734,7 @@ internal class YouTrackDbSchemaInitializer(
     *
     * But we still can set linkedClassType for direct link out-properties.
     * */
-    private fun SchemaClass.createLinkPropertyIfAbsent(propertyName: String): Property {
+    private fun SchemaClass.createLinkPropertyIfAbsent(propertyName: String): SchemaProperty {
         val oProperty = if (existsProperty(propertyName)) {
             append(", already created")
             getProperty(propertyName)
@@ -751,7 +751,7 @@ internal class YouTrackDbSchemaInitializer(
     private fun SchemaClass.createEmbeddedSetPropertyIfAbsent(
         propertyName: String,
         oType: PropertyType
-    ): Property {
+    ): SchemaProperty {
         append(", type of the set is $oType")
         val oProperty = if (existsProperty(propertyName)) {
             append(", already created")

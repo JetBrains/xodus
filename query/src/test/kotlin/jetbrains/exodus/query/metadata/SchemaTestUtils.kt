@@ -19,10 +19,10 @@ import com.jetbrains.youtrack.db.api.DatabaseSession
 import com.jetbrains.youtrack.db.api.record.Direction
 import com.jetbrains.youtrack.db.api.record.Edge
 import com.jetbrains.youtrack.db.api.record.Vertex
-import com.jetbrains.youtrack.db.api.schema.Property
+import com.jetbrains.youtrack.db.api.schema.SchemaProperty
 import com.jetbrains.youtrack.db.api.schema.SchemaClass
 import com.jetbrains.youtrack.db.internal.core.metadata.schema.SchemaClassInternal
-import jetbrains.exodus.entitystore.orientdb.*
+import jetbrains.exodus.entitystore.youtrackdb.*
 import org.junit.Assert.*
 
 // assertions
@@ -74,7 +74,7 @@ internal fun DatabaseSession.assertAssociationExists(
     }
 }
 
-private fun Property.assertCardinality(cardinality: AssociationEndCardinality) {
+private fun SchemaProperty.assertCardinality(cardinality: AssociationEndCardinality) {
     when (cardinality) {
         AssociationEndCardinality._0_1 -> {
             assertTrue(!this.isMandatory)
@@ -164,11 +164,11 @@ internal fun model(initialize: ModelMetaDataImpl.() -> Unit): ModelMetaDataImpl 
 }
 
 internal fun oModel(
-    databaseProvider: ODatabaseProvider,
-    schemaBuddy: OSchemaBuddy = OSchemaBuddyImpl(databaseProvider, autoInitialize = false),
+    databaseProvider: YTDBDatabaseProvider,
+    schemaBuddy: YTDBSchemaBuddy = YTDBSchemaBuddyImpl(databaseProvider, autoInitialize = false),
     buildModel: ModelMetaDataImpl.() -> Unit
-): OModelMetaData {
-    val model = OModelMetaData(databaseProvider, schemaBuddy)
+): YTDBModelMetaData {
+    val model = YTDBModelMetaData(databaseProvider, schemaBuddy)
     model.buildModel()
     return model
 }
@@ -278,7 +278,7 @@ internal fun Vertex.setPropertyAndSave(propName: String, value: Any) {
 }
 
 internal fun Vertex.addEdge(linkName: String, target: Vertex) {
-    val edgeClassName = OVertexEntity.edgeClassName(linkName)
+    val edgeClassName = YTDBVertexEntity.edgeClassName(linkName)
     addEdge(target, edgeClassName)
     save()
     target.save()
@@ -286,7 +286,7 @@ internal fun Vertex.addEdge(linkName: String, target: Vertex) {
 
 internal fun Vertex.addIndexedEdge(linkName: String, target: Vertex) {
     val bag = getTargetLocalEntityIds(linkName)
-    addEdge(target, OVertexEntity.edgeClassName(linkName))
+    addEdge(target, YTDBVertexEntity.edgeClassName(linkName))
     bag.add(target.identity)
     setTargetLocalEntityIds(linkName, bag)
     save()
