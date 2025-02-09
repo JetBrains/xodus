@@ -35,6 +35,7 @@ import org.junit.Rule
 import org.junit.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertNull
 
 class YTDBStoreTransactionTest : OTestMixin {
 
@@ -842,6 +843,19 @@ class YTDBStoreTransactionTest : OTestMixin {
             } catch (e: EntityRemovedInDatabaseException) {
                 // expected
             }
+        }
+    }
+
+    @Test
+    fun setUserObject() {
+        val key = "foo"
+        val value = "bar"
+        withStoreTx { tx ->
+            tx.setUserObject(key, value)
+            assertEquals(value, tx.getUserObject(key))
+        }
+        withStoreTx { tx ->
+            assertNull(tx.getUserObject(key))
         }
     }
 }
