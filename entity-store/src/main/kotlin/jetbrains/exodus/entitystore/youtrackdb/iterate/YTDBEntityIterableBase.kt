@@ -55,7 +55,7 @@ abstract class YTDBEntityIterableBase(tx: YTDBStoreTransaction) : YTDBEntityIter
             override fun skip(number: Int): EntityIterable = this
             override fun take(number: Int): EntityIterable = this
             override fun intersect(right: EntityIterable) = this
-            override fun intersectSavingOrder(right: EntityIterable): EntityIterable = right
+            override fun intersectSavingOrder(right: EntityIterable): EntityIterable = this
             override fun distinct() = this
             override fun minus(right: EntityIterable) = this
             override fun selectManyDistinct(linkName: String) = this
@@ -107,14 +107,14 @@ abstract class YTDBEntityIterableBase(tx: YTDBStoreTransaction) : YTDBEntityIter
 
     override fun intersectSavingOrder(right: EntityIterable): EntityIterable {
         if (right == EMPTY) {
-            return this
+            return EMPTY
         }
         return intersect(right)
     }
 
     override fun intersect(right: EntityIterable): EntityIterable {
         if (right == EMPTY) {
-            return this
+            return EMPTY
         }
         return YTDBIntersectionEntityIterable(transaction as YTDBStoreTransaction, this, right.asOQueryIterable())
     }
