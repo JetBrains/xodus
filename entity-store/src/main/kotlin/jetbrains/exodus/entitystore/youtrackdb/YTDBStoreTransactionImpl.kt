@@ -26,7 +26,6 @@ import com.jetbrains.youtrack.db.internal.core.db.DatabaseSessionInternal
 import com.jetbrains.youtrack.db.internal.core.id.ImmutableRecordId
 import com.jetbrains.youtrack.db.internal.core.metadata.sequence.DBSequence
 import com.jetbrains.youtrack.db.internal.core.tx.FrontendTransaction
-import jetbrains.exodus.core.dataStructures.decorators.HashMapDecorator
 import jetbrains.exodus.entitystore.*
 import jetbrains.exodus.entitystore.youtrackdb.YTDBVertexEntity.Companion.LOCAL_ENTITY_ID_PROPERTY_NAME
 import jetbrains.exodus.entitystore.youtrackdb.iterate.YTDBEntityOfTypeIterable
@@ -34,7 +33,6 @@ import jetbrains.exodus.entitystore.youtrackdb.iterate.link.*
 import jetbrains.exodus.entitystore.youtrackdb.iterate.property.*
 import jetbrains.exodus.entitystore.youtrackdb.query.YTDBQueryCancellingPolicy
 import jetbrains.exodus.env.ReadonlyTransactionException
-import jetbrains.exodus.kotlin.synchronized
 
 internal typealias TransactionEventHandler = (DatabaseSession, YTDBStoreTransaction) -> Unit
 
@@ -45,8 +43,7 @@ class YTDBStoreTransactionImpl(
     private val onFinished: TransactionEventHandler,
     private val onDeactivated: TransactionEventHandler,
     private val onActivated: TransactionEventHandler,
-    private val readOnly: Boolean = false,
-    private val userObjects: MutableMap<Any, Any> = HashMapDecorator()
+    private val readOnly: Boolean = false
 ) : YTDBStoreTransaction {
     private var queryCancellingPolicy: YTDBQueryCancellingPolicy? = null
 
@@ -509,17 +506,6 @@ class YTDBStoreTransactionImpl(
     }
 
     override fun getQueryCancellingPolicy() = this.queryCancellingPolicy
-    override fun getUserObject(key: Any): Any? {
-        return synchronized(userObjects) {
-            userObjects[key]
-        }
-    }
-
-    override fun setUserObject(key: Any, value: Any) {
-        synchronized(userObjects) {
-            userObjects[key] = value
-        }
-    }
 
     override fun getOEntityId(entityId: PersistentEntityId): YTDBEntityId {
         requireActiveTransaction()

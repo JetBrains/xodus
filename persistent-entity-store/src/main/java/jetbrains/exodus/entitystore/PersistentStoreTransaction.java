@@ -22,7 +22,6 @@ import jetbrains.exodus.bindings.IntegerBinding;
 import jetbrains.exodus.bindings.LongBinding;
 import jetbrains.exodus.core.dataStructures.*;
 import jetbrains.exodus.core.cache.persistent.PersistentCacheClient;
-import jetbrains.exodus.core.dataStructures.decorators.HashMapDecorator;
 import jetbrains.exodus.core.dataStructures.hash.*;
 import jetbrains.exodus.crypto.EncryptedBlobVault;
 import jetbrains.exodus.entitystore.iterate.*;
@@ -65,8 +64,6 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
     private final ObjectCacheBase<PropertyId, String> blobStringsCache;
     private EntityIterableCacheAdapter localCache;
     private int localCacheAttempts;
-    @NotNull
-    private final Map<Object, Object> userObjects;
     private int localCacheHits;
     @Nullable
     private EntityIterableCacheAdapterMutable mutableCache;
@@ -104,7 +101,6 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         linksCache = createObjectCache(config.getTransactionLinksCacheSize());
         blobStringsCache = createObjectCache(config.getTransactionBlobStringsCacheSize());
         localCache = source.localCache;
-        userObjects = new HashMapDecorator<>();
         localCacheAttempts = localCacheHits = 0;
         switch (txnType) {
             case Regular:
@@ -127,7 +123,6 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         blobStringsCache = createObjectCache(config.getTransactionBlobStringsCacheSize());
         localCacheAttempts = localCacheHits = 0;
         final Runnable beginHook = getInitCachesBeginHook();
-        userObjects = new HashMapDecorator<>();
         final Environment env = store.getEnvironment();
         switch (txnType) {
             case Regular:
@@ -617,21 +612,6 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
     @Nullable
     public QueryCancellingPolicy getQueryCancellingPolicy() {
         return queryCancellingPolicy;
-    }
-
-    @Nullable
-    @Override
-    public Object getUserObject(@NotNull Object key) {
-        synchronized (userObjects) {
-            return userObjects.get(key);
-        }
-    }
-
-    @Override
-    public void setUserObject(@NotNull Object key, @NotNull Object value) {
-        synchronized (userObjects) {
-            userObjects.put(key, value);
-        }
     }
 
     public void registerMutatedHandle(@NotNull final EntityIterableHandle handle, @NotNull final CachedInstanceIterable iterable) {
