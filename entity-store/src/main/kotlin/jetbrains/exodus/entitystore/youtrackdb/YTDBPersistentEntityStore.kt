@@ -193,6 +193,10 @@ class YTDBPersistentEntityStore(
     override fun getOEntityId(entityId: PersistentEntityId): YTDBEntityId {
         return requireActiveTransaction().getOEntityId(entityId)
     }
+
+    override fun isReadOnly(): Boolean {
+        return this.databaseProvider.readOnly
+    }
 }
 
 internal fun YTDBEntityStore.requireOEntityId(id: EntityId): YTDBEntityId {

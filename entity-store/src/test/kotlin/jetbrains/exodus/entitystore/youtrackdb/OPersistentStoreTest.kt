@@ -317,4 +317,11 @@ class OPersistentStoreTest : OTestMixin {
             }
         }
     }
+
+    @Test
+    fun `read-only mode flag is propagated to the store`() {
+        youTrackDb.provider.readOnly = true
+        assertEquals(true, youTrackDb.store.isReadOnly)
+        youTrackDb.provider.readOnly = false
+    }
 }
