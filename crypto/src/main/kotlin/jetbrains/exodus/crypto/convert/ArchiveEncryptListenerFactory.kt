@@ -24,7 +24,7 @@ import org.apache.commons.compress.archivers.zip.ZipArchiveOutputStream
 import java.io.IOException
 
 object ArchiveEncryptListenerFactory : KLogging() {
-    fun newListener(archive: ArchiveOutputStream): EncryptListener {
+    fun newListener(archive: ArchiveOutputStream<TarArchiveEntry>): EncryptListener {
         return when (archive) {
             is TarArchiveOutputStream -> {
                 object : EncryptListener {

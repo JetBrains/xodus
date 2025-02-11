@@ -9,9 +9,9 @@ name: JDK 21 - master
 
 on:
   push:
-    branches: [ "master"]
+    branches: [ "master", "graph-store"]
   pull_request:
-    branches: [ "master"]
+    branches: [ "master", "graph-store"]
 
 permissions:
   contents: read
