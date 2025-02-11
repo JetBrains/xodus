@@ -39,6 +39,7 @@ import java.io.*;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.FileChannel;
+import java.nio.charset.Charset;
 import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.*;
@@ -293,7 +294,7 @@ public class CompressBackupUtil {
 
             final ArrayList<Future<Void>> threads = new ArrayList<>();
 
-            final ZipEncoding zipEncoding = ZipEncodingHelper.getZipEncoding(null);
+            final ZipEncoding zipEncoding = ZipEncodingHelper.getZipEncoding(Charset.defaultCharset());
 
             final LZ4Factory factory = LZ4Factory.safeInstance();
             final LZ4Compressor compressor = factory.fastCompressor();

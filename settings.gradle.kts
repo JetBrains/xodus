@@ -30,7 +30,7 @@ dependencyResolutionManagement {
             version("junit", "4.13.2")
             version("commons-net", "3.9.0")
             version("commons-lang", "3.12.0")
-            version("commons-compress", "1.22")
+            version("commons-compress", "1.27.1")
             version("bouncyCastle", "1.70")
             version("commons-io", "2.11.0")
             version("lucene", "8.10.0")

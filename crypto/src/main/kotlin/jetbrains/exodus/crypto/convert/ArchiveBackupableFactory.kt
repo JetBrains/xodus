@@ -23,6 +23,7 @@ import mu.KLogging
 import org.apache.commons.compress.archivers.ArchiveEntry
 import org.apache.commons.compress.archivers.ArchiveInputStream
 import org.apache.commons.compress.archivers.ArchiveStreamFactory
+import org.apache.commons.compress.archivers.tar.TarArchiveEntry
 import java.io.BufferedInputStream
 import java.io.File
 import java.io.InputStream
@@ -41,7 +42,7 @@ object ArchiveBackupableFactory : KLogging() {
 
     fun newBackupable(file: File, gzip: Boolean) = newBackupable(file.inputStream(), gzip)
 
-    private fun newArchiveBackupStrategy(archive: ArchiveInputStream): BackupStrategy {
+    private fun newArchiveBackupStrategy(archive: ArchiveInputStream<TarArchiveEntry>): BackupStrategy {
         return object : BackupStrategy() {
             override fun getContents() = object : MutableIterable<VirtualFileDescriptor> {
                 override fun iterator() = newArchiveIterator(archive)
@@ -53,7 +54,7 @@ object ArchiveBackupableFactory : KLogging() {
         }
     }
 
-    private fun newArchiveIterator(archive: ArchiveInputStream): MutableIterator<VirtualFileDescriptor> {
+    private fun newArchiveIterator(archive: ArchiveInputStream<TarArchiveEntry>): MutableIterator<VirtualFileDescriptor> {
         return object : MutableIterator<VirtualFileDescriptor> {
             var entry: ArchiveEntry? = null
 
@@ -95,7 +96,7 @@ object ArchiveBackupableFactory : KLogging() {
         return Pair(path, name)
     }
 
-    private class ArchiveEntryFileDescriptor(val archive: ArchiveInputStream,
+    private class ArchiveEntryFileDescriptor(val archive: ArchiveInputStream<TarArchiveEntry>,
                                              val entry: ArchiveEntry,
                                              val _path: String,
                                              val _name: String,
