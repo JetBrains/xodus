@@ -157,4 +157,7 @@ public interface PersistentEntityStore extends EntityStore, Backupable {
 
     @NotNull
     StoreTransaction getAndCheckCurrentTransaction();
+
+    @NotNull
+    Boolean isReadOnly();
 }

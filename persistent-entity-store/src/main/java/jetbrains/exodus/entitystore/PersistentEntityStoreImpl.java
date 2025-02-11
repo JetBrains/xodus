@@ -2660,4 +2660,10 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
             }
         }
     }
+
+    @NotNull
+    @Override
+    public Boolean isReadOnly() {
+        return this.environment.isReadOnly();
+    }
 }
