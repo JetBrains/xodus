@@ -235,7 +235,7 @@ open class XodusLuceneTests : XodusLuceneTestsBase() {
                         docs = indexSearcher.search(getQuery(DESCRIPTION, "develop"), Integer.MAX_VALUE)
                         Assert.assertEquals(5000, docs.totalHits.value)
                         docs.scoreDocs.forEach {
-                            val doc = indexSearcher.doc(it.doc, setOf("doc_id"))
+                            val doc = indexSearcher.indexReader.storedFields().document(it.doc, setOf("doc_id"))
                             Integer.parseInt(doc.get("doc_id"))
                         }
                     }

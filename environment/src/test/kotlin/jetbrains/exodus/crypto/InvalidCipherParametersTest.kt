@@ -276,6 +276,7 @@ private fun newEnvironmentConfig(cipherId: String?, cipherKey: String?, basicIV:
     ec.logCachePageSize = 4096
     ec.logFileSize = 4L
     ec.isGcEnabled = false
+    ec.isLogProceedDataRestoredAtAnyCost = true
 
     return ec
 }

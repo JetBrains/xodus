@@ -20,9 +20,11 @@ import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.OutOfDiskSpaceException;
 import jetbrains.exodus.bindings.IntegerBinding;
 import jetbrains.exodus.bindings.LongBinding;
-import jetbrains.exodus.core.dataStructures.*;
 import jetbrains.exodus.core.cache.persistent.PersistentCacheClient;
-import jetbrains.exodus.core.dataStructures.hash.*;
+import jetbrains.exodus.core.dataStructures.*;
+import jetbrains.exodus.core.dataStructures.hash.LongHashMap;
+import jetbrains.exodus.core.dataStructures.hash.LongHashSet;
+import jetbrains.exodus.core.dataStructures.hash.LongSet;
 import jetbrains.exodus.crypto.EncryptedBlobVault;
 import jetbrains.exodus.entitystore.iterate.*;
 import jetbrains.exodus.env.*;
@@ -32,7 +34,9 @@ import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.*;
+import java.io.FilterInputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
@@ -43,7 +47,7 @@ import java.util.function.BiFunction;
 public class PersistentStoreTransaction implements StoreTransaction, TxnGetterStrategy, TxnProvider {
     private static final Logger logger = LoggerFactory.getLogger(PersistentStoreTransaction.class);
 
-    enum TransactionType {
+    public enum TransactionType {
         Regular,
         Exclusive,
         Readonly
@@ -82,6 +86,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
 
     private boolean checkInvalidateBlobsFlag;
 
+
     PersistentStoreTransaction(@NotNull final PersistentEntityStoreImpl store) {
         this(store, TransactionType.Regular);
     }
@@ -96,11 +101,13 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
     PersistentStoreTransaction(@NotNull final PersistentStoreTransaction source,
                                @NotNull final TransactionType txnType) {
         this.store = source.store;
+
         final PersistentEntityStoreConfig config = store.getConfig();
         propsCache = createObjectCache(config.getTransactionPropsCacheSize());
         linksCache = createObjectCache(config.getTransactionLinksCacheSize());
         blobStringsCache = createObjectCache(config.getTransactionBlobStringsCacheSize());
         localCache = source.localCache;
+
         localCacheAttempts = localCacheHits = 0;
         switch (txnType) {
             case Regular:
@@ -215,11 +222,18 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
 
     // exposed only for tests
     boolean doFlush() {
-        if (txn.flush()) {
-            flushNonTransactionalBlobs();
-            flushCaches(false); // do not clear props & links caches
-            return true;
+        final EntityIterableCache entityIterableCache = store.getEntityIterableCache();
+        entityIterableCache.lockCacheAdapter();
+        try {
+            if (txn.flush()) {
+                flushNonTransactionalBlobs();
+                flushCaches(false); // do not clear props & links caches
+                return true;
+            }
+        } finally {
+            entityIterableCache.unlockCacheAdapter();
         }
+
         revert();
         return false;
     }
@@ -292,7 +306,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
     }
 
     // TODO: remove ASAP
-    private static final int traceGetAllForEntityType = Integer.getInteger("jetbrains.exodus.entitystore.traceGetAllForEntityType", -1).intValue();
+    private static final int traceGetAllForEntityType = Integer.getInteger("jetbrains.exodus.entitystore.traceGetAllForEntityType", -1);
 
     @Override
     @NotNull
@@ -322,13 +336,13 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
                                @NotNull final Comparable value) {
         if (value instanceof Boolean) {
             final EntityIterableBase withProp = findWithProp(entityType, propertyName);
-            if (((Boolean) value).booleanValue()) {
+            if ((Boolean) value) {
                 return withProp;
             }
             return getAll(entityType).minus(withProp);
         }
         return getPropertyIterable(entityType, propertyName, (entityTypeId, propertyId) ->
-                new PropertyValueIterable(this, entityTypeId.intValue(), propertyId.intValue(), value));
+                new PropertyValueIterable(this, entityTypeId, propertyId, value));
     }
 
     @Override
@@ -336,8 +350,8 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
     public EntityIterable find(@NotNull final String entityType, @NotNull final String propertyName,
                                @NotNull final Comparable minValue, @NotNull final Comparable maxValue) {
         if (minValue instanceof Boolean) {
-            final boolean min = ((Boolean) minValue).booleanValue();
-            final boolean max = ((Boolean) maxValue).booleanValue();
+            final boolean min = (Boolean) minValue;
+            final boolean max = (Boolean) maxValue;
             if (min == max) {
                 if (min) {
                     return findWithProp(entityType, propertyName);
@@ -350,7 +364,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
             return EntityIterableBase.EMPTY;
         }
         return getPropertyIterable(entityType, propertyName, (entityTypeId, propertyId) ->
-                new PropertyRangeIterable(this, entityTypeId.intValue(), propertyId.intValue(), minValue, maxValue));
+                new PropertyRangeIterable(this, entityTypeId, propertyId, minValue, maxValue));
     }
 
     @Override
@@ -360,7 +374,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
             return findWithPropSortedByValue(entityType, propertyName);
         }
         return getPropertyIterable(entityType, propertyName, (entityTypeId, propertyId) ->
-                new PropertyContainsValueEntityIterable(this, entityTypeId.intValue(), propertyId.intValue(), value, ignoreCase));
+                new PropertyContainsValueEntityIterable(this, entityTypeId, propertyId, value, ignoreCase));
     }
 
     @Override
@@ -377,12 +391,12 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
     @Override
     public EntityIterableBase findWithProp(@NotNull final String entityType, @NotNull final String propertyName) {
         return getPropertyIterable(entityType, propertyName, (entityTypeId, propertyId) ->
-                new EntitiesWithPropertyIterable(this, entityTypeId.intValue(), propertyId.intValue()));
+                new EntitiesWithPropertyIterable(this, entityTypeId, propertyId));
     }
 
     public EntityIterableBase findWithPropSortedByValue(@NotNull final String entityType, @NotNull final String propertyName) {
         return getPropertyIterable(entityType, propertyName, (entityTypeId, propertyId) ->
-                new PropertiesIterable(this, entityTypeId.intValue(), propertyId.intValue()));
+                new PropertiesIterable(this, entityTypeId, propertyId));
     }
 
     @Override
@@ -401,7 +415,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
     @Override
     public EntityIterable findWithBlob(@NotNull final String entityType, @NotNull final String blobName) {
         return getPropertyIterable(entityType, blobName, (entityTypeId, blobId) ->
-                new EntitiesWithBlobIterable(this, entityTypeId.intValue(), blobId.intValue()));
+                new EntitiesWithBlobIterable(this, entityTypeId, blobId));
     }
 
     @Override
@@ -784,7 +798,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
             this.blobStreams = blobStreams;
         }
 
-        blobStreams.put(blobHandle, new Triple<>(tmpFilePath, Boolean.valueOf(invalidateOnRollback), tmpHandle));
+        blobStreams.put(blobHandle, new Triple<>(tmpFilePath, invalidateOnRollback, tmpHandle));
     }
 
     void addBlobFile(final long blobHandle, @NotNull final Path file) {
@@ -949,7 +963,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         }
     }
 
-    public void flushCaches(final boolean clearPropsAndLinksCache) {
+    private void flushCaches(final boolean clearPropsAndLinksCache) {
         resetCaches(clearPropsAndLinksCache);
     }
 
@@ -981,7 +995,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
             if (blobStreams != null && !blobStreams.isEmpty()) {
                 for (final Triple<Path, Boolean, Long> streamTriple : blobStreams.values()) {
                     try {
-                        if (!checkInvalidateBlobsFlag || streamTriple.second.booleanValue()) {
+                        if (!checkInvalidateBlobsFlag || streamTriple.second) {
                             final Path path = streamTriple.first;
                             Files.deleteIfExists(path);
                         }
@@ -1015,10 +1029,27 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
 
         txn.setCommitHook(() -> {
             log.flushed();
+
             final EntityIterableCacheAdapterMutable cache = this.mutableCache;
             if (cache != null) { // mutableCache can be null if only blobs are modified
                 applyAtomicCaches(cache);
             }
+        });
+
+        txn.setTxValidationHook(() -> {
+            final EntityIterableCacheAdapterMutable cache = this.mutableCache;
+            if (cache != null) {
+                final EntityIterableCache entityIterableCache = store.getEntityIterableCache();
+                var currentCache = entityIterableCache.getCacheAdapter();
+                //local cache out of sync so we need to revert tx
+                //protected by adapter lock
+                if (currentCache != localCache) {
+                    revert();
+                    return false;
+                }
+            }
+
+            return true;
         });
     }
 
@@ -1125,10 +1156,12 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
             it.endUpdate(PersistentStoreTransaction.this);
         }
         EntityIterableCacheAdapter oldCache = localCache;
-        if (!entityIterableCache.compareAndSetCacheAdapter(localCache, mutableCache.endWrite())) {
+        var newCache = mutableCache.endWrite();
+        if (!entityIterableCache.compareAndSetCacheAdapter(localCache, newCache)) {
             throw new EntityStoreException("This exception should never be thrown");
         }
         oldCache.release();
+        localCache = newCache;
     }
 
     private void applyExclusiveTransactionCaches() {
@@ -1193,7 +1226,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
             return EntityIterableBase.EMPTY;
         }
 
-        return instantiator.apply(Integer.valueOf(entityTypeId), Integer.valueOf(propertyId));
+        return instantiator.apply(entityTypeId, propertyId);
     }
 
     @SuppressWarnings("unchecked")

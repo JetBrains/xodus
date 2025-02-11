@@ -30,15 +30,17 @@ import org.jetbrains.annotations.Nullable;
 
 public class PatriciaTreeWithDuplicates extends PatriciaTreeDecorator {
 
-    public PatriciaTreeWithDuplicates(@NotNull final Log log, final long rootAddress, final int structureId) {
-        this(log, rootAddress, structureId, false);
+    public PatriciaTreeWithDuplicates(@NotNull final Log log, final long rootAddress,
+                                      final int structureId, final int maxEntrySize) {
+        this(log, rootAddress, structureId, false, maxEntrySize);
     }
 
     public PatriciaTreeWithDuplicates(@NotNull final Log log,
                                       final long rootAddress,
                                       final int structureId,
-                                      final boolean empty) {
-        super(empty ? new PatriciaTreeEmpty(log, structureId, false) : new PatriciaTree(log, rootAddress, structureId));
+                                      final boolean empty, final int maxEntrySize) {
+        super(empty ? new PatriciaTreeEmpty(log, structureId, false, maxEntrySize) :
+                new PatriciaTree(log, rootAddress, structureId, maxEntrySize));
     }
 
     protected PatriciaTreeWithDuplicates(@NotNull final ITree treeNoDuplicates) {

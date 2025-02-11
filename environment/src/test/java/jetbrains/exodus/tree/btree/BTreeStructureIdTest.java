@@ -26,8 +26,8 @@ public class BTreeStructureIdTest extends BTreeTestBase {
 
     @Test
     public void testStructureIdSaveEmpty() {
-        BTreeMutable firstTree = new BTreeEmpty(log, false, 1).getMutableCopy();
-        BTreeMutable secondTree = new BTreeEmpty(log, false, 2).getMutableCopy();
+        BTreeMutable firstTree = new BTreeEmpty(log, false, 1, Integer.MAX_VALUE).getMutableCopy();
+        BTreeMutable secondTree = new BTreeEmpty(log, false, 2, Integer.MAX_VALUE).getMutableCopy();
         log.beginWrite();
         long first = firstTree.save();
         long second = secondTree.save();
@@ -40,8 +40,10 @@ public class BTreeStructureIdTest extends BTreeTestBase {
 
     @Test
     public void testStructureIdSave() {
-        BTreeMutable firstTree = new BTreeEmpty(log, createTestSplittingPolicy(), false, 42).getMutableCopy();
-        BTreeMutable secondTree = new BTreeEmpty(log, createTestSplittingPolicy(), false, 142).getMutableCopy();
+        BTreeMutable firstTree = new BTreeEmpty(log, createTestSplittingPolicy(), false,
+                42, Integer.MAX_VALUE).getMutableCopy();
+        BTreeMutable secondTree = new BTreeEmpty(log, createTestSplittingPolicy(),
+                false, 142, Integer.MAX_VALUE).getMutableCopy();
         for (INode node : createLNs("v", 100)) {
             firstTree.put(node);
             secondTree.put(node);
@@ -60,8 +62,10 @@ public class BTreeStructureIdTest extends BTreeTestBase {
 
     @Test
     public void testStructureIdDuplicatesSave() {
-        BTreeMutable firstTree = new BTreeEmpty(log, createTestSplittingPolicy(), false, 42).getMutableCopy();
-        BTreeMutable secondTree = new BTreeEmpty(log, createTestSplittingPolicy(), false, 142).getMutableCopy();
+        BTreeMutable firstTree = new BTreeEmpty(log, createTestSplittingPolicy(), false,
+                42, Integer.MAX_VALUE).getMutableCopy();
+        BTreeMutable secondTree = new BTreeEmpty(log, createTestSplittingPolicy(),
+                false, 142, Integer.MAX_VALUE).getMutableCopy();
         for (int i = 0; i < 100; i++) {
             for (int j = 0; j < 10; j++) {
                 firstTree.put(kv(i, duplicate("v", j)));
@@ -80,8 +84,10 @@ public class BTreeStructureIdTest extends BTreeTestBase {
 
     @Test
     public void testStructureIdModify() {
-        BTreeMutable firstTree = new BTreeEmpty(log, createTestSplittingPolicy(), false, 42).getMutableCopy();
-        BTreeMutable secondTree = new BTreeEmpty(log, createTestSplittingPolicy(), false, 142).getMutableCopy();
+        BTreeMutable firstTree = new BTreeEmpty(log, createTestSplittingPolicy(),
+                false, 42, Integer.MAX_VALUE).getMutableCopy();
+        BTreeMutable secondTree = new BTreeEmpty(log, createTestSplittingPolicy(),
+                false, 142, Integer.MAX_VALUE).getMutableCopy();
         for (INode node : createLNs("v", 100)) {
             firstTree.put(node);
             secondTree.put(node);
@@ -96,8 +102,10 @@ public class BTreeStructureIdTest extends BTreeTestBase {
         assertContains(42, first);
         assertContains(142, second);
         assertStructureIdNotEqual(first, second);
-        firstTree = new BTree(log, first, false, 42).getMutableCopy();
-        secondTree = new BTree(log, second, false, 142).getMutableCopy();
+        firstTree = new BTree(log, first, false,
+                42, Integer.MAX_VALUE).getMutableCopy();
+        secondTree = new BTree(log, second, false,
+                142, Integer.MAX_VALUE).getMutableCopy();
         for (INode node : createLNs("vvv", 100)) {
             firstTree.put(node);
             secondTree.put(node);
@@ -122,14 +130,14 @@ public class BTreeStructureIdTest extends BTreeTestBase {
     }
 
     private void assertContains(long expectedId, long address) {
-        ITree firstImTree = new BTree(log, address, false, 3);
+        ITree firstImTree = new BTree(log, address, false, 3, Integer.MAX_VALUE);
         LongIterator it = firstImTree.addressIterator();
         while (it.hasNext()) Assert.assertEquals(expectedId, log.read(it.next()).getStructureId());
     }
 
     public static void assertStructureIdNotEqual(long firstAddress, long secondAddress) {
-        ITree firstImTree = new BTree(log, firstAddress, false, 3);
-        ITree secondImTree = new BTree(log, secondAddress, false, 3);
+        ITree firstImTree = new BTree(log, firstAddress, false, 3, Integer.MAX_VALUE);
+        ITree secondImTree = new BTree(log, secondAddress, false, 3, Integer.MAX_VALUE);
         LongIterator it = firstImTree.addressIterator();
         LongHashSet firstSet = new LongHashSet();
         LongHashSet secondSet = new LongHashSet();

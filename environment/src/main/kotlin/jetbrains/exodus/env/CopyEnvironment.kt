@@ -152,22 +152,34 @@ fun Environment.copyToAsWhole(
         val storesCount = names.size
         progress?.invoke("Stores found: $storesCount")
 
-
         newEnv.executeInExclusiveTransaction { targetTxn ->
             executeInReadonlyTransaction { sourceTxn ->
-                names.forEachIndexed { i, name ->
-                    val started = Date()
-                    print(copyStoreMessage(started, name, i + 1, storesCount, 0L))
-
-
+                names.forEach { name ->
                     val sourceStore = openStore(name, StoreConfig.USE_EXISTING, sourceTxn)
                     val targetConfig = sourceStore.config.let { sourceConfig ->
                         if (forcePrefixing) StoreConfig.getStoreConfig(
                             sourceConfig.duplicates,
                             true
-                        ) else sourceConfig
+                        ) else {
+                            sourceConfig
+                        }
                     }
-                    val targetStore = newEnv.openStore(name, targetConfig, targetTxn)
+
+                    newEnv.openStore(name, targetConfig, targetTxn)
+                    progress?.invoke("\rStore $name has been created.")
+                }
+            }
+        }
+
+        executeInReadonlyTransaction { sourceTxn ->
+            names.forEachIndexed { i, name ->
+                newEnv.executeInExclusiveTransaction { targetTxn ->
+                    val started = Date()
+                    print(copyStoreMessage(started, name, i + 1, storesCount, 0L))
+
+                    val sourceStore = openStore(name, StoreConfig.USE_EXISTING, sourceTxn)
+                    val targetStore = newEnv.openStore(name, StoreConfig.USE_EXISTING, targetTxn)
+
                     sourceStore.openCursor(sourceTxn).forEach {
                         targetStore.putRight(targetTxn, ArrayByteIterable(key), ArrayByteIterable(value))
                     }
@@ -175,7 +187,9 @@ fun Environment.copyToAsWhole(
                     val actualSize = newEnv.computeInReadonlyTransaction { txn ->
                         if (newEnv.storeExists(name, txn)) {
                             newEnv.openStore(name, StoreConfig.USE_EXISTING, txn).count(txn)
-                        } else 0L
+                        } else {
+                            0L
+                        }
 
                     }
                     progress?.invoke("\r$started Copying store $name (${i + 1} of $storesCount): number of pairs = $actualSize")

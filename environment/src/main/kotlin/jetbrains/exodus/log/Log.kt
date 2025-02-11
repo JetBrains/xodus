@@ -43,6 +43,7 @@ import java.time.format.DateTimeFormatter
 import java.util.*
 import java.util.concurrent.Semaphore
 import kotlin.experimental.xor
+import kotlin.math.min
 
 class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, CacheDataProvider {
 
@@ -186,110 +187,110 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
             }
 
             val backupLocation = Path.of(location).resolve(BackupMetadata.BACKUP_METADATA_FILE_NAME)
-            if (!needToPerformMigration && !startupMetadata.isCorrectlyClosed) {
-                if (Files.exists(backupLocation)) {
-                    logger.info("Database $location : trying to restore from dynamic backup...")
-                    val backupMetadataBuffer = ByteBuffer.allocate(BackupMetadata.FILE_SIZE)
-                    FileChannel.open(backupLocation, StandardOpenOption.READ).use { channel ->
-                        while (backupMetadataBuffer.remaining() > 0) {
-                            val r = channel.read(backupMetadataBuffer)
-                            if (r == -1) {
-                                throw IOException("Unexpected end of file")
-                            }
-                        }
-                    }
-
-                    backupMetadataBuffer.rewind()
-                    val backupMetadata = BackupMetadata.deserialize(
-                        backupMetadataBuffer,
-                        startupMetadata.currentVersion, startupMetadata.isUseZeroFile
-                    )
-                    Files.deleteIfExists(backupLocation)
-
-                    if (backupMetadata == null || backupMetadata.rootAddress < 0 ||
-                        (backupMetadata.lastFileOffset % backupMetadata.pageSize.toLong()) != 0L
-                    ) {
-                        logger.warn("Backup is not stored correctly for database $location.")
-                    } else {
-                        val lastFileName = LogUtil.getLogFilename(backupMetadata.lastFileAddress)
-                        val lastSegmentFile = Path.of(location).resolve(lastFileName)
-
-                        if (!Files.exists(lastSegmentFile)) {
-                            logger.warn("Backup is not stored correctly for database $location.")
-                        } else {
-                            logger.info(
-                                "Found backup. " +
-                                        "Database $location will be restored till file $lastFileName, " +
-                                        " file length will be set too " +
-                                        "${backupMetadata.lastFileOffset}. DB root address ${backupMetadata.rootAddress}"
-                            )
-
-                            SharedOpenFilesCache.invalidate()
-                            try {
-                                SharedOpenFilesCache.invalidate()
-                                dataWriter.close()
-
-                                val blocks = TreeMap<Long, FileDataReader.FileBlock>()
-                                val blockIterator = reader.blocks.iterator()
-                                while (blockIterator.hasNext()) {
-                                    val block = blockIterator.next()
-                                    blocks[block.address] = block as FileDataReader.FileBlock
-                                }
-
-                                logger.info("Files in database: $location")
-                                val blockAddressIterator = blocks.keys.iterator()
-                                while (blockAddressIterator.hasNext()) {
-                                    val address = blockAddressIterator.next()
-                                    logger.info(LogUtil.getLogFilename(address))
-                                }
-
-                                copyFilesInRestoreTempDir(
-                                    blocks.tailMap(
-                                        backupMetadata.lastFileAddress,
-                                        true
-                                    ).values.iterator()
-                                )
-
-                                val blocksToTruncateIterator = blocks.tailMap(
-                                    backupMetadata.lastFileAddress,
-                                    false
-                                ).values.iterator()
-
-                                truncateFile(
-                                    lastSegmentFile.toFile(),
-                                    backupMetadata.lastFileOffset,
-                                    null
-                                )
-
-                                if (blocksToTruncateIterator.hasNext()) {
-                                    val blockToDelete = blocksToTruncateIterator.next()
-                                    logger.info("File ${LogUtil.getLogFilename(blockToDelete.address)} will be deleted.")
-
-
-                                    if (!blockToDelete.canWrite()) {
-                                        if (!blockToDelete.setWritable(true)) {
-                                            throw ExodusException(
-                                                "Can not write into file " + blockToDelete.absolutePath
-                                            )
-                                        }
-                                    }
-
-                                    Files.deleteIfExists(Path.of(blockToDelete.toURI()))
-                                }
-
-                                backupMetadata.alterMetadata(startupMetadata)
-                                startupMetadata = backupMetadata
-                                restoredFromBackup = true
-                            } catch (ex: Exception) {
-                                logger.error(
-                                    "Failed to restore database $location from dynamic backup. ",
-                                    ex
-                                )
-                            }
-                        }
-                    }
-                }
-            }
+//            if (!needToPerformMigration && !startupMetadata.isCorrectlyClosed) {
+//                if (Files.exists(backupLocation)) {
+//                    logger.info("Database $location : trying to restore from dynamic backup...")
+//                    val backupMetadataBuffer = ByteBuffer.allocate(BackupMetadata.FILE_SIZE)
+//                    FileChannel.open(backupLocation, StandardOpenOption.READ).use { channel ->
+//                        while (backupMetadataBuffer.remaining() > 0) {
+//                            val r = channel.read(backupMetadataBuffer)
+//                            if (r == -1) {
+//                                throw IOException("Unexpected end of file")
+//                            }
+//                        }
+//                    }
+//
+//                    backupMetadataBuffer.rewind()
+//                    val backupMetadata = BackupMetadata.deserialize(
+//                        backupMetadataBuffer,
+//                        startupMetadata.currentVersion, startupMetadata.isUseZeroFile
+//                    )
+//                    Files.deleteIfExists(backupLocation)
+//
+//                    if (backupMetadata == null || backupMetadata.rootAddress < 0 ||
+//                        (backupMetadata.lastFileOffset % backupMetadata.pageSize.toLong()) != 0L
+//                    ) {
+//                        logger.warn("Backup is not stored correctly for database $location.")
+//                    } else {
+//                        val lastFileName = LogUtil.getLogFilename(backupMetadata.lastFileAddress)
+//                        val lastSegmentFile = Path.of(location).resolve(lastFileName)
+//
+//                        if (!Files.exists(lastSegmentFile)) {
+//                            logger.warn("Backup is not stored correctly for database $location.")
+//                        } else {
+//                            logger.info(
+//                                "Found backup. " +
+//                                        "Database $location will be restored till file $lastFileName, " +
+//                                        " file length will be set too " +
+//                                        "${backupMetadata.lastFileOffset}. DB root address ${backupMetadata.rootAddress}"
+//                            )
+//
+//                            SharedOpenFilesCache.invalidate()
+//                            try {
+//                                SharedOpenFilesCache.invalidate()
+//                                dataWriter.close()
+//
+//                                val blocks = TreeMap<Long, FileDataReader.FileBlock>()
+//                                val blockIterator = reader.blocks.iterator()
+//                                while (blockIterator.hasNext()) {
+//                                    val block = blockIterator.next()
+//                                    blocks[block.address] = block as FileDataReader.FileBlock
+//                                }
+//
+//                                logger.info("Files in database: $location")
+//                                val blockAddressIterator = blocks.keys.iterator()
+//                                while (blockAddressIterator.hasNext()) {
+//                                    val address = blockAddressIterator.next()
+//                                    logger.info(LogUtil.getLogFilename(address))
+//                                }
+//
+//                                copyFilesInRestoreTempDir(
+//                                    blocks.tailMap(
+//                                        backupMetadata.lastFileAddress,
+//                                        true
+//                                    ).values.iterator()
+//                                )
+//
+//                                val blocksToTruncateIterator = blocks.tailMap(
+//                                    backupMetadata.lastFileAddress,
+//                                    false
+//                                ).values.iterator()
+//
+//                                truncateFile(
+//                                    lastSegmentFile.toFile(),
+//                                    backupMetadata.lastFileOffset,
+//                                    null
+//                                )
+//
+//                                if (blocksToTruncateIterator.hasNext()) {
+//                                    val blockToDelete = blocksToTruncateIterator.next()
+//                                    logger.info("File ${LogUtil.getLogFilename(blockToDelete.address)} will be deleted.")
+//
+//
+//                                    if (!blockToDelete.canWrite()) {
+//                                        if (!blockToDelete.setWritable(true)) {
+//                                            throw ExodusException(
+//                                                "Can not write into file " + blockToDelete.absolutePath
+//                                            )
+//                                        }
+//                                    }
+//
+//                                    Files.deleteIfExists(Path.of(blockToDelete.toURI()))
+//                                }
+//
+//                                backupMetadata.alterMetadata(startupMetadata)
+//                                startupMetadata = backupMetadata
+//                                restoredFromBackup = true
+//                            } catch (ex: Exception) {
+//                                logger.error(
+//                                    "Failed to restore database $location from dynamic backup. ",
+//                                    ex
+//                                )
+//                            }
+//                        }
+//                    }
+//                }
+//            }
 
             if (config.cachePageSize != startupMetadata.pageSize) {
                 logger.warn(
@@ -774,27 +775,319 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
             break
         }
 
-        logger.info("Files found in directory $location ...")
-        logger.info("------------------------------------------------------")
-        val blockAddressIterator = blocks.keys.iterator()
-        while (blockAddressIterator.hasNext()) {
-            val address = blockAddressIterator.next()
-            logger.info(LogUtil.getLogFilename(address))
+        apply {
+            logger.info("Files found in directory $location ...")
+            logger.info("------------------------------------------------------")
+            val blockAddressIterator = blocks.keys.iterator()
+            while (blockAddressIterator.hasNext()) {
+                val address = blockAddressIterator.next()
+                logger.info(LogUtil.getLogFilename(address))
+            }
+            logger.info("------------------------------------------------------")
         }
-        logger.info("------------------------------------------------------")
+
+        val blocksToTruncateLimit = 2
 
         val clearInvalidLog = config.isClearInvalidLog
-        var hasNext: Boolean
+        var dbRootAddress: Long
+        var dbRootEndAddress: Long
+        var logCorruptionException: LogCorruptionException? = null
 
-        var dbRootAddress = Long.MIN_VALUE
-        var dbRootEndAddress = Long.MIN_VALUE
+        var loggablesProcessed: Int
 
-        var nextBlockCorruptionMessage: String? = null
-        var corruptedFileAddress = -1L
+        var counter = 1
+        var blocksLimit = 100
+        val blocksStep = 100
+
+        while (true) {
+            logger.info("Trying to restore database $location. Attempt $counter")
+
+            val blocksToCheckSize = min(blocks.size, blocksLimit)
+            val blocksReverse = blocks.descendingMap().iterator()
+            val blocksToCheck = TreeMap<Long, Block>()
+
+            for (i: Int in 0 until blocksToCheckSize) {
+                val block = blocksReverse.next()
+                blocksToCheck[block.key] = block.value
+            }
+
+            logger.info("Files to be checked for data consistency : ")
+            logger.info("------------------------------------------------------")
+            val blockAddressIterator = blocksToCheck.keys.iterator()
+            while (blockAddressIterator.hasNext()) {
+                val address = blockAddressIterator.next()
+                logger.info(LogUtil.getLogFilename(address))
+            }
+            logger.info("------------------------------------------------------")
+
+            try {
+                blockSetMutable.clear()
+                for (block in blocks.headMap(blocksToCheck.firstKey(), false)) {
+                    blockSetMutable.add(block.key, block.value)
+                }
+
+                val triple = DataCorruptionException.computeUnsafe {
+                    extractRestoreInformation(
+                        blocksToCheck.values.iterator(),
+                        blockSetMutable
+                    )
+                }
+
+                dbRootAddress = triple.first
+                dbRootEndAddress = triple.second
+                loggablesProcessed = triple.third
+                break
+            } catch (e: LogCorruptionException) {
+                dbRootAddress = e.dbRootAddress
+                dbRootEndAddress = e.dbRootEndAddress
+                loggablesProcessed = e.loggablesProcessed
+
+                if (dbRootAddress > 0) {
+                    logCorruptionException = e
+                    break
+                }
+
+                if (blocksLimit < blocks.size) {
+                    logger.info("Attempt to restore database $location failed. Increasing the number of files to be checked.")
+
+                    blocksLimit = min(blocksLimit + blocksStep, blocks.size)
+                    counter++
+                } else {
+                    if (loggablesProcessed < 3) {
+                        logger.error(
+                            "Data corruption was detected. Reason : ${e.message} . " +
+                                    "Likely invalid cipher key/iv were used. "
+                        )
+
+                        blockSetMutable.clear()
+                        throw InvalidCipherParametersException()
+                    } else {
+                        throw e
+                    }
+                }
+            } catch (e: Exception) {
+                throw e
+            }
+        }
+
+        if (logCorruptionException != null) {
+            logger.warn("Error during verification of database $location", logCorruptionException)
+
+            SharedOpenFilesCache.invalidate()
+            try {
+                if (clearInvalidLog) {
+                    clearDataCorruptionLog(logCorruptionException, blockSetMutable)
+                    return -1
+                }
+
+                if (dbRootEndAddress > 0) {
+                    val endBlockAddress = getFileAddress(dbRootEndAddress)
+                    val blocksToTruncate = blocks.tailMap(endBlockAddress, true)
+
+
+                    if (!config.isProceedDataRestoreAtAnyCost && blocksToTruncate.size > blocksToTruncateLimit) {
+                        throw DataCorruptionException(
+                            "Database $location is corrupted, " +
+                                    "but to be restored till the valid state ${blocksToTruncate.size} " +
+                                    "segments out of ${blocks.size} " +
+                                    "should be truncated. Segment size $fileLengthBound bytes. Data restore is aborted. " +
+                                    "To proceed data restore with such data loss " +
+                                    "please restart database with parameter " +
+                                    " ${EnvironmentConfig.LOG_PROCEED_DATA_RESTORE_AT_ANY_COST} set to true"
+                        )
+                    }
+
+                    if (reader is FileDataReader) {
+                        @Suppress("UNCHECKED_CAST")
+                        copyFilesInRestoreTempDir(
+                            (blocksToTruncate.values
+                                    as Collection<FileDataReader.FileBlock>).iterator()
+                        )
+                    }
+
+                    val blocksToTruncateIterator = blocksToTruncate.values.iterator()
+                    val endBlock = blocksToTruncateIterator.next()
+                    val endBlockLength = dbRootEndAddress % fileLengthBound
+                    val endBlockReminder = endBlockLength.toInt() and (cachePageSize - 1)
+
+                    logger.warn(
+                        "Data corruption was detected. Reason : \"${logCorruptionException.message}\". " +
+                                "Database '$location' will be truncated till address : $dbRootEndAddress. " +
+                                "Name of the file to be truncated : ${
+                                    LogUtil.getLogFilename(
+                                        endBlockAddress
+                                    )
+                                }. " +
+                                "Initial file size ${endBlock.length()} bytes, final file size $endBlockLength bytes."
+                    )
+
+                    if (blocksToTruncate.size > 1) {
+                        logger.warn(
+                            "The following files will be deleted : " +
+                                    blocksToTruncate.keys.asSequence().drop(1)
+                                        .joinToString(", ") { LogUtil.getLogFilename(it) }
+                        )
+                    }
+
+
+                    if (endBlock is FileDataReader.FileBlock && !endBlock.canWrite()) {
+                        if (!endBlock.setWritable(true)) {
+                            throw ExodusException(
+                                "Can not write into file " + endBlock.absolutePath,
+                                logCorruptionException
+                            )
+                        }
+                    }
+
+                    val position = dbRootEndAddress % fileLengthBound - endBlockReminder
+                    val lastPage = if (endBlockReminder > 0) {
+                        ByteArray(cachePageSize).also {
+                            val read = endBlock.read(it, position, 0, endBlockReminder)
+                            if (read != endBlockReminder) {
+                                throw ExodusException(
+                                    "Can not read segment ${LogUtil.getLogFilename(endBlock.address)}",
+                                    logCorruptionException
+                                )
+                            }
+
+                            Arrays.fill(it, read, it.size, 0x80.toByte())
+                            val cipherProvider = config.cipherProvider
+                            if (cipherProvider != null) {
+                                cryptBlocksMutable(
+                                    cipherProvider, config.cipherKey, config.cipherBasicIV,
+                                    endBlock.address + position, it, read, it.size - read,
+                                    LogUtil.LOG_BLOCK_ALIGNMENT
+                                )
+                            }
+                            BufferedDataWriter.updatePageHashCode(it)
+                            SharedOpenFilesCache.invalidate()
+                        }
+                    } else {
+                        null
+                    }
+
+                    when (reader) {
+                        is FileDataReader -> {
+                            @Suppress("NAME_SHADOWING")
+                            val endBlock = endBlock as FileDataReader.FileBlock
+                            try {
+                                truncateFile(endBlock, position, lastPage)
+                            } catch (e: IOException) {
+                                logger.error("Error during truncation of file $endBlock", e)
+                                throw ExodusException(
+                                    "Can not restore log corruption",
+                                    logCorruptionException
+                                )
+                            }
+                        }
+
+                        is MemoryDataReader -> {
+                            @Suppress("NAME_SHADOWING")
+                            val endBlock = endBlock as MemoryDataReader.MemoryBlock
+
+                            endBlock.truncate(position.toInt())
+                            if (lastPage != null) {
+                                endBlock.write(lastPage, 0, cachePageSize)
+                            }
+                        }
+
+                        else -> {
+                            throw ExodusException("Invalid reader type : $reader")
+                        }
+                    }
+
+                    blockSetMutable.add(endBlockAddress, endBlock)
+
+                    if (blocksToTruncateIterator.hasNext()) {
+                        val blockToDelete = blocksToTruncateIterator.next()
+                        logger.info("File ${LogUtil.getLogFilename(blockToDelete.address)} will be deleted.")
+                        blockSetMutable.remove(blockToDelete.address)
+
+                        when (reader) {
+                            is FileDataReader -> {
+                                @Suppress("NAME_SHADOWING")
+                                val blockToDelete = blockToDelete as FileDataReader.FileBlock
+
+                                if (!blockToDelete.canWrite()) {
+                                    if (!blockToDelete.setWritable(true)) {
+                                        throw ExodusException(
+                                            "Can not write into file " + blockToDelete.absolutePath,
+                                            logCorruptionException
+                                        )
+                                    }
+                                }
+
+                                Files.deleteIfExists(Path.of(blockToDelete.toURI()))
+                            }
+
+                            is MemoryDataReader -> {
+                                reader.memory.removeBlock(blockToDelete.address)
+                            }
+
+                            else -> {
+                                throw ExodusException("Invalid reader type : $reader")
+                            }
+                        }
+                    }
+                } else {
+                    if (loggablesProcessed < 3) {
+                        logger.error(
+                            "Data corruption was detected. Reason : ${logCorruptionException.message} . " +
+                                    "Likely invalid cipher key/iv were used. "
+                        )
+
+                        blockSetMutable.clear()
+                        throw InvalidCipherParametersException()
+                    } else {
+                        clearDataCorruptionLog(logCorruptionException, blockSetMutable)
+                        return -1
+                    }
+                }
+
+                rwIsReadonly = false
+                logger.info("Data corruption was fixed for environment $location.")
+
+                if (loadedDbRootAddress != dbRootAddress) {
+                    logger.warn(
+                        "DB root address stored in log metadata and detected are different. " +
+                                "Root address will be fixed. Stored address : $loadedDbRootAddress , detected  $dbRootAddress ."
+                    )
+                }
+
+                return dbRootAddress
+            } catch (e: InvalidCipherParametersException) {
+                throw e
+            } catch (e: DataCorruptionException) {
+                throw e
+            } catch (e: Exception) {
+                logger.error("Error during attempt to restore log $location", e)
+                throw ExodusException(logCorruptionException)
+            }
+        }
+
+        if (loadedDbRootAddress != dbRootAddress) {
+            logger.warn(
+                "DB root address stored in log metadata and detected are different. " +
+                        "Root address will be fixed. Stored address : $loadedDbRootAddress , detected  $dbRootAddress ."
+            )
+            return dbRootAddress
+        }
+
+        return Long.MIN_VALUE
+    }
+
+    private fun extractRestoreInformation(
+        fileBlockIterator: MutableIterator<Block>,
+        blockSetMutable: BlockSet.Mutable
+    ): Triple<Long, Long, Int> {
         var loggablesProcessed = 0
+        var dbRootAddress: Long = Long.MIN_VALUE
+        var dbRootEndAddress: Long = Long.MIN_VALUE
 
-        val fileBlockIterator = blocks.values.iterator()
         try {
+            var nextBlockCorruptionMessage: String? = null
+            var corruptedFileAddress: Long = 0
+            var hasNext: Boolean
             do {
                 if (nextBlockCorruptionMessage != null) {
                     DataCorruptionException.raise(
@@ -837,6 +1130,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                     this, block, startBlockAddress,
                     formatWithHashCodeIsUsed
                 )
+                var blockAdded = false
                 while (blockDataIterator.hasNext()) {
                     val loggableAddress = blockDataIterator.address
 
@@ -902,6 +1196,10 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                         if (dbRoot.isValid) {
                             dbRootAddress = loggableAddress
                             dbRootEndAddress = blockDataIterator.address
+                            if (!blockAdded) {
+                                blockSetMutable.add(startBlockAddress, block)
+                                blockAdded = true
+                            }
                         } else {
                             DataCorruptionException.raise(
                                 "Corrupted database root was found", this,
@@ -917,7 +1215,10 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                     loggablesProcessed++
                 }
 
-                blockSetMutable.add(startBlockAddress, block)
+                if (!blockAdded) {
+                    blockSetMutable.add(startBlockAddress, block)
+                }
+
                 if (!hasNext && nextBlockCorruptionMessage != null) {
                     DataCorruptionException.raise(
                         nextBlockCorruptionMessage,
@@ -926,207 +1227,12 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                     )
                 }
             } while (hasNext)
-        } catch (exception: Exception) {
-            logger.warn("Error during verification of database $location", exception)
-
-            SharedOpenFilesCache.invalidate()
-
-            try {
-                if (clearInvalidLog) {
-                    clearDataCorruptionLog(exception, blockSetMutable)
-                    return -1
-                }
-
-                if (dbRootEndAddress > 0) {
-                    val endBlockAddress = getFileAddress(dbRootEndAddress)
-                    val blocksToTruncate = blocks.tailMap(endBlockAddress, true)
-
-
-                    if (!config.isProceedDataRestoreAtAnyCost && blocksToTruncate.size > 2) {
-                        throw DataCorruptionException(
-                            "Database $location is corrupted, " +
-                                    "but to be restored till the valid state ${blocksToTruncate.size} " +
-                                    "segments out of ${blocks.size} " +
-                                    "should be truncated. Segment size $fileLengthBound bytes. Data restore is aborted. " +
-                                    "To proceed data restore with such data loss " +
-                                    "please restart database with parameter " +
-                                    " ${EnvironmentConfig.LOG_PROCEED_DATA_RESTORE_AT_ANY_COST} set to true"
-                        )
-                    }
-
-                    if (reader is FileDataReader) {
-                        @Suppress("UNCHECKED_CAST")
-                        copyFilesInRestoreTempDir(
-                            (blocksToTruncate.values
-                                    as Collection<FileDataReader.FileBlock>).iterator()
-                        )
-                    }
-
-                    val blocksToTruncateIterator = blocksToTruncate.values.iterator()
-                    val endBlock = blocksToTruncateIterator.next()
-                    val endBlockLength = dbRootEndAddress % fileLengthBound
-                    val endBlockReminder = endBlockLength.toInt() and (cachePageSize - 1)
-
-                    logger.warn(
-                        "Data corruption was detected. Reason : \"${exception.message}\". " +
-                                "Database '$location' will be truncated till address : $dbRootEndAddress. " +
-                                "Name of the file to be truncated : ${
-                                    LogUtil.getLogFilename(
-                                        endBlockAddress
-                                    )
-                                }. " +
-                                "Initial file size ${endBlock.length()} bytes, final file size $endBlockLength bytes."
-                    )
-
-                    if (blocksToTruncate.size > 1) {
-                        logger.warn(
-                            "The following files will be deleted : " +
-                                    blocksToTruncate.keys.asSequence().drop(1)
-                                        .joinToString(", ") { LogUtil.getLogFilename(it) }
-                        )
-                    }
-
-
-                    if (endBlock is FileDataReader.FileBlock && !endBlock.canWrite()) {
-                        if (!endBlock.setWritable(true)) {
-                            throw ExodusException(
-                                "Can not write into file " + endBlock.absolutePath,
-                                exception
-                            )
-                        }
-                    }
-
-                    val position = dbRootEndAddress % fileLengthBound - endBlockReminder
-                    val lastPage = if (endBlockReminder > 0) {
-                        ByteArray(cachePageSize).also {
-                            val read = endBlock.read(it, position, 0, endBlockReminder)
-                            if (read != endBlockReminder) {
-                                throw ExodusException(
-                                    "Can not read segment ${LogUtil.getLogFilename(endBlock.address)}",
-                                    exception
-                                )
-                            }
-
-                            Arrays.fill(it, read, it.size, 0x80.toByte())
-                            val cipherProvider = config.cipherProvider
-                            if (cipherProvider != null) {
-                                cryptBlocksMutable(
-                                    cipherProvider, config.cipherKey, config.cipherBasicIV,
-                                    endBlock.address + position, it, read, it.size - read,
-                                    LogUtil.LOG_BLOCK_ALIGNMENT
-                                )
-                            }
-                            BufferedDataWriter.updatePageHashCode(it)
-                            SharedOpenFilesCache.invalidate()
-                        }
-                    } else {
-                        null
-                    }
-
-                    when (reader) {
-                        is FileDataReader -> {
-                            @Suppress("NAME_SHADOWING")
-                            val endBlock = endBlock as FileDataReader.FileBlock
-                            try {
-                                truncateFile(endBlock, position, lastPage)
-                            } catch (e: IOException) {
-                                logger.error("Error during truncation of file $endBlock", e)
-                                throw ExodusException("Can not restore log corruption", exception)
-                            }
-                        }
-
-                        is MemoryDataReader -> {
-                            @Suppress("NAME_SHADOWING")
-                            val endBlock = endBlock as MemoryDataReader.MemoryBlock
-
-                            endBlock.truncate(position.toInt())
-                            if (lastPage != null) {
-                                endBlock.write(lastPage, 0, cachePageSize)
-                            }
-                        }
-
-                        else -> {
-                            throw ExodusException("Invalid reader type : $reader")
-                        }
-                    }
-
-                    blockSetMutable.add(endBlockAddress, endBlock)
-
-                    if (blocksToTruncateIterator.hasNext()) {
-                        val blockToDelete = blocksToTruncateIterator.next()
-                        logger.info("File ${LogUtil.getLogFilename(blockToDelete.address)} will be deleted.")
-                        blockSetMutable.remove(blockToDelete.address)
-
-                        when (reader) {
-                            is FileDataReader -> {
-                                @Suppress("NAME_SHADOWING")
-                                val blockToDelete = blockToDelete as FileDataReader.FileBlock
-
-                                if (!blockToDelete.canWrite()) {
-                                    if (!blockToDelete.setWritable(true)) {
-                                        throw ExodusException(
-                                            "Can not write into file " + blockToDelete.absolutePath,
-                                            exception
-                                        )
-                                    }
-                                }
-
-                                Files.deleteIfExists(Path.of(blockToDelete.toURI()))
-                            }
-
-                            is MemoryDataReader -> {
-                                reader.memory.removeBlock(blockToDelete.address)
-                            }
-
-                            else -> {
-                                throw ExodusException("Invalid reader type : $reader")
-                            }
-                        }
-                    }
-                } else {
-                    if (loggablesProcessed < 3) {
-                        logger.error(
-                            "Data corruption was detected. Reason : ${exception.message} . Likely invalid cipher key/iv were used. "
-                        )
-
-                        blockSetMutable.clear()
-                        throw InvalidCipherParametersException()
-                    } else {
-                        clearDataCorruptionLog(exception, blockSetMutable)
-                        return -1
-                    }
-                }
-
-                rwIsReadonly = false
-                logger.info("Data corruption was fixed for environment $location.")
-
-                if (loadedDbRootAddress != dbRootAddress) {
-                    logger.warn(
-                        "DB root address stored in log metadata and detected are different. " +
-                                "Root address will be fixed. Stored address : $loadedDbRootAddress , detected  $dbRootAddress ."
-                    )
-                }
-
-                return dbRootAddress
-            } catch (e: InvalidCipherParametersException) {
-                throw e
-            } catch (e: DataCorruptionException) {
-                throw e
-            } catch (e: Exception) {
-                logger.error("Error during attempt to restore log $location", e)
-                throw ExodusException(exception)
-            }
+            return Triple(dbRootAddress, dbRootEndAddress, loggablesProcessed)
+        } catch (e: Exception) {
+            logger.error("Error during verification of database $location", e)
+            throw LogCorruptionException(dbRootAddress, dbRootEndAddress, loggablesProcessed, e)
         }
 
-        if (loadedDbRootAddress != dbRootAddress) {
-            logger.warn(
-                "DB root address stored in log metadata and detected are different. " +
-                        "Root address will be fixed. Stored address : $loadedDbRootAddress , detected  $dbRootAddress ."
-            )
-            return dbRootAddress
-        }
-
-        return Long.MIN_VALUE
     }
 
     private fun clearDataCorruptionLog(exception: Exception, blockSetMutable: BlockSet.Mutable) {
@@ -1853,18 +1959,6 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
         blockListeners.notifyListeners { it.blockModified(block) }
     }
 
-    fun mutableBlocksUnsafe(): BlockSet.Mutable {
-        return writer.mutableBlocksUnsafe()
-    }
-
-    fun updateBlockSetHighAddressUnsafe(
-        prevHighAddress: Long,
-        highAddress: Long,
-        blockSet: BlockSet.Immutable
-    ) {
-        writer.updateBlockSetHighAddressUnsafe(prevHighAddress, highAddress, blockSet)
-    }
-
     private fun notifyReadBytes(bytes: ByteArray, count: Int) {
         readBytesListeners.notifyListeners { it.bytesRead(bytes, count) }
     }
@@ -2016,4 +2110,12 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
             }
         }
     }
+}
+
+private class LogCorruptionException(
+    val dbRootAddress: Long,
+    val dbRootEndAddress: Long,
+    val loggablesProcessed: Int, override val cause: Throwable?
+) :
+    Exception("Data corruption was detected. ", cause) {
 }

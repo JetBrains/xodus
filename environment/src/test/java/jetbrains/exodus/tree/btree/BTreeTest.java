@@ -19,7 +19,6 @@ import jetbrains.exodus.tree.INode;
 import org.junit.Assert;
 import org.junit.Test;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -31,7 +30,8 @@ public class BTreeTest extends BTreeTestBase {
     @Test
     public void testSplitRight2() {
         int s = 1000;
-        tm = new BTreeEmpty(log, createTestSplittingPolicy(), true, 1).getMutableCopy();
+        tm = new BTreeEmpty(log, createTestSplittingPolicy(), true,
+                1, Integer.MAX_VALUE).getMutableCopy();
 
         for (int i = 0; i < s; i++) {
             getTreeMutable().put(kv(i, "v" + i));
@@ -45,14 +45,16 @@ public class BTreeTest extends BTreeTestBase {
 
         reopen();
 
-        t = new BTree(log, rootAddress, true, 1);
+        t = new BTree(log, rootAddress,
+                true, 1, Integer.MAX_VALUE);
         checkTree(getTree(), s).run();
     }
 
     @Test
     public void testPutRightSplitRight() {
         int s = 1000;
-        tm = new BTreeEmpty(log, createTestSplittingPolicy(), true, 1).getMutableCopy();
+        tm = new BTreeEmpty(log, createTestSplittingPolicy(),
+                true, 1, Integer.MAX_VALUE).getMutableCopy();
 
         for (int i = 0; i < s; i++) {
             getTreeMutable().putRight(kv(i, "v" + i));
@@ -66,14 +68,16 @@ public class BTreeTest extends BTreeTestBase {
 
         reopen();
 
-        t = new BTree(log, rootAddress, true, 1);
+        t = new BTree(log, rootAddress,
+                true, 1, Integer.MAX_VALUE);
         checkTree(getTree(), s).run();
     }
 
     @Test
     public void testSplitLeft() {
         int s = 50;
-        tm = new BTreeEmpty(log, createTestSplittingPolicy(), true, 1).getMutableCopy();
+        tm = new BTreeEmpty(log, createTestSplittingPolicy(),
+                true, 1, Integer.MAX_VALUE).getMutableCopy();
 
         for (int i = s - 1; i >= 0; i--) {
             getTreeMutable().put(kv(i, "v" + i));
@@ -87,7 +91,7 @@ public class BTreeTest extends BTreeTestBase {
 
         reopen();
 
-        t = new BTree(log, rootAddress, true, 1);
+        t = new BTree(log, rootAddress, true, 1, Integer.MAX_VALUE);
         checkTree(getTree(), s).run();
     }
 
@@ -96,7 +100,8 @@ public class BTreeTest extends BTreeTestBase {
         int s = 10000;
         List<INode> lns = createLNs(s);
 
-        tm = new BTreeEmpty(log, createTestSplittingPolicy(), true, 1).getMutableCopy();
+        tm = new BTreeEmpty(log, createTestSplittingPolicy(),
+                true, 1, Integer.MAX_VALUE).getMutableCopy();
 
         while (!lns.isEmpty()) {
             final int index = (int) (Math.random() * lns.size());
@@ -113,7 +118,8 @@ public class BTreeTest extends BTreeTestBase {
 
         reopen();
 
-        t = new BTree(log, rootAddress, true, 1);
+        t = new BTree(log, rootAddress, true,
+                1, Integer.MAX_VALUE);
 
         checkTree(getTree(), s).run();
     }
@@ -121,7 +127,8 @@ public class BTreeTest extends BTreeTestBase {
     @Test
     public void testPutOverwriteTreeWithoutDuplicates() {
         // add existing key to tree that supports duplicates
-        tm = new BTreeEmpty(log, createTestSplittingPolicy(), false, 1).getMutableCopy();
+        tm = new BTreeEmpty(log, createTestSplittingPolicy(), false,
+                1, Integer.MAX_VALUE).getMutableCopy();
 
         for (int i = 0; i < 100; i++) {
             getTreeMutable().put(kv(i, "v" + i));
@@ -143,14 +150,16 @@ public class BTreeTest extends BTreeTestBase {
 
         reopen();
 
-        t = new BTree(log, rootAddress, true, 1);
+        t = new BTree(log, rootAddress, true,
+                1, Integer.MAX_VALUE);
         checkTree(getTreeMutable(), "vv", 100).run();
     }
 
     @Test
     public void testPutOverwriteTreeWithDuplicates() {
         // add existing key to tree that supports duplicates
-        tm = new BTreeEmpty(log, createTestSplittingPolicy(), true, 1).getMutableCopy();
+        tm = new BTreeEmpty(log, createTestSplittingPolicy(), true,
+                1, Integer.MAX_VALUE).getMutableCopy();
 
         for (int i = 0; i < 100; i++) {
             getTreeMutable().put(kv(i, "v" + i));
@@ -179,20 +188,22 @@ public class BTreeTest extends BTreeTestBase {
 
         reopen();
 
-        t = new BTree(log, rootAddress, true, 1);
+        t = new BTree(log, rootAddress, true, 1, Integer.MAX_VALUE);
         assertMatchesIterator(tm, l);
     }
 
     @Test
     public void testPutAndDelete() {
-        tm = new BTreeEmpty(log, createTestSplittingPolicy(), true, 1).getMutableCopy();
+        tm = new BTreeEmpty(log, createTestSplittingPolicy(), true,
+                1, Integer.MAX_VALUE).getMutableCopy();
 
         for (int i = 0; i < 100; i++) {
             getTreeMutable().put(kv(i, "v" + i));
         }
 
         long rootAddress = saveTree();
-        tm = new BTree(log, getTreeMutable().getBalancePolicy(), rootAddress, true, 1).getMutableCopy();
+        tm = new BTree(log, getTreeMutable().getBalancePolicy(), rootAddress,
+                true, 1, Integer.MAX_VALUE).getMutableCopy();
 
         checkTree(getTreeMutable(), 100).run();
 
@@ -212,7 +223,7 @@ public class BTreeTest extends BTreeTestBase {
 
         reopen();
 
-        t = new BTree(log, rootAddress, true, 1);
+        t = new BTree(log, rootAddress, true, 1, Integer.MAX_VALUE);
         assertMatchesIterator(tm, Collections.emptyList());
     }
 
@@ -227,7 +238,7 @@ public class BTreeTest extends BTreeTestBase {
     }
 
     private void putNoOverwrite(boolean duplicates) {
-        tm = new BTreeEmpty(log, createTestSplittingPolicy(), duplicates, 1).getMutableCopy();
+        tm = new BTreeEmpty(log, createTestSplittingPolicy(), duplicates, 1, Integer.MAX_VALUE).getMutableCopy();
 
         for (int i = 0; i < 100; i++) {
             getTreeMutable().put(kv(i, "v" + i));
@@ -243,7 +254,8 @@ public class BTreeTest extends BTreeTestBase {
 
     @Test
     public void testPutSortDuplicates() {
-        tm = new BTreeEmpty(log, createTestSplittingPolicy(), true, 1).getMutableCopy();
+        tm = new BTreeEmpty(log, createTestSplittingPolicy(), true,
+                1, Integer.MAX_VALUE).getMutableCopy();
 
         List<INode> expected = new ArrayList<>();
         expected.add(kv("1", "1"));
@@ -267,7 +279,7 @@ public class BTreeTest extends BTreeTestBase {
 
     @Test
     public void testPutRightSortDuplicates() {
-        tm = new BTreeEmpty(log, createTestSplittingPolicy(), true, 1).getMutableCopy();
+        tm = new BTreeEmpty(log, createTestSplittingPolicy(), true, 1, Integer.MAX_VALUE).getMutableCopy();
 
         List<INode> expected = new ArrayList<>();
         expected.add(kv("1", "1"));
@@ -291,7 +303,7 @@ public class BTreeTest extends BTreeTestBase {
 
     @Test
     public void testGetReturnsFirstSortedDuplicate() {
-        tm = new BTreeEmpty(log, createTestSplittingPolicy(), true, 1).getMutableCopy();
+        tm = new BTreeEmpty(log, createTestSplittingPolicy(), true, 1, Integer.MAX_VALUE).getMutableCopy();
 
         List<INode> l = new ArrayList<>();
         l.add(kv("1", "1"));

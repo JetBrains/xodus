@@ -131,4 +131,6 @@ public interface ITreeMutable extends ITree {
      * @return true if any loggable (the candidate or any among loggables) was reclaimed.
      */
     boolean reclaim(@NotNull RandomAccessLoggable loggable, @NotNull Iterator<RandomAccessLoggable> loggables);
+
+    boolean reclaimByTreeIteration(long startAddress, long endAddress);
 }

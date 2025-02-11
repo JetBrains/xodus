@@ -19,15 +19,13 @@ import jetbrains.exodus.tree.ITreeCursor;
 import org.jetbrains.annotations.NotNull;
 import org.junit.Test;
 
-import java.io.IOException;
-
 import static org.junit.Assert.*;
 
 public class BTreePutSpecificTest extends BTreeTestBase {
 
     @Test
     public void testPutDuplicateTreeWithDuplicates() {
-        tm = new BTreeEmpty(log, true, 1).getMutableCopy();
+        tm = new BTreeEmpty(log, true, 1, Integer.MAX_VALUE).getMutableCopy();
 
         getTreeMutable().put(kv("1", "1"));
         valueEquals("1", tm.get(key("1")));
@@ -42,7 +40,7 @@ public class BTreePutSpecificTest extends BTreeTestBase {
 
     @Test
     public void testPutDuplicateTreeWithDuplicates2() {
-        tm = new BTreeEmpty(log, true, 1).getMutableCopy();
+        tm = new BTreeEmpty(log, true, 1, Integer.MAX_VALUE).getMutableCopy();
 
         getTreeMutable().put(kv("1", "1"));
         getTreeMutable().put(kv("1", "11"));
@@ -91,7 +89,7 @@ public class BTreePutSpecificTest extends BTreeTestBase {
 
     @Test
     public void testPutNoOverwriteDuplicateTreeWithDuplicates2() {
-        tm = new BTreeEmpty(log, true, 1).getMutableCopy();
+        tm = new BTreeEmpty(log, true, 1, Integer.MAX_VALUE).getMutableCopy();
 
         assertTrue(getTreeMutable().add(kv("1", "1")));
         valueEquals("1", tm.get(key("1")));
@@ -107,7 +105,7 @@ public class BTreePutSpecificTest extends BTreeTestBase {
 
     @Test
     public void testIterateOverDuplicates1() {
-        tm = new BTreeEmpty(log, true, 1).getMutableCopy();
+        tm = new BTreeEmpty(log, true, 1, Integer.MAX_VALUE).getMutableCopy();
 
         getTreeMutable().put(kv("1", "1"));
         getTreeMutable().put(kv("1", "11"));
@@ -116,7 +114,7 @@ public class BTreePutSpecificTest extends BTreeTestBase {
         assertMatchesIteratorAndExists(tm, kv("1", "1"), kv("1", "11"));
 
         long address = saveTree();
-        t = new BTree(log, address, true, 2);
+        t = new BTree(log, address, true, 2, Integer.MAX_VALUE);
 
         assertEquals(2, tm.getSize());
         assertMatchesIteratorAndExists(t, kv("1", "1"), kv("1", "11"));
@@ -124,7 +122,8 @@ public class BTreePutSpecificTest extends BTreeTestBase {
 
     @Test
     public void testPutDuplicateTreeWithDuplicatesAfterSaveNoOrigDups() {
-        tm = new BTreeEmpty(log, new BTreeBalancePolicy(4), true, 1).getMutableCopy();
+        tm = new BTreeEmpty(log, new BTreeBalancePolicy(4), true, 1,
+                Integer.MAX_VALUE).getMutableCopy();
 
         // no duplicates
         getTreeMutable().put(kv("1", "1"));
@@ -133,7 +132,8 @@ public class BTreePutSpecificTest extends BTreeTestBase {
         long a = saveTree();
         reopen();
 
-        tm = new BTree(log, new BTreeBalancePolicy(4), a, true, 2).getMutableCopy();
+        tm = new BTree(log, new BTreeBalancePolicy(4), a, true, 2,
+                Integer.MAX_VALUE).getMutableCopy();
 
         getTreeMutable().put(kv("1", "11"));
         getTreeMutable().put(kv("2", "22"));
@@ -141,7 +141,8 @@ public class BTreePutSpecificTest extends BTreeTestBase {
         a = saveTree();
         reopen();
 
-        t = new BTree(log, new BTreeBalancePolicy(4), a, true, 2);
+        t = new BTree(log, new BTreeBalancePolicy(4), a, true, 2,
+                Integer.MAX_VALUE);
 
         assertTrue(t.hasKey(key("1")));
         assertTrue(t.hasKey(key("2")));
@@ -154,7 +155,8 @@ public class BTreePutSpecificTest extends BTreeTestBase {
 
     @Test
     public void testPutDuplicateTreeWithDuplicatesAfterSaveOrigDupsPresent() {
-        tm = new BTreeEmpty(log, new BTreeBalancePolicy(4), true, 1).getMutableCopy();
+        tm = new BTreeEmpty(log,
+                new BTreeBalancePolicy(4), true, 1, Integer.MAX_VALUE).getMutableCopy();
 
         // dups present
         getTreeMutable().put(kv("1", "11"));
@@ -164,7 +166,8 @@ public class BTreePutSpecificTest extends BTreeTestBase {
         long a = saveTree();
         reopen();
 
-        tm = new BTree(log, new BTreeBalancePolicy(4), a, true, 1).getMutableCopy();
+        tm = new BTree(log, new BTreeBalancePolicy(4), a, true,
+                1, Integer.MAX_VALUE).getMutableCopy();
 
         getTreeMutable().put(kv("1", "13"));
         getTreeMutable().put(kv("2", "22"));
@@ -172,14 +175,15 @@ public class BTreePutSpecificTest extends BTreeTestBase {
         a = saveTree();
         reopen();
 
-        t = new BTree(log, new BTreeBalancePolicy(4), a, true, 1);
+        t = new BTree(log, new BTreeBalancePolicy(4), a, true, 1,
+                Integer.MAX_VALUE);
 
         assertMatchesIterator(t, kv("1", "11"), kv("1", "12"), kv("1", "13"), kv("2", "21"), kv("2", "22"));
     }
 
     @Test
     public void testIterateOverDuplicates2() {
-        tm = new BTreeEmpty(log, true, 1).getMutableCopy();
+        tm = new BTreeEmpty(log, true, 1, Integer.MAX_VALUE).getMutableCopy();
 
         getTreeMutable().put(kv("0", "0"));
         getTreeMutable().put(kv("1", "1"));
@@ -190,7 +194,7 @@ public class BTreePutSpecificTest extends BTreeTestBase {
         assertMatchesIteratorAndExists(tm, kv("0", "0"), kv("1", "1"), kv("1", "11"), kv("2", "2"));
 
         long address = saveTree();
-        t = new BTree(log, address, true, 1);
+        t = new BTree(log, address, true, 1, Integer.MAX_VALUE);
 
         assertEquals(4, tm.getSize());
         assertMatchesIteratorAndExists(tm, kv("0", "0"), kv("1", "1"), kv("1", "11"), kv("2", "2"));
@@ -198,7 +202,7 @@ public class BTreePutSpecificTest extends BTreeTestBase {
 
     @Test
     public void testIterateOverDuplicates3() {
-        tm = new BTreeEmpty(log, true, 1).getMutableCopy();
+        tm = new BTreeEmpty(log, true, 1, Integer.MAX_VALUE).getMutableCopy();
 
         getTreeMutable().put(kv("0", "0"));
         getTreeMutable().put(kv("2", "2"));
@@ -209,7 +213,7 @@ public class BTreePutSpecificTest extends BTreeTestBase {
         assertMatchesIteratorAndExists(tm, kv("0", "0"), kv("1", "1"), kv("1", "11"), kv("2", "2"));
 
         long address = saveTree();
-        t = new BTree(log, address, true, 1);
+        t = new BTree(log, address, true, 1, Integer.MAX_VALUE);
 
         assertEquals(4, tm.getSize());
         assertMatchesIteratorAndExists(tm, kv("0", "0"), kv("1", "1"), kv("1", "11"), kv("2", "2"));
@@ -223,7 +227,7 @@ public class BTreePutSpecificTest extends BTreeTestBase {
                     public int getSplitPos(@NotNull BasePage page, int insertPosition) {
                         return page.getSize() - 1;
                     }
-                }, true, 1
+                }, true, 1, Integer.MAX_VALUE
         ).getMutableCopy();
 
         for (int i = 0; i < 7; i++) {
@@ -274,7 +278,7 @@ public class BTreePutSpecificTest extends BTreeTestBase {
 
         reopen();
 
-        t = new BTree(log, rootAddress, true, 1);
+        t = new BTree(log, rootAddress, true, 1, Integer.MAX_VALUE);
         assertEquals(7, t.getSize());
 
         r2.setTree(getTree());
@@ -283,7 +287,8 @@ public class BTreePutSpecificTest extends BTreeTestBase {
 
     @Test
     public void testSplitDefault() {
-        tm = new BTreeEmpty(log, new BTreeBalancePolicy(7), true, 1).getMutableCopy();
+        tm = new BTreeEmpty(log, new BTreeBalancePolicy(7), true,
+                1, Integer.MAX_VALUE).getMutableCopy();
 
         for (int i = 0; i < 10; i++) {
             getTreeMutable().put(kv(i, "v" + i));
@@ -294,7 +299,8 @@ public class BTreePutSpecificTest extends BTreeTestBase {
 
     @Test
     public void testSplitAfterSave() {
-        tm = new BTreeEmpty(log, new BTreeBalancePolicy(4), false, 1).getMutableCopy();
+        tm = new BTreeEmpty(log, new BTreeBalancePolicy(4), false,
+                1, Integer.MAX_VALUE).getMutableCopy();
 
         getTreeMutable().put(kv(1, "v1"));
         getTreeMutable().put(kv(2, "v2"));
@@ -308,7 +314,8 @@ public class BTreePutSpecificTest extends BTreeTestBase {
 
         long a = saveTree();
 
-        tm = new BTree(log, new BTreeBalancePolicy(4), a, false, 1).getMutableCopy();
+        tm = new BTree(log, new BTreeBalancePolicy(4), a, false, 1,
+                Integer.MAX_VALUE).getMutableCopy();
 
         getTreeMutable().put(kv(8, "v8"));
 

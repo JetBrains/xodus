@@ -15,9 +15,12 @@
  */
 package jetbrains.exodus.tree.btree;
 
+import jetbrains.exodus.ArrayByteIterable;
+import jetbrains.exodus.ByteBufferByteIterable;
 import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.CompoundByteIterable;
 import jetbrains.exodus.ExodusException;
+import jetbrains.exodus.FixedLengthByteIterable;
 import jetbrains.exodus.core.dataStructures.hash.HashSet;
 import jetbrains.exodus.log.*;
 import jetbrains.exodus.tree.*;
@@ -30,6 +33,7 @@ import java.util.Set;
 
 
 public class BTreeMutable extends BTreeBase implements ITreeMutable {
+
     @NotNull
     private BasePageMutable root;
     @NotNull
@@ -37,12 +41,12 @@ public class BTreeMutable extends BTreeBase implements ITreeMutable {
     private final ExtraMutableBelongings extraBelongings;
 
 
-    BTreeMutable(@NotNull final BTreeBase tree) {
-        this(tree, new ExtraMutableBelongings());
+    BTreeMutable(@NotNull final BTreeBase tree, final int maxEntrySize) {
+        this(tree, new ExtraMutableBelongings(), maxEntrySize);
     }
 
-    BTreeMutable(@NotNull final BTreeBase tree, final ExtraMutableBelongings extraBelongings) {
-        super(tree.log, tree.balancePolicy, tree.allowsDuplicates, tree.structureId);
+    BTreeMutable(@NotNull final BTreeBase tree, final ExtraMutableBelongings extraBelongings, final int maxEntrySize) {
+        super(tree.log, tree.balancePolicy, tree.allowsDuplicates, tree.structureId, maxEntrySize);
         immutableTree = tree;
         root = tree.getRoot().getMutableCopy(this);
         size = tree.getSize();
@@ -123,6 +127,9 @@ public class BTreeMutable extends BTreeBase implements ITreeMutable {
 
     @Override
     public void putRight(@NotNull final ByteIterable key, @NotNull final ByteIterable value) {
+        checkLength(key);
+        checkLength(value);
+
         BasePageMutable newSibling = root.putRight(key, value);
         if (newSibling != null) {
             root = new InternalPageMutable(this, root, newSibling);
@@ -134,7 +141,11 @@ public class BTreeMutable extends BTreeBase implements ITreeMutable {
         return put(key, value, false);
     }
 
-    private boolean put(@NotNull final ByteIterable key, @NotNull final ByteIterable value, boolean overwrite) {
+    private boolean put(@NotNull final ByteIterable key, @NotNull final ByteIterable value,
+                        boolean overwrite) {
+        checkLength(key);
+        checkLength(value);
+
         boolean[] result = {false};
         BasePageMutable newSibling = root.put(key, value, overwrite, result);
         if (newSibling != null) {
@@ -150,7 +161,8 @@ public class BTreeMutable extends BTreeBase implements ITreeMutable {
     }
 
     @Override
-    public boolean delete(@NotNull ByteIterable key, @Nullable ByteIterable value, @Nullable ITreeCursorMutable cursorToSkip) {
+    public boolean delete(@NotNull ByteIterable key, @Nullable ByteIterable value,
+                          @Nullable ITreeCursorMutable cursorToSkip) {
         if (deleteImpl(key, value)) {
             TreeCursorMutable.notifyCursors(this, cursorToSkip);
             return true;
@@ -192,7 +204,8 @@ public class BTreeMutable extends BTreeBase implements ITreeMutable {
         size++;
     }
 
-    static BasePageMutable delete(BasePageMutable root, ByteIterable key, @Nullable ByteIterable value, boolean[] res) {
+    static BasePageMutable delete(BasePageMutable root, ByteIterable key,
+                                  @Nullable ByteIterable value, boolean[] res) {
         if (root.delete(key, value)) {
             root = root.mergeWithChildren();
             res[0] = true;
@@ -289,7 +302,8 @@ public class BTreeMutable extends BTreeBase implements ITreeMutable {
     }
 
     @NotNull
-    protected BaseLeafNodeMutable createMutableLeaf(@NotNull ByteIterable key, @NotNull ByteIterable value) {
+    protected BaseLeafNodeMutable createMutableLeaf(@NotNull ByteIterable key,
+                                                    @NotNull ByteIterable value) {
         return new LeafNodeMutable(key, value);
     }
 
@@ -297,55 +311,22 @@ public class BTreeMutable extends BTreeBase implements ITreeMutable {
     public boolean reclaim(@NotNull RandomAccessLoggable loggable,
                            @NotNull final Iterator<RandomAccessLoggable> loggables) {
         final BTreeReclaimTraverser context = new BTreeReclaimTraverser(this);
-        final long nextFileAddress = log.getFileAddress(loggable.getAddress()) + log.getFileLengthBound();
-        loop:
+        final long nextFileAddress =
+                log.getFileAddress(loggable.getAddress()) + log.getFileLengthBound();
         while (true) {
-            final byte type = loggable.getType();
-            switch (type) {
-                case NullLoggable.TYPE:
-                case HashCodeLoggable.TYPE:
-                    break;
-                case LEAF_DUP_BOTTOM_ROOT:
-                case LEAF_DUP_INTERNAL_ROOT:
-                    context.dupLeafsLo.clear();
-                    context.dupLeafsHi.clear();
-                    new LeafNodeDup(this, loggable).reclaim(context);
-                    break;
-                case LEAF:
-                    new LeafNode(log, loggable).reclaim(context);
-                    break;
-                case BOTTOM_ROOT:
-                case INTERNAL_ROOT:
-                    if (loggable.getAddress() == immutableTree.getRootAddress()) {
-                        context.wasReclaim = true;
-                    }
-                    break loop; // txn ended
-                case BOTTOM:
-                    reclaimBottom(loggable, context);
-                    break;
-                case INTERNAL:
-                    reclaimInternal(loggable, context);
-                    break;
-                case DUP_LEAF:
-                case DUP_BOTTOM:
-                case DUP_INTERNAL:
-                    context.dupLeafsLo.clear();
-                    context.dupLeafsHi.clear();
-                    final RandomAccessLoggable leaf = LeafNodeDup.collect(context.dupLeafsHi, loggable, loggables);
-                    if (leaf == null) {
-                        break loop; // loggable of dup leaf type not found, txn ended prematurely
-                    }
-                    new LeafNodeDup(this, leaf).reclaim(context);
-                    break;
-                default:
-                    throw new ExodusException("Unexpected loggable type " + type);
+            final Byte type = reclaimLoggable(loggable, loggables, context);
+            if (type == null) {
+                break; // loggable of dup leaf type not found, txn ended prematurely
             }
+
             if (!loggables.hasNext()) {
                 break;
             }
+
             if (type == NullLoggable.TYPE) {
                 break;
             }
+
             loggable = loggables.next();
             if (loggable.getAddress() >= nextFileAddress) {
                 break;
@@ -360,15 +341,92 @@ public class BTreeMutable extends BTreeBase implements ITreeMutable {
         return context.wasReclaim;
     }
 
+    @Override
+    public boolean reclaimByTreeIteration(long startAddress, long endAddress) {
+        final BTreeReclaimTraverser context = new BTreeReclaimTraverser(this);
+        var addressIterator = addressIterator();
+
+        while (addressIterator.hasNext()) {
+            var address = addressIterator.next();
+            if (address < startAddress || address >= endAddress) {
+                continue;
+            }
+
+            var loggables = log.getLoggableIterator(address);
+            var loggable = loggables.next();
+
+            assert loggable != null;
+
+            reclaimLoggable(loggable, loggables, context);
+        }
+
+        while (context.canMoveUp()) {
+            // wire up mutated stuff
+            context.popAndMutate();
+        }
+
+        return context.wasReclaim;
+    }
+
+    private @Nullable Byte reclaimLoggable(@NotNull RandomAccessLoggable loggable,
+                                           @NotNull Iterator<RandomAccessLoggable> loggables,
+                                           BTreeReclaimTraverser context) {
+        final byte type = loggable.getType();
+        switch (type) {
+            case NullLoggable.TYPE:
+            case HashCodeLoggable.TYPE:
+                break;
+            case LEAF_DUP_BOTTOM_ROOT:
+            case LEAF_DUP_INTERNAL_ROOT:
+                context.dupLeafsLo.clear();
+                context.dupLeafsHi.clear();
+                new LeafNodeDup(this, loggable).reclaim(context);
+                break;
+            case LEAF:
+                new LeafNode(log, loggable).reclaim(context);
+                break;
+            case BOTTOM_ROOT:
+            case INTERNAL_ROOT:
+                if (loggable.getAddress() == immutableTree.getRootAddress()) {
+                    context.wasReclaim = true;
+                }
+                return null;
+            case BOTTOM:
+                reclaimBottom(loggable, context);
+                break;
+            case INTERNAL:
+                reclaimInternal(loggable, context);
+                break;
+            case DUP_LEAF:
+            case DUP_BOTTOM:
+            case DUP_INTERNAL:
+                context.dupLeafsLo.clear();
+                context.dupLeafsHi.clear();
+                final RandomAccessLoggable leaf = LeafNodeDup.collect(context.dupLeafsHi, loggable,
+                        loggables);
+                if (leaf == null) {
+                    return null;
+                }
+                new LeafNodeDup(this, leaf).reclaim(context);
+                break;
+            default:
+                throw new ExodusException("Unexpected loggable type " + type);
+        }
+
+        return type;
+    }
+
     void reclaimInternal(RandomAccessLoggable loggable, BTreeReclaimTraverser context) {
         final ByteIterableWithAddress data = loggable.getData();
         final ByteIteratorWithAddress it = data.iterator();
         final int i = it.getCompressedUnsignedInt();
         if ((i & 1) == 1 && i > 1) {
-            final LeafNode minKey = loadMinKey(data, CompressedUnsignedLongByteIterable.getCompressedSize(i));
+            final LeafNode minKey = loadMinKey(data,
+                    CompressedUnsignedLongByteIterable.getCompressedSize(i));
             if (minKey != null) {
-                final InternalPage page = new InternalPage(this, data.cloneWithAddressAndLength(it.getAddress(),
-                        it.available()),
+                final InternalPage page = new InternalPage(this,
+                        data.cloneWithAddressAndLength(it.getAddress(),
+                                it.available()),
                         i >> 1, loggable.isDataInsideSinglePage());
                 page.reclaim(minKey.getKey(), context);
             }
@@ -380,7 +438,8 @@ public class BTreeMutable extends BTreeBase implements ITreeMutable {
         final ByteIteratorWithAddress it = data.iterator();
         final int i = it.getCompressedUnsignedInt();
         if ((i & 1) == 1 && i > 1) {
-            final LeafNode minKey = loadMinKey(data, CompressedUnsignedLongByteIterable.getCompressedSize(i));
+            final LeafNode minKey = loadMinKey(data,
+                    CompressedUnsignedLongByteIterable.getCompressedSize(i));
             if (minKey != null) {
                 final BottomPage page = new BottomPage(this, data.cloneWithAddressAndLength(it.getAddress(),
                         it.available()),
@@ -405,5 +464,18 @@ public class BTreeMutable extends BTreeBase implements ITreeMutable {
         @Nullable
         private Set<ITreeCursorMutable> openCursors;
         private LightOutputStream leafStream;
+    }
+
+    private void checkLength(ByteIterable byteIterable) {
+        if (byteIterable instanceof ArrayByteIterable
+                || byteIterable instanceof FixedLengthByteIterable
+                || byteIterable instanceof ByteBufferByteIterable) {
+            if (byteIterable.getLength() > maxEntrySize) {
+                throw new TooBigLoggableException(
+                        "ByteIterable length is greater than max allowed size of " + maxEntrySize +
+                                " bytes, length is " + byteIterable.getLength());
+            }
+        }
+
     }
 }

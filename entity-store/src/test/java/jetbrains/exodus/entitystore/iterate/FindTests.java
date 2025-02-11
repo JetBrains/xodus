@@ -18,6 +18,7 @@ package jetbrains.exodus.entitystore.iterate;
 import jetbrains.exodus.TestFor;
 import jetbrains.exodus.bindings.ComparableSet;
 import jetbrains.exodus.entitystore.*;
+import jetbrains.exodus.env.EnvironmentConfig;
 import jetbrains.exodus.util.Random;
 import org.junit.Assert;
 
@@ -143,6 +144,40 @@ public class FindTests extends EntityStoreTestBase {
             count++;
         }
         Assert.assertEquals(10, count);
+    }
+
+    @TestFor(issue = "XD-824")
+    public void testFindContainingIgnoreCaseSpecialCasing() {
+        final StoreTransaction txn = getStoreTransactionSafe();
+        EnvironmentConfig config = ((PersistentStoreTransaction) txn).getEnvironmentTransaction().getEnvironment().getEnvironmentConfig();
+        final Entity entity = txn.newEntity("Issue");
+        entity.setProperty("description", "ii");
+        final Entity entity2 = txn.newEntity("Issue");
+        entity2.setProperty("description", "II");
+
+        txn.flush();
+        EntityIterable issues = txn.findContaining("Issue", "description", "ı", true);
+        int count = 0;
+        for (final Entity issue : issues) {
+            count++;
+        }
+        Assert.assertEquals(2, count);
+
+        config.setEnvQueryOptimizedContains(true);
+        assertContainsOptimized(txn, "ı", 0);
+        assertContainsOptimized(txn, "I", 2);
+        assertContainsOptimized(txn, "i", 2);
+        assertContainsOptimized(txn, "İ", 2);
+    }
+
+    private static void assertContainsOptimized(StoreTransaction txn, String needle, int expectedCount) {
+        int count = 0;
+        EntityIterable issues = txn.findContaining("Issue", "description", needle, true);
+        count = 0;
+        for (final Entity issue : issues) {
+            count++;
+        }
+        Assert.assertEquals(expectedCount, count);
     }
 
     @TestFor(issue = "XD-837")

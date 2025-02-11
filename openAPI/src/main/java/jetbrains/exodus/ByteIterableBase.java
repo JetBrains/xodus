@@ -217,6 +217,9 @@ public abstract class ByteIterableBase implements ByteIterable {
     }
 
     public static void fillBytes(@NotNull final ByteIterable bi, @NotNull final LightOutputStream output) {
+        if (bi == EMPTY) {
+            return;
+        }
         if (bi instanceof ArrayByteIterable) {
             final ArrayByteIterable abi = (ArrayByteIterable) bi;
             final int length = abi.getLength();

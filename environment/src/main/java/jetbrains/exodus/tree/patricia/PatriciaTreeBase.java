@@ -50,11 +50,13 @@ public abstract class PatriciaTreeBase implements ITree {
     private final DataIterator dataIterator;
     protected final int structureId;
     protected long size;
+    protected final int maxEntrySize;
 
-    protected PatriciaTreeBase(@NotNull final Log log, final int structureId) {
+    protected PatriciaTreeBase(@NotNull final Log log, final int structureId, int maxEntrySize) {
         this.log = log;
         dataIterator = new DataIterator(log);
         this.structureId = structureId;
+        this.maxEntrySize = maxEntrySize;
     }
 
     @NotNull

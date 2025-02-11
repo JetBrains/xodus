@@ -17,7 +17,7 @@ package jetbrains.exodus.gc
 
 import jetbrains.exodus.env.StoreConfig
 
-class GarbageCollectorInterleavingTestPrefixing : GarbageCollectorInterleavingTest() {
+open class GarbageCollectorInterleavingTestPrefixing : GarbageCollectorInterleavingTest() {
 
     override val storeConfig: StoreConfig
         get() = StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING

@@ -108,7 +108,8 @@ public class ReadWriteTransaction extends TransactionBase {
         if (result) {
             // if the transaction was upgraded to exclusive during re-playing
             // then it should be downgraded back after successful flush().
-            if (!wasCreatedExclusive() && isExclusive() && env.getEnvironmentConfig().getEnvTxnDowngradeAfterFlush()) {
+            if (!wasCreatedExclusive() && isExclusive() && env.getEnvironmentConfig()
+                    .getEnvTxnDowngradeAfterFlush()) {
                 env.downgradeTransaction(this);
                 setExclusive(false);
             }
@@ -237,16 +238,18 @@ public class ReadWriteTransaction extends TransactionBase {
         final Long2ObjectMap.FastEntrySet<Pair<String, ITree>> removedEntries = removedStores.long2ObjectEntrySet();
         ExpiredLoggableCollection expiredLoggables = ExpiredLoggableCollection.newInstance(log);
 
+        var env = getEnvironment();
         final ITreeMutable metaTreeMutable = getMetaTree().tree.getMutableCopy();
         for (final Map.Entry<Long, Pair<String, ITree>> entry : removedEntries) {
             final Pair<String, ITree> value = entry.getValue();
-            MetaTreeImpl.removeStore(metaTreeMutable, value.getFirst(), entry.getKey().longValue());
-            expiredLoggables = expiredLoggables.mergeWith(TreeMetaInfo.getTreeLoggables(value.getSecond()).trimToSize());
+            MetaTreeImpl.removeStore(metaTreeMutable, value.getFirst(), entry.getKey(), env);
+            expiredLoggables = expiredLoggables.mergeWith(
+                    TreeMetaInfo.getTreeLoggables(value.getSecond()).trimToSize());
         }
         removedStores.clear();
 
         for (final Map.Entry<String, TreeMetaInfo> entry : createdStores.entrySet()) {
-            MetaTreeImpl.addStore(metaTreeMutable, entry.getKey(), entry.getValue());
+            MetaTreeImpl.addStore(metaTreeMutable, entry.getKey(), entry.getValue(), env);
         }
         createdStores.clear();
 
@@ -257,7 +260,8 @@ public class ReadWriteTransaction extends TransactionBase {
 
         clearImmutableTrees();
         mutableTrees.clear();
-        expiredLoggables = expiredLoggables.mergeWith(metaTreeMutable.getExpiredLoggables().trimToSize());
+        expiredLoggables = expiredLoggables.mergeWith(
+                metaTreeMutable.getExpiredLoggables().trimToSize());
         out[0] = MetaTreeImpl.saveMetaTree(metaTreeMutable, getEnvironment(), expiredLoggables);
         return expiredLoggables;
     }
@@ -274,7 +278,8 @@ public class ReadWriteTransaction extends TransactionBase {
         if (getEnvironment().getEnvironmentConfig().getEnvTxnSingleThreadWrites()) {
             final Thread creatingThread = getCreatingThread();
             if (!creatingThread.equals(Thread.currentThread())) {
-                throw new ExodusException("Can't create mutable tree in a thread different from the one which transaction was created in");
+                throw new ExodusException(
+                        "Can't create mutable tree in a thread different from the one which transaction was created in");
             }
         }
         final int structureId = store.getStructureId();
@@ -303,7 +308,9 @@ public class ReadWriteTransaction extends TransactionBase {
     @Override
     List<String> getAllStoreNames() {
         List<String> result = super.getAllStoreNames();
-        if (createdStores.isEmpty()) return result;
+        if (createdStores.isEmpty()) {
+            return result;
+        }
         if (result.isEmpty()) {
             result = new ArrayList<>();
         }

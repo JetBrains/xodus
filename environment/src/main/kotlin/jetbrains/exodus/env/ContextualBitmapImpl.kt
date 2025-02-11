@@ -38,4 +38,6 @@ class ContextualBitmapImpl(override val store: ContextualStoreImpl) : Contextual
     override fun count(firstBit: Long, lastBit: Long) = count(currentTransaction, firstBit, lastBit)
 
     private val currentTransaction: Transaction get() = environment.andCheckCurrentTransaction
+
+
 }

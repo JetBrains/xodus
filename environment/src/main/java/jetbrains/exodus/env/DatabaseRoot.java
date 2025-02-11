@@ -32,7 +32,7 @@ public final class DatabaseRoot {
     private final Loggable loggable;
     private final long rootAddress;
     private final int lastStructureId;
-    private final boolean isValid;
+    public final boolean isValid;
 
     public DatabaseRoot(@NotNull final Loggable loggable) {
         this(loggable, loggable.getData().iterator());

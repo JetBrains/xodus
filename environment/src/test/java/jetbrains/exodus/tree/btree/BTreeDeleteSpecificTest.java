@@ -19,7 +19,6 @@ import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.tree.INode;
 import org.junit.Test;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -31,14 +30,14 @@ public class BTreeDeleteSpecificTest extends BTreeTestBase {
 
     private BTreeMutable refresh() {
         long a = saveTree();
-        t = new BTree(log, policy, a, false, 1);
+        t = new BTree(log, policy, a, false, 1, Integer.MAX_VALUE);
         tm = getTree().getMutableCopy();
         return getTreeMutable();
     }
 
     @Test
     public void testDeleteKeys() {
-        tm = new BTreeEmpty(log, policy, false, 1).getMutableCopy();
+        tm = new BTreeEmpty(log, policy, false, 1, Integer.MAX_VALUE).getMutableCopy();
         for (int i = 0; i < 125; i++) {
             getTreeMutable().put(kv(i, "k" + i));
         }
@@ -50,14 +49,17 @@ public class BTreeDeleteSpecificTest extends BTreeTestBase {
 
     @Test
     public void testDeleteNoDuplicatesDeleteFirstTwoPages() {
-        tm = new BTreeEmpty(log, new BTreeBalancePolicy(4), false, 1).getMutableCopy();
+        tm = new BTreeEmpty(log, new BTreeBalancePolicy(4), false, 1,
+                Integer.MAX_VALUE).getMutableCopy();
 
         for (int i = 0; i < 20; i++) {
             getTreeMutable().put(kv(i, "v" + i));
         }
 
         long a = saveTree();
-        tm = new BTree(log, new BTreeBalancePolicy(4), a, false, 1).getMutableCopy();
+        tm = new BTree(log,
+                new BTreeBalancePolicy(4),
+                a, false, 1, Integer.MAX_VALUE).getMutableCopy();
 
         dump(getTreeMutable());
 
@@ -71,14 +73,19 @@ public class BTreeDeleteSpecificTest extends BTreeTestBase {
 
     @Test
     public void testDeleteNotExistingKeys() {
-        tm = new BTreeEmpty(log, new BTreeBalancePolicy(4), false, 1).getMutableCopy();
+        tm =
+                new BTreeEmpty(log, new BTreeBalancePolicy(4),
+                        false, 1, Integer.MAX_VALUE).getMutableCopy();
 
         for (int i = 0; i < 20; i++) {
             getTreeMutable().put(kv(i, "v" + i));
         }
 
         long a = saveTree();
-        tm = new BTree(log, new BTreeBalancePolicy(4), a, false, 1).getMutableCopy();
+        tm =
+                new BTree(log,
+                        new BTreeBalancePolicy(4), a, false, 1, Integer.MAX_VALUE)
+                        .getMutableCopy();
 
         dump(getTreeMutable());
 
@@ -98,7 +105,8 @@ public class BTreeDeleteSpecificTest extends BTreeTestBase {
 
     @Test
     public void testDeleteNoDuplicatesBottomPage() {
-        tm = new BTreeEmpty(log, new BTreeBalancePolicy(16), false, 1).getMutableCopy();
+        tm = new BTreeEmpty(log,
+                new BTreeBalancePolicy(16), false, 1, Integer.MAX_VALUE).getMutableCopy();
 
         List<INode> res = new ArrayList<>();
 
@@ -110,7 +118,9 @@ public class BTreeDeleteSpecificTest extends BTreeTestBase {
         dump(getTreeMutable());
 
         long a = saveTree();
-        tm = new BTree(log, new BTreeBalancePolicy(16), a, false, 1).getMutableCopy();
+        tm = new BTree(log,
+                new BTreeBalancePolicy(16), a, false, 1,
+                Integer.MAX_VALUE).getMutableCopy();
 
         for (int i = 0; i < 64; i++) {
             tm.delete(key(i));
@@ -124,7 +134,7 @@ public class BTreeDeleteSpecificTest extends BTreeTestBase {
 
     @Test
     public void testDeleteDuplicates() {
-        tm = new BTreeEmpty(log, true, 1).getMutableCopy();
+        tm = new BTreeEmpty(log, true, 1, Integer.MAX_VALUE).getMutableCopy();
 
         getTreeMutable().put(kv(1, "11"));
         getTreeMutable().put(kv(1, "12"));
@@ -139,7 +149,7 @@ public class BTreeDeleteSpecificTest extends BTreeTestBase {
 
         reopen();
 
-        t = new BTree(log, a, false, 1);
+        t = new BTree(log, a, false, 1, Integer.MAX_VALUE);
 
         assertEquals(0, tm.getSize());
         assertNull(tm.get(key(1)));
@@ -147,7 +157,7 @@ public class BTreeDeleteSpecificTest extends BTreeTestBase {
 
     @Test
     public void testDeleteDuplicates2() {
-        tm = new BTreeEmpty(log, true, 1).getMutableCopy();
+        tm = new BTreeEmpty(log, true, 1, Integer.MAX_VALUE).getMutableCopy();
 
         getTreeMutable().put(kv(1, "11"));
         getTreeMutable().put(kv(1, "12"));
@@ -162,7 +172,7 @@ public class BTreeDeleteSpecificTest extends BTreeTestBase {
 
         reopen();
 
-        t = new BTree(log, a, false, 1);
+        t = new BTree(log, a, false, 1, Integer.MAX_VALUE);
 
         assertEquals(0, tm.getSize());
         assertNull(tm.get(key(1)));
@@ -170,7 +180,10 @@ public class BTreeDeleteSpecificTest extends BTreeTestBase {
 
     @Test
     public void testMergeWithDefaultPolicy() {
-        tm = new BTreeEmpty(log, new BTreeBalancePolicy(7), true, 1).getMutableCopy();
+        tm =
+                new BTreeEmpty(log,
+                        new BTreeBalancePolicy(7),
+                        true, 1, Integer.MAX_VALUE).getMutableCopy();
 
         for (int i = 0; i < 8; i++) {
             getTreeMutable().put(kv(i, "v" + i));
@@ -213,7 +226,9 @@ public class BTreeDeleteSpecificTest extends BTreeTestBase {
 
     @Test
     public void testRemoveFirst() {
-        tm = new BTreeEmpty(log, new BTreeBalancePolicy(4), true, 1).getMutableCopy();
+        tm = new BTreeEmpty(log,
+                new BTreeBalancePolicy(4), true, 1,
+                Integer.MAX_VALUE).getMutableCopy();
 
         for (int i = 0; i < 14; i++) {
             getTreeMutable().put(kv(i, "v" + i));
@@ -234,7 +249,8 @@ public class BTreeDeleteSpecificTest extends BTreeTestBase {
 
     @Test
     public void testMergeDuplicatesWithDefaultPolicyOnRemoveLast() {
-        tm = new BTreeEmpty(log, new BTreeBalancePolicy(4), true, 1).getMutableCopy();
+        tm = new BTreeEmpty(
+                log, new BTreeBalancePolicy(4), true, 1, Integer.MAX_VALUE).getMutableCopy();
 
         for (int i = 0; i < 14; i++) {
             getTreeMutable().put(kv(i, "v" + i));
@@ -264,7 +280,9 @@ public class BTreeDeleteSpecificTest extends BTreeTestBase {
 
     @Test
     public void testMergeDuplicatesWithDefaultPolicyOnRemoveMiddle() {
-        tm = new BTreeEmpty(log, new BTreeBalancePolicy(4), true, 1).getMutableCopy();
+        tm =
+                new BTreeEmpty(log, new BTreeBalancePolicy(4),
+                        true, 1, Integer.MAX_VALUE).getMutableCopy();
 
         for (int i = 0; i < 14; i++) {
             getTreeMutable().put(kv(i, "v" + i));
@@ -296,12 +314,12 @@ public class BTreeDeleteSpecificTest extends BTreeTestBase {
 
     @Test
     public void testGetNextEmpty() {
-        BTreeMutable copy = new BTreeEmpty(log, true, 1).getMutableCopy();
+        BTreeMutable copy = new BTreeEmpty(log, true, 1, Integer.MAX_VALUE).getMutableCopy();
         log.beginWrite();
         long address = copy.save();
         log.flush();
         log.endWrite();
-        tm = new BTree(log, address, true, 1).getMutableCopy();
+        tm = new BTree(log, address, true, 1, Integer.MAX_VALUE).getMutableCopy();
         assertTrue(tm.isEmpty());
         assertEquals(0, tm.getSize());
         assertFalse(tm.openCursor().getNext());
@@ -333,7 +351,7 @@ public class BTreeDeleteSpecificTest extends BTreeTestBase {
         }
 
         long a = saveTree();
-        tm = new BTree(log, a, true, 1).getMutableCopy();
+        tm = new BTree(log, a, true, 1, Integer.MAX_VALUE).getMutableCopy();
 
         assertTrue(tm.isEmpty());
         assertEquals(0, tm.getSize());
@@ -341,14 +359,14 @@ public class BTreeDeleteSpecificTest extends BTreeTestBase {
     }
 
     private void prepareData(int size) {
-        tm = new BTreeEmpty(log, true, 1).getMutableCopy();
+        tm = new BTreeEmpty(log, true, 1, Integer.MAX_VALUE).getMutableCopy();
         for (int i = 0; i < size; i++) {
             getTreeMutable().put(kv(i, "v" + i));
         }
 
         long a = saveTree();
 
-        tm = new BTree(log, a, true, 1).getMutableCopy();
+        tm = new BTree(log, a, true, 1, Integer.MAX_VALUE).getMutableCopy();
     }
 
 }

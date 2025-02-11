@@ -17,6 +17,7 @@ package jetbrains.exodus.entitystore
 
 import jetbrains.exodus.testutil.TimeProfiler
 import mu.KLogging
+import org.junit.Ignore
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit.MINUTES

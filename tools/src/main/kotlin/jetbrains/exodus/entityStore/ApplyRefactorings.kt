@@ -16,7 +16,7 @@
 package jetbrains.exodus.entityStore
 
 import jetbrains.exodus.entitystore.PersistentEntityStoreImpl
-import jetbrains.exodus.env.Reflect
+import jetbrains.exodus.env.reflect.Reflect
 import java.io.File
 
 fun main(args: Array<String>) {

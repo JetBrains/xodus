@@ -19,8 +19,6 @@ import jetbrains.exodus.log.Loggable;
 import jetbrains.exodus.tree.INode;
 import org.junit.Test;
 
-import java.io.IOException;
-
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -28,16 +26,16 @@ public class BTreeSimpleTest extends BTreeTestBase {
 
     @Test
     public void testEmptyTree() {
-        checkEmptyTree(t = new BTreeEmpty(log, false, 1));
+        checkEmptyTree(t = new BTreeEmpty(log, false, 1, Integer.MAX_VALUE));
 
-        tm = new BTreeEmpty(log, false, 1).getMutableCopy();
+        tm = new BTreeEmpty(log, false, 1, Integer.MAX_VALUE).getMutableCopy();
 
         checkEmptyTree(tm);
 
         long address = saveTree();
 
         reopen();
-        t = new BTree(log, address, true, 1);
+        t = new BTree(log, address, true, 1, Integer.MAX_VALUE);
 
         checkEmptyTree(t);
     }
@@ -45,7 +43,7 @@ public class BTreeSimpleTest extends BTreeTestBase {
     @Test
     public void testPutSaveGet() {
         // put
-        tm = new BTreeEmpty(log, false, 1).getMutableCopy();
+        tm = new BTreeEmpty(log, false, 1, Integer.MAX_VALUE).getMutableCopy();
 
         final INode ln1 = kv("1", "vadim");
         getTreeMutable().put(ln1);
@@ -68,7 +66,7 @@ public class BTreeSimpleTest extends BTreeTestBase {
         valueEquals("vadim", tm.get(key("1")));
 
         // get
-        t = new BTree(log, newRootAddress, false, 1);
+        t = new BTree(log, newRootAddress, false, 1, Integer.MAX_VALUE);
 
         TreeAwareRunnable r = new TreeAwareRunnable() {
             @Override
@@ -92,7 +90,7 @@ public class BTreeSimpleTest extends BTreeTestBase {
         // get after log reopen
         reopen();
 
-        t = new BTree(log, newRootAddress, false, 1);
+        t = new BTree(log, newRootAddress, false, 1, Integer.MAX_VALUE);
 
         r.run();
     }
