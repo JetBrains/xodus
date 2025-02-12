@@ -31,6 +31,8 @@ class YTDBDatabaseProviderImpl(
     private val youTrackDBConfig: YouTrackDBConfig
 
     init {
+        require(config.connectionConfig.userName.matches(Regex("^[a-zA-Z0-9]*$")))
+
         youTrackDBConfig = YouTrackDBConfig.builder().apply {
             addGlobalConfigurationParameter(GlobalConfiguration.AUTO_CLOSE_AFTER_DELAY, true)
             addGlobalConfigurationParameter(
@@ -49,8 +51,11 @@ class YTDBDatabaseProviderImpl(
         database.createIfNotExists(
             config.databaseName,
             config.databaseType,
-            youTrackDBConfig
+            config.connectionConfig.userName,
+            config.connectionConfig.password,
+            "admin"
         )
+
 
         //todo migrate to some config entity instead of System props
         if (System.getProperty("exodus.env.compactOnOpen", "false").toBoolean()) {

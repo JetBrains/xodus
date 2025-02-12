@@ -56,7 +56,7 @@ class MigrateXodusToOrientDbSmokeTest {
             .withDatabaseName("MEMORY")
             .build()
 
-        val db = iniYouTrackDb(connectionConfig)
+        val db = initYouTrackDb(connectionConfig)
         db.execute("create database $dbName MEMORY users ( $username identified by '$password' role admin )")
         // create a provider
         val dbProvider = YTDBDatabaseProviderImpl(config, db)

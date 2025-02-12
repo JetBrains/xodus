@@ -16,8 +16,11 @@
 package jetbrains.exodus.entitystore.orientdb
 
 import com.jetbrains.youtrack.db.api.DatabaseType
+import jetbrains.exodus.entitystore.youtrackdb.YTDBDatabaseConfig
 import jetbrains.exodus.entitystore.youtrackdb.YTDBDatabaseConnectionConfig
-import jetbrains.exodus.entitystore.youtrackdb.iniYouTrackDb
+import jetbrains.exodus.entitystore.youtrackdb.YTDBDatabaseProvider
+import jetbrains.exodus.entitystore.youtrackdb.YTDBDatabaseProviderImpl
+import jetbrains.exodus.entitystore.youtrackdb.initYouTrackDb
 import java.nio.file.Files
 import kotlin.io.path.absolutePathString
 import org.junit.Test
@@ -33,7 +36,12 @@ class WrongUsernameTest {
             .withDatabaseType(DatabaseType.MEMORY)
             .withDatabaseRoot(Files.createTempDirectory("haha").absolutePathString())
             .build()
-        iniYouTrackDb(cfg)
+        val db = initYouTrackDb(cfg)
+        val config = YTDBDatabaseConfig.builder()
+            .withDatabaseName("hello")
+            .withConnectionConfig(cfg)
+            .build()
+        YTDBDatabaseProviderImpl(config, db)
     }
 
 

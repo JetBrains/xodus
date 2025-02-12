@@ -58,7 +58,7 @@ class InMemoryYouTrackDB(
             .build()
         val builder = YouTrackDBConfig.builder()
         builder.addGlobalConfigurationParameter(GlobalConfiguration.NON_TX_READS_WARNING_MODE, "SILENT")
-        db = iniYouTrackDb(connConfig)
+        db = initYouTrackDb(connConfig)
         provider = YTDBDatabaseProviderImpl(config, db)
 
         if (initializeIssueSchema) {

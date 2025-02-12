@@ -22,6 +22,7 @@ import com.jetbrains.youtrack.db.api.config.GlobalConfiguration
 import com.jetbrains.youtrack.db.api.config.YouTrackDBConfig
 import com.jetbrains.youtrack.db.api.exception.RecordDuplicatedException
 import com.jetbrains.youtrack.db.internal.core.db.DatabaseRecordThreadLocal
+import com.jetbrains.youtrack.db.internal.core.db.YouTrackDBImpl
 
 interface YTDBDatabaseProvider {
     val databaseLocation: String
@@ -92,7 +93,7 @@ internal fun hasActiveSession(): Boolean {
     return db != null
 }
 
-fun iniYouTrackDb(config: YTDBDatabaseConnectionConfig): YouTrackDB {
+fun initYouTrackDb(config: YTDBDatabaseConnectionConfig): YouTrackDB {
     val orientConfig = YouTrackDBConfig.builder().apply {
         addGlobalConfigurationParameter(GlobalConfiguration.AUTO_CLOSE_AFTER_DELAY, true)
         addGlobalConfigurationParameter(
@@ -101,15 +102,10 @@ fun iniYouTrackDb(config: YTDBDatabaseConnectionConfig): YouTrackDB {
         )
         addGlobalConfigurationParameter(GlobalConfiguration.NON_TX_READS_WARNING_MODE, "SILENT")
     }.build()
-    require(config.userName.matches(Regex("^[a-zA-Z0-9]*$")))
-    val db = YourTracks.embedded(config.databaseRoot, orientConfig)
-
-    try {
-        db.execute("create system user ${config.userName} identified by :pass role root", mapOf(
-            "pass" to config.password,
-        ))
-    } catch (_: RecordDuplicatedException) {
+    return YourTracks.embedded(config.databaseRoot, orientConfig).apply {
+        (this as? YouTrackDBImpl)?.let {
+            it.serverPassword = config.password
+            it.serverUser = config.userName
+        }
     }
-
-    return db
 }
