@@ -20,7 +20,7 @@ import com.jetbrains.youtrack.db.api.DatabaseType
 import jetbrains.exodus.entitystore.youtrackdb.YTDBDatabaseConfig
 import jetbrains.exodus.entitystore.youtrackdb.YTDBDatabaseConnectionConfig
 import jetbrains.exodus.entitystore.youtrackdb.YTDBDatabaseProviderImpl
-import jetbrains.exodus.entitystore.youtrackdb.iniYouTrackDb
+import jetbrains.exodus.entitystore.youtrackdb.initYouTrackDb
 
 fun main() {
     val xodusDatabaseDirectory = requireParam("xodusDatabaseDirectory")
@@ -104,7 +104,7 @@ fun main() {
         .withDatabaseName(orientDatabaseName)
         .build()
 
-    val db = iniYouTrackDb(connectionConfig)
+    val db = initYouTrackDb(connectionConfig)
     // create a provider
     val dbProvider = YTDBDatabaseProviderImpl(config, db)
 

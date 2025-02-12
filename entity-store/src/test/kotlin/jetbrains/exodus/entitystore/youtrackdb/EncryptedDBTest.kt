@@ -17,6 +17,7 @@ package jetbrains.exodus.entitystore.youtrackdb
 
 import com.jetbrains.youtrack.db.api.DatabaseType
 import com.jetbrains.youtrack.db.api.YouTrackDB
+import com.jetbrains.youtrack.db.api.exception.RecordNotFoundException
 import com.jetbrains.youtrack.db.internal.core.YouTrackDBEnginesManager
 import com.jetbrains.youtrack.db.internal.core.exception.StorageException
 import jetbrains.exodus.crypto.toByteArray
@@ -73,7 +74,7 @@ class EncryptedDBTest(val number: Int) {
         val config = createConfig(cipherKey)
         val noEncryptionConfig = createConfig(null)
         logger.info("Connect to db and create test vertex class")
-        db = iniYouTrackDb(config.connectionConfig)
+        db = initYouTrackDb(config.connectionConfig)
         provider = YTDBDatabaseProviderImpl(config, db)
         provider.withSession { session ->
             session.createVertexClass("TEST")
@@ -90,7 +91,7 @@ class EncryptedDBTest(val number: Int) {
         logger.info("Close the DB")
         Thread.sleep(1000)
         logger.info("Connect to db one more time and read")
-        db = iniYouTrackDb(config.connectionConfig)
+        db = initYouTrackDb(config.connectionConfig)
         provider = YTDBDatabaseProviderImpl(config, db)
         provider.withSession { session ->
             session.executeInTx {
@@ -102,7 +103,7 @@ class EncryptedDBTest(val number: Int) {
         db.close()
         Thread.sleep(1000)
         logger.info("Connect to db one more time without encryption")
-        db = iniYouTrackDb(config.connectionConfig)
+        db = initYouTrackDb(config.connectionConfig)
         try {
             YTDBDatabaseProviderImpl(noEncryptionConfig, db).apply {
                 withSession { session ->
@@ -115,7 +116,9 @@ class EncryptedDBTest(val number: Int) {
             }
         } catch (_: StorageException) {
             logger.info("As expected DB failed to initialize without key")
-        } catch (e: AssertionError) {
+        }catch (_: RecordNotFoundException) {
+            logger.info("As expected DB failed to initialize without key")
+        } catch (_: AssertionError) {
             logger.info("As expected DB failed to initialize without key")
         } catch (e: Throwable) {
             logger.error("DB failed with unexpected error", e)
