@@ -29,6 +29,8 @@ class YTDBPersistentEntityStore(
 
     private val currentTransaction = ThreadLocal<YTDBStoreTransaction>()
 
+    override val statistics = YTDBStatisticsImpl(this, databaseProvider)
+
     override val databaseSession: DatabaseSession
         get() {
             val tx = currentTransaction.get() ?: throw IllegalStateException("There is no active database session")
