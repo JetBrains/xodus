@@ -264,9 +264,11 @@ class YTDBStoreTransactionImpl(
         }
     }
 
-    override fun getEntityTypes(): MutableList<String> {
+    override fun getEntityTypes(): List<String> {
         requireActiveTransaction()
-        return session.schema.getClasses(session).map { it.name }.toMutableList()
+        return session.schema.getClasses(session)
+            .filter { it.isVertexType && it.name != Vertex.CLASS_NAME }
+            .map { it.name }
     }
 
     override fun getAll(entityType: String): EntityIterable {

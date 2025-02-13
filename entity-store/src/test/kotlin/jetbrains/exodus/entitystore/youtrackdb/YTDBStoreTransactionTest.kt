@@ -844,4 +844,58 @@ class YTDBStoreTransactionTest : OTestMixin {
             }
         }
     }
+
+    @Test
+    fun `getEntityTypes returns only real vertex classes`() {
+        withSession { session ->
+            // Create abstract base class
+            val baseEntityClass = session.getOrCreateVertexClass("BaseEntity").apply {
+                this.setAbstract(session, true)
+            }
+
+            // Create concrete vertex classes
+            val userClass = session.getOrCreateVertexClass("User")
+            val projectClass = session.getOrCreateVertexClass("Project")
+            val issueClass = session.getOrCreateVertexClass("Issue")
+
+            // Set inheritance relationships
+            userClass.addSuperClass(session, baseEntityClass)
+            projectClass.addSuperClass(session, baseEntityClass)
+            issueClass.addSuperClass(session, baseEntityClass)
+
+            // Create edge classes (associations)
+            session.addAssociation("User", "Project", "OWNS_PROJECT", "OWNED_BY")
+            session.addAssociation("Project", "Issue", "HAS_ISSUE", "IN_PROJECT")
+        }
+
+        withStoreTx { tx ->
+            val allClassesByName = tx.databaseSession.let { it.schema.getClasses(it) }.associateBy { it.name }
+
+            // Verify edge classes are properly marked
+            val expectedEdgeClasses = listOf("OWNS_PROJECT_link", "OWNED_BY_link", "HAS_ISSUE_link", "IN_PROJECT_link")
+            expectedEdgeClasses.forEach {
+                assertThat(allClassesByName[it]!!.isEdgeType).isTrue()
+            }
+
+            // Verify all vertex classes (including abstract) are properly marked
+            val expectedVertexClasses = listOf("User", "Project", "Issue", "BaseEntity")
+            expectedVertexClasses.forEach {
+                assertThat(allClassesByName[it]!!.isVertexType).isTrue()
+            }
+
+            val entityTypes = tx.entityTypes
+
+            // Verify all vertex classes (including abstract base class) are returned
+            assertThat(entityTypes).containsAtLeastElementsIn(expectedVertexClasses)
+
+            // Verify no vertex super classes is returned
+            assertThat(entityTypes).doesNotContain(Vertex.CLASS_NAME)
+
+            // Verify edge classes are not returned
+            assertThat(entityTypes).containsNoneIn(expectedEdgeClasses)
+
+            // Verify no types start with "O" (are real vertex classes)
+            assertThat(entityTypes.none { it.startsWith("O") }).isTrue()
+        }
+    }
 }
