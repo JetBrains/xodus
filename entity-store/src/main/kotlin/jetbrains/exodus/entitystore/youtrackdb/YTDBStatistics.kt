@@ -15,18 +15,9 @@
  */
 package jetbrains.exodus.entitystore.youtrackdb
 
-import com.jetbrains.youtrack.db.api.DatabaseSession
-import jetbrains.exodus.entitystore.EntityStore
-import jetbrains.exodus.entitystore.PersistentEntityId
-
-interface YTDBEntityStore : EntityStore {
-    val databaseSession: DatabaseSession
-
-    val statistics: YTDBStatistics
-
-    fun requireActiveTransaction(): YTDBStoreTransaction
-
-    fun requireActiveWritableTransaction(): YTDBStoreTransaction
-
-    fun getOEntityId(entityId: PersistentEntityId): YTDBEntityId
+interface YTDBStatistics {
+    val totalTransactions: Long
+    val transactionsPerSecond: Double
+    val databaseSize: Long
+    val usableDiskSpace : Long
 }
