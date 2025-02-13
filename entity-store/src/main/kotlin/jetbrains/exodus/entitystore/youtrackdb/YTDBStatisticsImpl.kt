@@ -20,7 +20,7 @@ import java.nio.file.FileSystems
 import java.nio.file.Paths
 
 
-class YTDBStatisticsImpl(val store: YTDBPersistentEntityStore, val dbProvider: YTDBDatabaseProvider): YTDBStatistics {
+class YTDBStatisticsImpl(private val store: YTDBPersistentEntityStore, private val dbProvider: YTDBDatabaseProvider): YTDBStatistics {
     override val totalTransactions: Long
         get() = -1
     override val transactionsPerSecond: Double

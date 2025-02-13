@@ -29,6 +29,8 @@ class YTDBDatabaseProviderImpl(
     private val database: YouTrackDB
 ) : YTDBDatabaseProvider {
     private val youTrackDBConfig: YouTrackDBConfig
+    override var isOpen: Boolean = false
+        private set
 
     init {
         require(config.connectionConfig.userName.matches(Regex("^[a-zA-Z0-9]*$")))
@@ -61,6 +63,7 @@ class YTDBDatabaseProviderImpl(
         if (System.getProperty("exodus.env.compactOnOpen", "false").toBoolean()) {
             compact()
         }
+        isOpen = true
     }
 
     fun compact() {
@@ -127,6 +130,7 @@ class YTDBDatabaseProviderImpl(
     }
 
     override fun close() {
+        isOpen = false
         // OxygenDB cannot close the database if it is read-only (frozen)
         readOnly = false
         if (config.closeDatabaseInDbProvider) {
