@@ -29,7 +29,7 @@ class YTDBPersistentEntityStore(
 
     private val currentTransaction = ThreadLocal<YTDBStoreTransaction>()
 
-    override val statistics = YTDBStatisticsImpl(this, databaseProvider)
+    override val statistics: YTDBStatistics = YTDBStatisticsImpl(this, databaseProvider)
 
     override val databaseSession: DatabaseSession
         get() {

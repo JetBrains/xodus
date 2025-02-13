@@ -46,6 +46,8 @@ interface YTDBDatabaseProvider {
      */
     var readOnly: Boolean
 
+    val isOpen: Boolean
+
     fun close()
 }
 
