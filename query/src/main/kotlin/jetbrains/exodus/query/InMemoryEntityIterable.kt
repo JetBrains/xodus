@@ -17,11 +17,19 @@ package jetbrains.exodus.query
 
 import jetbrains.exodus.entitystore.*
 
-class InMemoryEntityIterable(
-    val iterable: Iterable<Entity>,
+open class InMemoryEntityIterable(
+    override val iterable: Iterable<Entity>,
+    txn: StoreTransaction,
+    queryEngine: QueryEngine,) : AbstractInMemoryEntityIterable(txn, queryEngine) {
+}
+
+abstract class AbstractInMemoryEntityIterable(
     private val txn: StoreTransaction,
     private val queryEngine: QueryEngine
 ) : EntityIterable {
+
+    abstract val iterable: Iterable<Entity>
+
     override fun iterator(): EntityIterator {
         return InMemoryEntityIterator(iterable.iterator())
     }
