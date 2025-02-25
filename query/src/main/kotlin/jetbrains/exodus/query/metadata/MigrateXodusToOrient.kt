@@ -16,8 +16,10 @@
 package jetbrains.exodus.query.metadata
 
 
+import YTDBDatabaseProviderFactory
+import YouTrackDBFactory
 import com.jetbrains.youtrack.db.api.DatabaseType
-import jetbrains.exodus.entitystore.youtrackdb.*
+import jetbrains.exodus.entitystore.youtrackdb.YTDBDatabaseParams
 
 fun main() {
     val xodusDatabaseDirectory = requireParam("xodusDatabaseDirectory")
@@ -90,21 +92,16 @@ fun main() {
                 entitiesPerTransaction: $entitiesPerTransaction
         """.trimIndent())
 
-    val connectionConfig = YTDBDatabaseConnectionConfig.builder()
+    val params = YTDBDatabaseParams.builder()
+        .withDatabasePath(orientDatabaseDirectory)
         .withPassword(orientPassword)
         .withUserName(orientUsername)
-        .withDatabaseRoot(orientDatabaseDirectory)
         .withDatabaseType(orientDatabaseType)
-        .build()
-
-    val config = YTDBDatabaseConfig.builder()
         .withDatabaseName(orientDatabaseName)
-        .withConnectionConfig(connectionConfig)
         .build()
 
-    val dbConfig = YouTrackDBConfigFactory.createDefaultDBConfig(config)
-    val db = YouTrackDBFactory.initYouTrackDb(config, dbConfig)
-    val dbProvider = YTDBDatabaseProviderFactory.createProvider(config, db, dbConfig)
+    val db = YouTrackDBFactory.createEmbedded(params)
+    val dbProvider = YTDBDatabaseProviderFactory.createProvider(params, db)
 
     val launcher = XodusToOrientDataMigratorLauncher(
         xodus = MigrateFromXodusConfig(
@@ -117,7 +114,7 @@ fun main() {
         orient = MigrateToOrientConfig(
             databaseProvider = dbProvider,
             db = db,
-            orientConfig = config,
+            orientConfig = params,
             true
         ),
         validateDataAfterMigration = validateDataAfterMigration,

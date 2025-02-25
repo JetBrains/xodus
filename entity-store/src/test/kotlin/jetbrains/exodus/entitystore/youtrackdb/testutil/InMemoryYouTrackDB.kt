@@ -15,6 +15,8 @@
  */
 package jetbrains.exodus.entitystore.youtrackdb.testutil
 
+import YTDBDatabaseProviderFactory
+import YouTrackDBFactory
 import com.jetbrains.youtrack.db.api.DatabaseSession
 import com.jetbrains.youtrack.db.api.DatabaseType
 import com.jetbrains.youtrack.db.api.YouTrackDB
@@ -43,21 +45,16 @@ class InMemoryYouTrackDB(
     val dbName = "testDB"
 
     override fun before() {
-        val connConfig = YTDBDatabaseConnectionConfig.builder()
+        val params = YTDBDatabaseParams.builder()
             .withDatabaseType(DatabaseType.MEMORY)
-            .withDatabaseRoot(Files.createTempDirectory("youTrackDB_test").absolutePathString())
+            .withDatabasePath(Files.createTempDirectory("youTrackDB_test").absolutePathString())
             .withPassword(password)
             .withUserName(username)
-            .build()
-
-        val config = YTDBDatabaseConfig.builder()
-            .withConnectionConfig(connConfig)
             .withDatabaseName(dbName)
             .build()
 
-        val dbConfig = YouTrackDBConfigFactory.createDefaultDBConfig(config)
-        db = YouTrackDBFactory.initYouTrackDb(config, dbConfig)
-        provider = YTDBDatabaseProviderFactory.createProvider(config, db, dbConfig) as YTDBDatabaseProviderImpl
+        db = YouTrackDBFactory.createEmbedded(params)
+        provider = YTDBDatabaseProviderFactory.createProvider(params, db) as YTDBDatabaseProviderImpl
 
         if (initializeIssueSchema) {
             provider.withSession { session ->

@@ -19,47 +19,43 @@ import org.junit.Assert
 import org.junit.Test
 
 class YTDBDatabaseConfigTest {
+
     @Test
-    fun `cypher key is trunked to 24 bytes from bigger one`() {
+    fun `encryption key calculated from hex`() {
+        val keyHex = "546e6f624b737371796f41586e7269304c744f42663252613630586631374a67"
+
+        val params = YTDBDatabaseParams.builder()
+            .withDatabasePath("aa")
+            .withDatabaseName("aa")
+            .withHexEncryptionKey(keyHex, 0)
+            .build()
+
+        Assert.assertEquals("VG5vYktzc3F5b0FYbnJpMAAAAAAAAAAA", params.encryptionKey)
+    }
+
+    @Test
+    fun `encryption key is trunked to 32 from bigger one`() {
         val key1 = Array(60) { "aa" }.joinToString(separator = "")
 
-        val connConfig = YTDBDatabaseConnectionConfig
-            .builder()
-            .withUserName("testUrl")
-            .withPassword("testPassword")
-            .withDatabaseRoot("aa")
-            .build()
-
-
-        val cfg = YTDBDatabaseConfig
-            .builder()
-            .withConnectionConfig(connConfig)
-            .withStringHexAndIV(key1, 10L)
+        val params = YTDBDatabaseParams.builder()
+            .withDatabasePath("aa")
             .withDatabaseName("aa")
+            .withHexEncryptionKey(key1, 0)
             .build()
 
-        Assert.assertEquals(24, cfg.cipherKey?.size)
+        Assert.assertEquals(32, params.encryptionKey?.length)
     }
 
     @Test
-    fun `cypher key is not trunked if key is smaller than 24`() {
+    fun `encryption key is not trunked if key is smaller than 32`() {
         val key1 = "aabbccddaabbccdd"
 
-        val connConfig = YTDBDatabaseConnectionConfig.builder()
-            .withUserName("testUrl")
-            .withPassword("testPassword")
-            .withDatabaseRoot("aa")
-            .build()
-
-        val cfg = YTDBDatabaseConfig
-            .builder()
-            .withConnectionConfig(connConfig)
-            .withStringHexAndIV(key1, 10L)
+        val params = YTDBDatabaseParams.builder()
+            .withDatabasePath("aa")
             .withDatabaseName("aa")
-
+            .withHexEncryptionKey(key1, 0)
             .build()
 
-        Assert.assertEquals(16, cfg.cipherKey?.size)
+        Assert.assertEquals(24, params.encryptionKey?.length)
     }
-
 }
