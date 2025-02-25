@@ -17,48 +17,43 @@ package jetbrains.exodus.entitystore.youtrackdb
 
 import com.jetbrains.youtrack.db.api.DatabaseSession
 import com.jetbrains.youtrack.db.api.YouTrackDB
-import com.jetbrains.youtrack.db.api.config.YouTrackDBConfig
 import java.io.File
 
 //username and password are considered to be same for all databases
 //todo this params also should be collected in some config entity
 class YTDBDatabaseProviderImpl(
-    private val config: YTDBDatabaseConfig,
+    private val params: YTDBDatabaseParams,
     private val database: YouTrackDB,
-    private val dbConfig: YouTrackDBConfig = YouTrackDBConfigFactory.createDefaultDBConfig(config)
 ) : YTDBDatabaseProvider {
+
     override var isOpen: Boolean = false
         private set
 
     init {
-        require(config.connectionConfig.userName.matches(Regex("^[a-zA-Z0-9]*$")))
+        require(params.userName.matches(Regex("^[a-zA-Z0-9]*$")))
 
         database.createIfNotExists(
-            config.databaseName,
-            config.databaseType,
-            config.connectionConfig.userName,
-            config.connectionConfig.password,
+            params.databaseName,
+            params.databaseType,
+            params.userName,
+            params.password,
             "admin"
         )
 
-
-        //todo migrate to some config entity instead of System props
+        // ToDo: migrate to some config entity instead of System props
         if (System.getProperty("exodus.env.compactOnOpen", "false").toBoolean()) {
             compact()
         }
+
         isOpen = true
     }
 
     fun compact() {
-        YTDBDatabaseCompacter(
-            database,
-            this,
-            config
-        ).compactDatabase()
+        YTDBDatabaseCompacter(database, this, params).compactDatabase()
     }
 
     override val databaseLocation: String
-        get() = File(config.connectionConfig.databaseRoot, config.databaseName).absolutePath
+        get() = File(params.databasePath, params.databaseName).absolutePath
 
     override fun acquireSession(): DatabaseSession {
         return acquireSessionImpl(true)
@@ -105,10 +100,10 @@ class YTDBDatabaseProviderImpl(
             requireNoActiveSession()
         }
         return database.cachedPool(
-            config.databaseName,
-            config.connectionConfig.userName,
-            config.connectionConfig.password,
-            dbConfig
+            params.databaseName,
+            params.userName,
+            params.password,
+            params.youTrackDBConfig
         ).acquire()
     }
 
@@ -116,7 +111,7 @@ class YTDBDatabaseProviderImpl(
         isOpen = false
         // OxygenDB cannot close the database if it is read-only (frozen)
         readOnly = false
-        if (config.closeDatabaseInDbProvider) {
+        if (params.closeDatabaseInDbProvider) {
             database.close()
         }
     }

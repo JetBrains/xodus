@@ -16,10 +16,7 @@
 package jetbrains.exodus.entitystore.youtrackdb
 
 import YTDBDatabaseProviderFactory
-import YouTrackDBConfigFactory
-import YouTrackDBFactory
 import com.jetbrains.youtrack.db.api.DatabaseType
-import com.jetbrains.youtrack.db.api.YouTrackDB
 import com.jetbrains.youtrack.db.api.exception.RecordNotFoundException
 import com.jetbrains.youtrack.db.internal.core.YouTrackDBEnginesManager
 import com.jetbrains.youtrack.db.internal.core.exception.StorageException
@@ -36,53 +33,50 @@ import kotlin.io.path.absolutePathString
 
 @RunWith(Parameterized::class)
 class EncryptedDBTest(val number: Int) {
+
     companion object : KLogging() {
         @JvmStatic
         @Parameterized.Parameters
         fun data(): Collection<Array<Any>> {
-            return Arrays.asList<Array<Any>>(*Array(5) { arrayOf(0) }) // Repeat 20 times
+            return listOf(*Array(5) { arrayOf(0) }) // Repeat 20 times
         }
     }
 
     lateinit var provider: YTDBDatabaseProvider
-    lateinit var db: YouTrackDB
 
-    private fun createConfig(key: ByteArray?): YTDBDatabaseConfig {
+    private fun createParams(encryptionKey: ByteArray?, databasePath: String): YTDBDatabaseParams {
         val password = "admin"
         val username = "admin"
         val dbName = "test"
 
-        val connConfig = YTDBDatabaseConnectionConfig.builder()
+        return YTDBDatabaseParams.builder()
+            .withDatabasePath(databasePath)
             .withPassword(password)
             .withUserName(username)
             .withDatabaseType(DatabaseType.PLOCAL)
-            .withDatabaseRoot(Files.createTempDirectory("oxigenDB_test$number").absolutePathString())
-            .build()
-
-        return YTDBDatabaseConfig.builder()
-            .withConnectionConfig(connConfig)
-            .withDatabaseType(DatabaseType.PLOCAL)
             .withDatabaseName(dbName)
-            .withCipherKey(key)
+            .withCloseDatabaseInDbProvider(true)
+            .apply { encryptionKey?.let { withEncryptionKey(it) } }
             .build()
     }
 
     @Test
     fun testEncryptedDB() {
-
+        // Given
+        val databasePath = Files.createTempDirectory("youtrackdb_test$number").absolutePathString()
         val cipherKey = UUID.randomUUID().let {
             it.mostSignificantBits.toByteArray() + it.leastSignificantBits.toByteArray()
         }
-        val config = createConfig(cipherKey)
-        val noEncryptionConfig = createConfig(null)
+        val params = createParams(cipherKey, databasePath)
+        val noEncryptionParams = createParams(null, databasePath)
+
+        // Open encrypted
         logger.info("Connect to db and create test vertex class")
-        val dbConfig = YouTrackDBConfigFactory.createDefaultDBConfig(config)
-        db = YouTrackDBFactory.initYouTrackDb(config, dbConfig)
-        provider = YTDBDatabaseProviderFactory.createProvider(config, db, dbConfig)
+
+        provider = YTDBDatabaseProviderFactory.createProvider(params)
         provider.withSession { session ->
             session.createVertexClass("TEST")
         }
-        logger.info("Set vertex property")
         provider.withSession { session ->
             session.executeInTx {
                 val vertex = session.newVertex("TEST")
@@ -90,36 +84,35 @@ class EncryptedDBTest(val number: Int) {
                 vertex.save()
             }
         }
-        db.close()
-        logger.info("Close the DB")
+        provider.close()
         Thread.sleep(1000)
+
+        // Reopen the DB
         logger.info("Connect to db one more time and read")
-        db = YouTrackDBFactory.initYouTrackDb(config, dbConfig)
-        provider = YTDBDatabaseProviderFactory.createProvider(config, db, dbConfig)
+        provider = YTDBDatabaseProviderFactory.createProvider(params)
         provider.withSession { session ->
             session.executeInTx {
                 val vertex = session.query("SELECT FROM TEST").vertexStream().toList()
                 Assert.assertEquals(1, vertex.size)
             }
         }
-        logger.info("Close the DB")
-        db.close()
+        provider.close()
         Thread.sleep(1000)
+
+        // Reopen the DB without the encryption key
         logger.info("Connect to db one more time without encryption")
-        db = YouTrackDBFactory.initYouTrackDb(config, dbConfig)
+        provider = YTDBDatabaseProviderFactory.createProvider(noEncryptionParams)
         try {
-            YTDBDatabaseProviderFactory.createProvider(noEncryptionConfig, db, dbConfig).apply {
-                withSession { session ->
-                    session.executeInTx {
-                        val vertex = session.query("SELECT FROM TEST").vertexStream().toList()
-                        print(vertex.size)
-                    }
+            provider.withSession { session ->
+                session.executeInTx {
+                    val vertex = session.query("SELECT FROM TEST").vertexStream().toList()
+                    print(vertex.size)
                 }
-                Assert.fail("Should not open")
             }
+            Assert.fail("Should not open")
         } catch (_: StorageException) {
             logger.info("As expected DB failed to initialize without key")
-        }catch (_: RecordNotFoundException) {
+        } catch (_: RecordNotFoundException) {
             logger.info("As expected DB failed to initialize without key")
         } catch (_: AssertionError) {
             logger.info("As expected DB failed to initialize without key")
@@ -131,7 +124,7 @@ class EncryptedDBTest(val number: Int) {
 
     @After
     fun close() {
-        db.close()
+        provider.close()
         try {
             if (!YouTrackDBEnginesManager.instance().isActive) {
                 YouTrackDBEnginesManager.instance().startup()

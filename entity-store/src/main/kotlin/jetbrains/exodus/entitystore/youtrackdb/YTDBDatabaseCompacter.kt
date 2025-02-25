@@ -26,7 +26,7 @@ import java.io.File
 class YTDBDatabaseCompacter(
     private val db: YouTrackDB,
     private val dbProvider: YTDBDatabaseProvider,
-    private val config: YTDBDatabaseConfig
+    private val params: YTDBDatabaseParams
 ) {
     companion object : KLogging()
 
@@ -47,10 +47,9 @@ class YTDBDatabaseCompacter(
         }
 
         logger.info("Dropping existing database...")
-        db.drop(config.databaseName)
+        db.drop(params.databaseName)
 
-        db.create(config.databaseName, config.databaseType,
-            config.connectionConfig.userName, config.connectionConfig.password, "admin")
+        db.create(params.databaseName, params.databaseType, params.userName, params.password, "admin")
 
         dbProvider.withSession { session ->
             logger.info("Importing database from dump")

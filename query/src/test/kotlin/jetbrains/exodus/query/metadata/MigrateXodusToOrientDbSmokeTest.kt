@@ -15,6 +15,8 @@
  */
 package jetbrains.exodus.query.metadata
 
+import YTDBDatabaseProviderFactory
+import YouTrackDBFactory
 import com.jetbrains.youtrack.db.api.DatabaseType
 import com.jetbrains.youtrack.db.api.record.Direction
 import com.jetbrains.youtrack.db.api.record.Vertex
@@ -39,23 +41,19 @@ class MigrateXodusToOrientDbSmokeTest {
         val username = "admin"
         val password = "password"
         val dbName = "testDB"
-        val connectionConfig = YTDBDatabaseConnectionConfig.builder()
+
+        val params = YTDBDatabaseParams.builder()
             .withPassword(password)
             .withUserName(username)
             .withDatabaseType(DatabaseType.MEMORY)
-            .withDatabaseRoot("")
-            .build()
-
-        val config = YTDBDatabaseConfig.builder()
-            .withConnectionConfig(connectionConfig)
+            .withDatabasePath("")
             .withDatabaseName("MEMORY")
             .build()
 
-        val dbConfig = YouTrackDBConfigFactory.createDefaultDBConfig(config)
-        val db = YouTrackDBFactory.initYouTrackDb(config, dbConfig)
+        val db = YouTrackDBFactory.createEmbedded(params)
         db.execute("create database $dbName MEMORY users ( $username identified by '$password' role admin )")
         // create a provider
-        val dbProvider = YTDBDatabaseProviderFactory.createProvider(config, db, dbConfig)
+        val dbProvider = YTDBDatabaseProviderFactory.createProvider(params, db)
 
         // 1.2 Create OModelMetadata
         // it is important to disable autoInitialize for the schemaBuddy,

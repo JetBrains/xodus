@@ -43,7 +43,7 @@ val VERTEX_CLASSES_TO_SKIP_MIGRATION = 10
 data class MigrateToOrientConfig(
     val databaseProvider: YTDBDatabaseProvider,
     val db: YouTrackDB,
-    val orientConfig: YTDBDatabaseConfig,
+    val orientConfig: YTDBDatabaseParams,
     val closeOnFinish: Boolean = false
 )
 
