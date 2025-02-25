@@ -18,8 +18,6 @@ package jetbrains.exodus.entitystore.youtrackdb.testutil
 import com.jetbrains.youtrack.db.api.DatabaseSession
 import com.jetbrains.youtrack.db.api.DatabaseType
 import com.jetbrains.youtrack.db.api.YouTrackDB
-import com.jetbrains.youtrack.db.api.config.GlobalConfiguration
-import com.jetbrains.youtrack.db.api.config.YouTrackDBConfig
 import jetbrains.exodus.entitystore.youtrackdb.*
 import jetbrains.exodus.entitystore.youtrackdb.testutil.Issues.Links.IN_PROJECT
 import jetbrains.exodus.entitystore.youtrackdb.testutil.Issues.Links.ON_BOARD
@@ -37,7 +35,7 @@ class InMemoryYouTrackDB(
     lateinit var store: YTDBPersistentEntityStore
         private set
 
-    lateinit var provider: YTDBDatabaseProviderImpl
+    lateinit var provider: YTDBDatabaseProvider
     lateinit var schemaBuddy: YTDBSchemaBuddyImpl
 
     val username = "admin"
@@ -56,10 +54,10 @@ class InMemoryYouTrackDB(
             .withConnectionConfig(connConfig)
             .withDatabaseName(dbName)
             .build()
-        val builder = YouTrackDBConfig.builder()
-        builder.addGlobalConfigurationParameter(GlobalConfiguration.NON_TX_READS_WARNING_MODE, "SILENT")
-        db = initYouTrackDb(connConfig)
-        provider = YTDBDatabaseProviderImpl(config, db)
+
+        val dbConfig = YouTrackDBConfigFactory.createDefaultDBConfig(config)
+        db = YouTrackDBFactory.initYouTrackDb(config, dbConfig)
+        provider = YTDBDatabaseProviderFactory.createProvider(config, db, dbConfig) as YTDBDatabaseProviderImpl
 
         if (initializeIssueSchema) {
             provider.withSession { session ->

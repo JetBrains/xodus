@@ -16,13 +16,7 @@
 package jetbrains.exodus.entitystore.youtrackdb
 
 import com.jetbrains.youtrack.db.api.DatabaseSession
-import com.jetbrains.youtrack.db.api.YouTrackDB
-import com.jetbrains.youtrack.db.api.YourTracks
-import com.jetbrains.youtrack.db.api.config.GlobalConfiguration
-import com.jetbrains.youtrack.db.api.config.YouTrackDBConfig
-import com.jetbrains.youtrack.db.api.exception.RecordDuplicatedException
 import com.jetbrains.youtrack.db.internal.core.db.DatabaseRecordThreadLocal
-import com.jetbrains.youtrack.db.internal.core.db.YouTrackDBImpl
 
 interface YTDBDatabaseProvider {
     val databaseLocation: String
@@ -93,21 +87,4 @@ internal fun requireNoActiveSession() {
 internal fun hasActiveSession(): Boolean {
     val db = DatabaseRecordThreadLocal.instance().getIfDefined()
     return db != null
-}
-
-fun initYouTrackDb(config: YTDBDatabaseConnectionConfig): YouTrackDB {
-    val orientConfig = YouTrackDBConfig.builder().apply {
-        addGlobalConfigurationParameter(GlobalConfiguration.AUTO_CLOSE_AFTER_DELAY, true)
-        addGlobalConfigurationParameter(
-            GlobalConfiguration.AUTO_CLOSE_DELAY,
-            config.closeAfterDelayTimeout
-        )
-        addGlobalConfigurationParameter(GlobalConfiguration.NON_TX_READS_WARNING_MODE, "SILENT")
-    }.build()
-    return YourTracks.embedded(config.databaseRoot, orientConfig).apply {
-        (this as? YouTrackDBImpl)?.let {
-            it.serverPassword = config.password
-            it.serverUser = config.userName
-        }
-    }
 }

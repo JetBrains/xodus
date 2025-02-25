@@ -17,10 +17,7 @@ package jetbrains.exodus.query.metadata
 
 
 import com.jetbrains.youtrack.db.api.DatabaseType
-import jetbrains.exodus.entitystore.youtrackdb.YTDBDatabaseConfig
-import jetbrains.exodus.entitystore.youtrackdb.YTDBDatabaseConnectionConfig
-import jetbrains.exodus.entitystore.youtrackdb.YTDBDatabaseProviderImpl
-import jetbrains.exodus.entitystore.youtrackdb.initYouTrackDb
+import jetbrains.exodus.entitystore.youtrackdb.*
 
 fun main() {
     val xodusDatabaseDirectory = requireParam("xodusDatabaseDirectory")
@@ -102,11 +99,12 @@ fun main() {
 
     val config = YTDBDatabaseConfig.builder()
         .withDatabaseName(orientDatabaseName)
+        .withConnectionConfig(connectionConfig)
         .build()
 
-    val db = initYouTrackDb(connectionConfig)
-    // create a provider
-    val dbProvider = YTDBDatabaseProviderImpl(config, db)
+    val dbConfig = YouTrackDBConfigFactory.createDefaultDBConfig(config)
+    val db = YouTrackDBFactory.initYouTrackDb(config, dbConfig)
+    val dbProvider = YTDBDatabaseProviderFactory.createProvider(config, db, dbConfig)
 
     val launcher = XodusToOrientDataMigratorLauncher(
         xodus = MigrateFromXodusConfig(

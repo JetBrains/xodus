@@ -15,6 +15,9 @@
  */
 package jetbrains.exodus.entitystore.youtrackdb
 
+import YTDBDatabaseProviderFactory
+import YouTrackDBConfigFactory
+import YouTrackDBFactory
 import com.jetbrains.youtrack.db.api.DatabaseType
 import com.jetbrains.youtrack.db.api.YouTrackDB
 import com.jetbrains.youtrack.db.api.exception.RecordNotFoundException
@@ -27,7 +30,6 @@ import org.junit.Assert
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-import java.lang.AssertionError
 import java.nio.file.Files
 import java.util.*
 import kotlin.io.path.absolutePathString
@@ -42,7 +44,7 @@ class EncryptedDBTest(val number: Int) {
         }
     }
 
-    lateinit var provider: YTDBDatabaseProviderImpl
+    lateinit var provider: YTDBDatabaseProvider
     lateinit var db: YouTrackDB
 
     private fun createConfig(key: ByteArray?): YTDBDatabaseConfig {
@@ -74,8 +76,9 @@ class EncryptedDBTest(val number: Int) {
         val config = createConfig(cipherKey)
         val noEncryptionConfig = createConfig(null)
         logger.info("Connect to db and create test vertex class")
-        db = initYouTrackDb(config.connectionConfig)
-        provider = YTDBDatabaseProviderImpl(config, db)
+        val dbConfig = YouTrackDBConfigFactory.createDefaultDBConfig(config)
+        db = YouTrackDBFactory.initYouTrackDb(config, dbConfig)
+        provider = YTDBDatabaseProviderFactory.createProvider(config, db, dbConfig)
         provider.withSession { session ->
             session.createVertexClass("TEST")
         }
@@ -91,8 +94,8 @@ class EncryptedDBTest(val number: Int) {
         logger.info("Close the DB")
         Thread.sleep(1000)
         logger.info("Connect to db one more time and read")
-        db = initYouTrackDb(config.connectionConfig)
-        provider = YTDBDatabaseProviderImpl(config, db)
+        db = YouTrackDBFactory.initYouTrackDb(config, dbConfig)
+        provider = YTDBDatabaseProviderFactory.createProvider(config, db, dbConfig)
         provider.withSession { session ->
             session.executeInTx {
                 val vertex = session.query("SELECT FROM TEST").vertexStream().toList()
@@ -103,9 +106,9 @@ class EncryptedDBTest(val number: Int) {
         db.close()
         Thread.sleep(1000)
         logger.info("Connect to db one more time without encryption")
-        db = initYouTrackDb(config.connectionConfig)
+        db = YouTrackDBFactory.initYouTrackDb(config, dbConfig)
         try {
-            YTDBDatabaseProviderImpl(noEncryptionConfig, db).apply {
+            YTDBDatabaseProviderFactory.createProvider(noEncryptionConfig, db, dbConfig).apply {
                 withSession { session ->
                     session.executeInTx {
                         val vertex = session.query("SELECT FROM TEST").vertexStream().toList()
