@@ -17,38 +17,21 @@ package jetbrains.exodus.entitystore.youtrackdb
 
 import com.jetbrains.youtrack.db.api.DatabaseSession
 import com.jetbrains.youtrack.db.api.YouTrackDB
-import com.jetbrains.youtrack.db.api.config.GlobalConfiguration
 import com.jetbrains.youtrack.db.api.config.YouTrackDBConfig
 import java.io.File
-import java.util.*
 
 //username and password are considered to be same for all databases
 //todo this params also should be collected in some config entity
 class YTDBDatabaseProviderImpl(
     private val config: YTDBDatabaseConfig,
-    private val database: YouTrackDB
+    private val database: YouTrackDB,
+    private val dbConfig: YouTrackDBConfig = YouTrackDBConfigFactory.createDefaultDBConfig(config)
 ) : YTDBDatabaseProvider {
-    private val youTrackDBConfig: YouTrackDBConfig
     override var isOpen: Boolean = false
         private set
 
     init {
         require(config.connectionConfig.userName.matches(Regex("^[a-zA-Z0-9]*$")))
-
-        youTrackDBConfig = YouTrackDBConfig.builder().apply {
-            addGlobalConfigurationParameter(GlobalConfiguration.AUTO_CLOSE_AFTER_DELAY, true)
-            addGlobalConfigurationParameter(
-                GlobalConfiguration.AUTO_CLOSE_DELAY,
-                config.closeAfterDelayTimeout
-            )
-            config.cipherKey?.let {
-                addGlobalConfigurationParameter(
-                    GlobalConfiguration.STORAGE_ENCRYPTION_KEY,
-                    Base64.getEncoder().encodeToString(it)
-                )
-            }
-            config.tweakConfig(this)
-        }.build()
 
         database.createIfNotExists(
             config.databaseName,
@@ -125,7 +108,7 @@ class YTDBDatabaseProviderImpl(
             config.databaseName,
             config.connectionConfig.userName,
             config.connectionConfig.password,
-            youTrackDBConfig
+            dbConfig
         ).acquire()
     }
 

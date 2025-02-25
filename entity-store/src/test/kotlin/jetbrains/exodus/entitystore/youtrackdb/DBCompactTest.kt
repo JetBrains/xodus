@@ -35,7 +35,7 @@ class DBCompactTest {
                 tx.createIssueImpl("Test issue $it")
             }
         }
-        orientDb.provider.compact()
+        (orientDb.provider as YTDBDatabaseProviderImpl).compact()
         orientDb.withStoreTx {
             val size = it.getAll(Issues.CLASS).size()
             Assert.assertEquals(100, size)

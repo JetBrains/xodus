@@ -16,10 +16,7 @@
 package jetbrains.exodus.query.metadata
 
 import com.jetbrains.youtrack.db.api.DatabaseType
-import jetbrains.exodus.entitystore.youtrackdb.YTDBDatabaseConfig
-import jetbrains.exodus.entitystore.youtrackdb.YTDBDatabaseConnectionConfig
-import jetbrains.exodus.entitystore.youtrackdb.YTDBDatabaseProviderImpl
-import jetbrains.exodus.entitystore.youtrackdb.initYouTrackDb
+import jetbrains.exodus.entitystore.youtrackdb.*
 import org.junit.Test
 import kotlin.test.Ignore
 
@@ -49,10 +46,12 @@ class MigrateYourDatabaseTest {
         
         val config = YTDBDatabaseConfig.builder()
             .withDatabaseName("testDB")
+            .withConnectionConfig(connectionConfig)
             .build()
 
-        val db = initYouTrackDb(connectionConfig)
-        val provider = YTDBDatabaseProviderImpl(config, db)
+        val dbConfig = YouTrackDBConfigFactory.createDefaultDBConfig(config)
+        val db = YouTrackDBFactory.initYouTrackDb(config, dbConfig)
+        val provider = YTDBDatabaseProviderFactory.createProvider(config, db, dbConfig)
         val launcher = XodusToOrientDataMigratorLauncher(
             orient = MigrateToOrientConfig(
                 db = db,
