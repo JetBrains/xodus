@@ -55,7 +55,7 @@ class YTDBDatabaseParams private constructor(
     @Suppress("unused")
     class Builder internal constructor() {
 
-        private var databaseUrl: String = ""
+        private var databasePath: String = ""
         private var databaseName: String = ""
         private var databaseType: DatabaseType = DatabaseType.MEMORY
         private var userName: String = "admin"
@@ -66,7 +66,7 @@ class YTDBDatabaseParams private constructor(
         private var configBuilder: YouTrackDBConfigBuilder.() -> Unit = {}
 
         fun withDatabasePath(databaseUrl: String) = apply {
-            this.databaseUrl = databaseUrl
+            this.databasePath = databaseUrl
         }
 
         fun withDatabaseName(databaseName: String) = apply {
@@ -115,11 +115,8 @@ class YTDBDatabaseParams private constructor(
         }
 
         fun build(): YTDBDatabaseParams {
-            check(databaseUrl.isNotBlank()) { "Database path must not be blank" }
-            check(databaseName.isNotBlank()) { "Database name must not be blank" }
-
             return YTDBDatabaseParams(
-                databaseUrl,
+                databasePath,
                 databaseName,
                 databaseType,
                 userName,
