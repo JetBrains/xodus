@@ -19,9 +19,9 @@ import com.carrotsearch.randomizedtesting.annotations.ThreadLeakFilters;
 import jetbrains.exodus.env.Environment;
 import jetbrains.exodus.env.EnvironmentConfig;
 import jetbrains.exodus.env.Environments;
-import org.apache.lucene.store.BaseDirectoryTestCase;
 import org.apache.lucene.store.Directory;
-import org.apache.lucene.util.TestRuleLimitSysouts;
+import org.apache.lucene.tests.store.BaseDirectoryTestCase;
+import org.apache.lucene.tests.util.TestRuleLimitSysouts;
 
 import java.io.IOException;
 import java.nio.file.Path;
