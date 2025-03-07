@@ -493,6 +493,11 @@ class YTDBStoreTransactionImpl(
         schemaBuddy.renameOClass(session, oldName, newName)
     }
 
+    override fun deleteOClass(entityTypeName: String) {
+        requireActiveTransaction()
+        schemaBuddy.deleteOClass(session, entityTypeName)
+    }
+
     override fun getOrCreateEdgeClass(
         linkName: String,
         outClassName: String,
@@ -523,6 +528,8 @@ class YTDBStoreTransactionImpl(
         requireActiveTransaction()
         return schemaBuddy.getType(session, entityTypeId)
     }
+
+
 
     override fun bindResultSet(resultSet: ResultSet) {
         resultSets.add(resultSet)

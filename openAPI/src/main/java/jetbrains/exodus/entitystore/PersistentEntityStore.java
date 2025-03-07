@@ -17,10 +17,7 @@ package jetbrains.exodus.entitystore;
 
 import jetbrains.exodus.backup.Backupable;
 import jetbrains.exodus.bindings.ComparableBinding;
-import jetbrains.exodus.core.execution.JobProcessor;
-import jetbrains.exodus.core.execution.MultiThreadDelegatingJobProcessor;
 import jetbrains.exodus.env.Environment;
-import jetbrains.exodus.management.Statistics;
 import org.jetbrains.annotations.NotNull;
 
 /**
@@ -154,6 +151,8 @@ public interface PersistentEntityStore extends EntityStore, Backupable {
      * @param newEntityTypeName new entity type name
      */
     void renameEntityType(@NotNull String oldEntityTypeName, @NotNull String newEntityTypeName);
+
+    void deleteEntityType(@NotNull String entityTypeName);
 
     @NotNull
     StoreTransaction getAndCheckCurrentTransaction();

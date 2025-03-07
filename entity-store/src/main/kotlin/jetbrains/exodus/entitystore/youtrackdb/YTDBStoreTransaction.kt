@@ -78,4 +78,5 @@ interface YTDBStoreTransaction : StoreTransaction {
     ): SchemaClass
 
     fun bindResultSet(resultSet: ResultSet)
+    fun deleteOClass(entityTypeName: String)
 }
