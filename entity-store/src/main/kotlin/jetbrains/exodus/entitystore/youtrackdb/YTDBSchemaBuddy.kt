@@ -57,6 +57,8 @@ interface YTDBSchemaBuddy {
 
     fun renameOClass(session: DatabaseSession, oldName: String, newName: String)
 
+    fun deleteOClass(session: DatabaseSession, name: String)
+
     fun getOrCreateEdgeClass(
         session: DatabaseSession,
         linkName: String,
@@ -116,6 +118,15 @@ class YTDBSchemaBuddyImpl(
             val oldClass = sessionToWork.schema.getClass(oldName)
                 ?: throw IllegalArgumentException("Class $oldName not found")
             oldClass.setName(sessionToWork, newName)
+        }
+    }
+
+    override fun deleteOClass(session: DatabaseSession, name: String) {
+        session.executeInASeparateSessionIfCurrentHasTransaction(dbProvider) { sessionToWork ->
+            val targetClass = sessionToWork.schema.getClass(name)
+            if (targetClass != null){
+                sessionToWork.schema.dropClass(name)
+            }
         }
     }
 

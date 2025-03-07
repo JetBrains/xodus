@@ -2152,6 +2152,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         );
     }
 
+    @Override
     public void deleteEntityType(@NotNull final String entityTypeName) {
         final PersistentStoreTransaction txn = getAndCheckCurrentTransaction();
         final int entityTypeId = entityTypes.delete(txn, entityTypeName);

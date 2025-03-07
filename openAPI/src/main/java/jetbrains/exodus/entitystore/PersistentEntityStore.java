@@ -152,6 +152,8 @@ public interface PersistentEntityStore extends EntityStore, Backupable {
      */
     void renameEntityType(@NotNull String oldEntityTypeName, @NotNull String newEntityTypeName);
 
+    void deleteEntityType(@NotNull String entityTypeName);
+
     @NotNull
     StoreTransaction getAndCheckCurrentTransaction();
 

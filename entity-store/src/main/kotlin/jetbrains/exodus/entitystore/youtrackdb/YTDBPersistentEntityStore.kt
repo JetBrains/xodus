@@ -173,6 +173,10 @@ class YTDBPersistentEntityStore(
         currentTx.renameOClass(oldEntityTypeName, newEntityTypeName)
     }
 
+    override fun deleteEntityType(entityTypeName: String) {
+        val currentTx = requireActiveTransaction()
+        currentTx.deleteOClass(entityTypeName)
+    }
 
     override fun getAndCheckCurrentTransaction(): StoreTransaction {
         return requireActiveTransaction()

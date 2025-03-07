@@ -261,6 +261,20 @@ class OPersistentStoreTest : OTestMixin {
     }
 
     @Test
+    fun `can delete entityType`(){
+        youTrackDb.withSession { session->
+            Assert.assertNotNull(session.getClass(Issues.CLASS))
+        }
+        youTrackDb.createIssue("trista")
+        youTrackDb.withStoreTx {
+            youTrackDb.store.deleteEntityType(Issues.CLASS)
+        }
+        youTrackDb.withSession { session->
+            Assert.assertNull(session.getClass(Issues.CLASS))
+        }
+    }
+
+    @Test
     fun `requireOEntityId works correctly with different types of EntityId`() {
         val issueId = youTrackDb.createIssue("trista").id
 
