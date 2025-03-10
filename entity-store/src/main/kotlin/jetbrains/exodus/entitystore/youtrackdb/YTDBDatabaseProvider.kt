@@ -17,6 +17,7 @@ package jetbrains.exodus.entitystore.youtrackdb
 
 import com.jetbrains.youtrack.db.api.DatabaseSession
 import com.jetbrains.youtrack.db.internal.core.db.DatabaseRecordThreadLocal
+import com.jetbrains.youtrack.db.internal.core.db.DatabaseSessionInternal
 
 interface YTDBDatabaseProvider {
     val databaseLocation: String
@@ -58,9 +59,22 @@ fun <R> YTDBDatabaseProvider.withCurrentOrNewSession(
     return if (hasActiveSession()) {
         val activeSession = DatabaseRecordThreadLocal.instance().getIfDefined() as DatabaseSession
         if (requireNoActiveTransaction) {
-            activeSession.requireNoActiveTransaction()
+            if (activeSession.isTxActive) {
+                val copy = (activeSession as DatabaseSessionInternal).copy()
+                copy.activateOnCurrentThread()
+                try {
+                    copy.use {
+                        block(copy)
+                    }
+                } finally {
+                    activeSession.activateOnCurrentThread()
+                }
+            } else {
+                block(activeSession)
+            }
+        } else {
+            block(activeSession)
         }
-        block(activeSession)
     } else {
         withSession { newSession ->
             block(newSession)
