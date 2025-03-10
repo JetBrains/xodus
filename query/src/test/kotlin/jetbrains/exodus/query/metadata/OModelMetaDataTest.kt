@@ -24,7 +24,6 @@ import org.junit.Assert
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
-import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
@@ -109,7 +108,7 @@ class OModelMetaDataTest : OTestMixin {
     }
 
     @Test
-    fun `if there is an active transaction, throw an exception`() {
+    fun `if there is an active transaction, model is created in separate session`() {
         val model = oModel(youTrackDb.provider) {
             entity("type1")
             entity("type2")
@@ -117,31 +116,14 @@ class OModelMetaDataTest : OTestMixin {
 
         youTrackDb.withSession { session ->
             session.begin()
-            assertFailsWith<AssertionError> {
-                model.prepare()
-            }
-            assertFailsWith<AssertionError> {
-                model.addAssociation(
-                    "type2",
-                    "type1",
-                    AssociationType.Directed,
-                    "ass1",
-                    AssociationEndCardinality._1,
-                    false,
-                    false,
-                    false,
-                    false,
-                    null,
-                    null,
-                    false,
-                    false,
-                    false,
-                    false
-                )
-            }
-            assertFailsWith<AssertionError> {
-                model.removeAssociation("type2", "ass1")
-            }
+            model.prepare()
+            model.addAssociation(
+                "type2", "type1", AssociationType.Directed, "ass1", AssociationEndCardinality._1,
+                false, false, false, false, null,
+                null, false, false, false, false
+            )
+            model.removeAssociation("type2", "ass1")
+            session.commit()
         }
     }
 
