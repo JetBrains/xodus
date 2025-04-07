@@ -320,7 +320,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         if (blobSource instanceof FileSystemBlobVaultOld) {
             var blobHandleStream = ((FileSystemBlobVaultOld) blobSource).storedBlobHandles();
             logger.info("Database: {}. Collecting existing BLOBs ...", getLocation());
-            blobHandles.forEach(blobHandles::add);
+            blobHandleStream.forEach(blobHandles::add);
             if (blobHandles.isEmpty()) {
                 logger.info("Database: {}. No BLOBs were found in the BLOB vault.", getLocation());
                 return;
