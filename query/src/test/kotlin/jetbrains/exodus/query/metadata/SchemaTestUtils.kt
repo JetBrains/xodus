@@ -21,6 +21,7 @@ import com.jetbrains.youtrack.db.api.record.Edge
 import com.jetbrains.youtrack.db.api.record.Vertex
 import com.jetbrains.youtrack.db.api.schema.SchemaProperty
 import com.jetbrains.youtrack.db.api.schema.SchemaClass
+import com.jetbrains.youtrack.db.internal.core.db.DatabaseSessionInternal
 import com.jetbrains.youtrack.db.internal.core.metadata.schema.SchemaClassInternal
 import jetbrains.exodus.entitystore.youtrackdb.*
 import org.junit.Assert.*
@@ -36,11 +37,17 @@ internal fun DatabaseSession.assertAssociationNotExist(
     val edgeClassName = edgeName.asEdgeClass
     if (requireEdgeClass) {
         val edgeClass = requireEdgeClass(edgeClassName)
-        assertTrue(edgeClass.areIndexed(this, Edge.DIRECTION_IN, Edge.DIRECTION_OUT))
+        assertTrue(
+            (edgeClass as SchemaClassInternal).areIndexed(
+                this as DatabaseSessionInternal,
+                Edge.DIRECTION_IN,
+                Edge.DIRECTION_OUT
+            )
+        )
     }
 
-    val inClass = getClass(inClassName)!!
-    val outClass = getClass(outClassName)!!
+    val inClass = schema.getClass(inClassName)!!
+    val outClass = schema.getClass(outClassName)!!
 
     val outPropName = Vertex.getEdgeLinkFieldName(Direction.OUT, edgeClassName)
     assertNull(outClass.getProperty(outPropName))
@@ -56,11 +63,17 @@ internal fun DatabaseSession.assertAssociationExists(
     cardinality: AssociationEndCardinality?,
 ) {
     val edgeClassName = edgeName.asEdgeClass
-    val edgeClass = getClass(edgeClassName)
-    val inClass = getClass(inClassName)!!
-    val outClass = getClass(outClassName)!!
+    val edgeClass = schema.getClass(edgeClassName)
+    val inClass = schema.getClass(inClassName)!!
+    val outClass = schema.getClass(outClassName)!!
 
-    assertTrue(edgeClass.areIndexed(this, Edge.DIRECTION_IN, Edge.DIRECTION_OUT))
+    assertTrue(
+        (edgeClass as SchemaClassInternal).areIndexed(
+            (this as DatabaseSessionInternal),
+            Edge.DIRECTION_IN,
+            Edge.DIRECTION_OUT
+        )
+    )
 
     if (cardinality != null) {
         val outPropName = Vertex.getEdgeLinkFieldName(Direction.OUT, edgeClassName)
@@ -107,13 +120,13 @@ internal fun DatabaseSession.assertVertexClassExists(name: String) {
 }
 
 internal fun DatabaseSession.requireEdgeClass(name: String): SchemaClass {
-    val edge = getClass(name)!!
+    val edge = schema.getClass(name)!!
     assertTrue(edge.superClassesNames.contains("E"))
     return edge
 }
 
 internal fun DatabaseSession.assertHasSuperClass(className: String, superClassName: String) {
-    assertTrue(getClass(className)!!.superClassesNames.contains(superClassName))
+    assertTrue(schema.getClass(className)!!.superClassesNames.contains(superClassName))
 }
 
 internal fun DatabaseSession.checkIndex(
@@ -121,10 +134,9 @@ internal fun DatabaseSession.checkIndex(
     unique: Boolean,
     vararg fieldNames: String
 ) {
-    val entity = getClass(className)!!
+    val entity = schema.getClass(className)!!
     val indexName = indexName(className, unique, *fieldNames)
-    val index =
-        (entity as SchemaClassInternal).getIndexesInternal(this).first { it.name == indexName }
+    val index = (entity as SchemaClassInternal).indexesInternal.first { it.name == indexName }
     assertEquals(unique, index.isUnique)
 
     assertEquals(fieldNames.size, index.definition.fields.size)
@@ -266,22 +278,18 @@ internal fun ModelMetaData.twoDirectionalAssociation(
 }
 
 internal fun DatabaseSession.createVertexAndSetLocalEntityId(className: String): Vertex {
-    val v = newVertex(className)
+    val v = activeTransaction.newVertex(className)
     setLocalEntityId(className, v)
-    v.save()
     return v
 }
 
 internal fun Vertex.setPropertyAndSave(propName: String, value: Any) {
     setProperty(propName, value)
-    save()
 }
 
 internal fun Vertex.addEdge(linkName: String, target: Vertex) {
     val edgeClassName = YTDBVertexEntity.edgeClassName(linkName)
     addEdge(target, edgeClassName)
-    save()
-    target.save()
 }
 
 internal fun Vertex.addIndexedEdge(linkName: String, target: Vertex) {
@@ -289,8 +297,6 @@ internal fun Vertex.addIndexedEdge(linkName: String, target: Vertex) {
     addEdge(target, YTDBVertexEntity.edgeClassName(linkName))
     bag.add(target.identity)
     setTargetLocalEntityIds(linkName, bag)
-    save()
-    target.save()
 }
 
 internal fun Vertex.deleteIndexedEdge(linkName: String, target: Vertex) {
@@ -298,6 +304,4 @@ internal fun Vertex.deleteIndexedEdge(linkName: String, target: Vertex) {
     target.delete()
     bag.remove(target.identity)
     setTargetLocalEntityIds(linkName, bag)
-    save()
-    target.save()
 }

@@ -19,6 +19,7 @@ import com.jetbrains.youtrack.db.api.exception.RecordDuplicatedException
 import com.jetbrains.youtrack.db.api.schema.SchemaProperty
 import com.jetbrains.youtrack.db.api.schema.PropertyType
 import com.jetbrains.youtrack.db.internal.core.db.DatabaseSessionInternal
+import com.jetbrains.youtrack.db.internal.core.metadata.schema.SchemaClassInternal
 import jetbrains.exodus.entitystore.youtrackdb.YTDBVertexEntity.Companion.LOCAL_ENTITY_ID_PROPERTY_NAME
 import jetbrains.exodus.entitystore.youtrackdb.YTDBVertexEntity.Companion.localEntityIdSequenceName
 import jetbrains.exodus.entitystore.youtrackdb.requireClassId
@@ -79,7 +80,7 @@ class YouTrackDbSchemaInitializerTest {
 
             oSession.applySchema(model)
 
-            val oClass = oSession.getClass("type1")!!
+            val oClass = oSession.schema.getClass("type1")!!
             for (type in supportedSimplePropertyTypes) {
                 val requiredProp = oClass.getProperty("requiredProp$type")!!
                 val prop = oClass.getProperty("prop$type")!!
@@ -122,7 +123,7 @@ class YouTrackDbSchemaInitializerTest {
         }
 
         orientDb.withSession { session ->
-            val type = session.getClass("type1")!!
+            val type = session.schema.getClass("type1")!!
             val prop1 = type.getProperty("blob1")
             val prop2 = type.getProperty("strBlob1")
             assertEquals(PropertyType.LINK, prop1.type)
@@ -143,7 +144,7 @@ class YouTrackDbSchemaInitializerTest {
 
             val (indices, _) = oSession.applySchema(model)
 
-            val oClass = oSession.getClass("type1")!!
+            val oClass = oSession.schema.getClass("type1")!!
             for (type in supportedSimplePropertyTypes) {
                 val prop = oClass.getProperty("setProp$type")!!
                 assertEquals(PropertyType.EMBEDDEDSET, prop.type)
@@ -306,9 +307,9 @@ class YouTrackDbSchemaInitializerTest {
             indices.checkIndex("type1", unique = true, "prop1", "prop2")
             indices.checkIndex("type1", unique = true, "prop3")
 
-            val entity = oSession.getClass("type1")!!
+            val entity = oSession.schema.getClass("type1")!!
             // indices are not created right away, they are created after data migration
-            assertTrue(entity.getIndexes(oSession).isEmpty())
+            assertTrue((entity as SchemaClassInternal).indexes.isEmpty())
 
             // indexed properties in Xodus are required and not-nullable
             entity.getProperty("prop1").check(required = true, notNull = true)
@@ -344,19 +345,18 @@ class YouTrackDbSchemaInitializerTest {
 
         assertFailsWith<RecordDuplicatedException> {
             orientDb.withTxSession { oSession ->
-                val oClass = oSession.getClass("type1")!!
-                val v1 = oSession.newVertex(oClass)
+                val tx = oSession.activeTransaction
+                val oClass = oSession.schema.getClass("type1")!!
+                val v1 = tx.newVertex(oClass)
                 oSession.setLocalEntityId("type1", v1)
                 v1.requireLocalEntityId()
                 v1.setProperty("prop1", 3)
                 v1.setProperty("prop2", 4)
-                v1.save()
 
-                val v2 = oSession.newVertex(oClass)
+                val v2 = tx.newVertex(oClass)
                 oSession.setLocalEntityId("type1", v2)
                 v2.setProperty("prop1", 3L)
                 v2.setProperty("prop2", 4L)
-                v2.save()
             }
         }
     }
@@ -380,9 +380,9 @@ class YouTrackDbSchemaInitializerTest {
             indices.checkIndex("type1", unique = false, "prop3")
             indices.checkIndex("type1", unique = false, "prop4")
 
-            val entity = oSession.getClass("type1")!!
+            val entity = oSession.schema.getClass("type1")!!
             // indices are not created right away, they are created after data migration
-            assertTrue(entity.getIndexes(oSession).isEmpty())
+            assertTrue((entity as SchemaClassInternal).indexes.isEmpty())
         }
 
     @Test
@@ -477,7 +477,7 @@ class YouTrackDbSchemaInitializerTest {
             val classIds = mutableSetOf<Int>()
             val classIdToClassName = mutableMapOf<Int, String>()
             for (type in types) {
-                val classId = oSession.getClass(type).requireClassId()
+                val classId = oSession.schema.getClass(type).requireClassId()
                 classIdToClassName[classId] = type
                 classIds.add(classId)
             }
@@ -497,7 +497,7 @@ class YouTrackDbSchemaInitializerTest {
 
             classIds.clear()
             for (type in types) {
-                val classId = oSession.getClass(type).requireClassId()
+                val classId = oSession.schema.getClass(type).requireClassId()
                 // classId is not changed if it has been already assigned
                 if (classId in classIdToClassName) {
                     assertEquals(classIdToClassName.getValue(classId), type)
@@ -517,23 +517,23 @@ class YouTrackDbSchemaInitializerTest {
         }
         model.prepare()
         orientDb.withTxSession { oSession ->
-            oSession.newVertex("type1").apply {
+            val tx = oSession.activeTransaction
+            tx.newVertex("type1").apply {
                 setProperty("prop1", true)
                 oSession.setLocalEntityId("type1", this)
-                save()
             }
-            oSession.newVertex("type1").apply {
+            tx.newVertex("type1").apply {
                 oSession.setLocalEntityId("type1", this)
-                save()
             }
 
         }
         orientDb.withTxSession { oSession ->
+            val tx = oSession.activeTransaction
             val updated =
-                oSession.query("SELECT from type1 where prop1 = true").vertexStream().toList()
+                tx.query("SELECT from type1 where prop1 = true").vertexStream().toList()
             val default =
-                oSession.query("SELECT from type1 where prop1 = false").vertexStream().toList()
-            val all = oSession.query("SELECT from type1").vertexStream().toList()
+                tx.query("SELECT from type1 where prop1 = false").vertexStream().toList()
+            val all = tx.query("SELECT from type1").vertexStream().toList()
             assertEquals(1, updated.size)
             assertEquals(1, default.size)
             assertEquals(2, all.size)
@@ -563,7 +563,7 @@ class YouTrackDbSchemaInitializerTest {
 
                 val sequence = sequences.getSequence(localEntityIdSequenceName(type))
                 assertNotNull(sequence)
-                assertEquals(0, sequence.next())
+                assertEquals(0, sequence.next(oSession))
             }
 
             // emulate the next run of the application
@@ -572,7 +572,7 @@ class YouTrackDbSchemaInitializerTest {
             for (type in types) {
                 val sequence = sequences.getSequence(localEntityIdSequenceName(type))
                 // sequences are the same
-                assertEquals(1, sequence.next())
+                assertEquals(1, sequence.next(oSession))
             }
         }
 

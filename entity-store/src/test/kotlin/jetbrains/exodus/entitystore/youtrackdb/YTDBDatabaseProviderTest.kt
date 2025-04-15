@@ -34,22 +34,19 @@ class YTDBDatabaseProviderTest: OTestMixin {
     fun `read-only mode works`() {
         // by default it is read-write
         withTxSession { session ->
-            val v = session.newVertex()
-            v.save()
+            session.activeTransaction.newVertex()
         }
 
         youTrackDb.provider.readOnly = true
         assertFailsWith<ModificationOperationProhibitedException> {
             withTxSession { session ->
-                val v = session.newVertex()
-                v.save()
+                session.activeTransaction.newVertex()
             }
         }
 
         youTrackDb.provider.readOnly = false
         withTxSession { session ->
-            val v = session.newVertex()
-            v.save()
+            session.activeTransaction.newVertex()
         }
 
         youTrackDb.provider.readOnly = true

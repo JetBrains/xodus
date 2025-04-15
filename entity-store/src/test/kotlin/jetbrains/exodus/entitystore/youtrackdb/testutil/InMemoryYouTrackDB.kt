@@ -89,16 +89,16 @@ class InMemoryYouTrackDB(
     fun <R> withTxSession(block: (DatabaseSession) -> R): R {
         val session = provider.acquireSession()
         try {
-            session.begin()
+            val tx = session.begin()
             val result = block(session)
             if (session.hasActiveTransaction()) {
-                session.commit()
+                tx.commit()
             }
             return result
         } finally {
-            if (!session.hasActiveTransaction()) {
-                session.rollback()
-            }
+//            if (!session.hasActiveTransaction()) {
+//                session.rollback()
+//            }
             if (!session.isClosed) {
                 session.close()
             }

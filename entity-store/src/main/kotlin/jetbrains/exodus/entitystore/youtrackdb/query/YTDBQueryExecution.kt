@@ -28,8 +28,8 @@ object YTDBQueryExecution : KLogging() {
         // Log execution plan
         // ToDo: add System param to enable/disable logging of execution plan
         logger.debug {
-            val executionPlan = resultSet.executionPlan.get().prettyPrint(10, 8)
-            "Query: $sqlQuery, \n execution plan:\n  $executionPlan, \n stats: ${resultSet.queryStats}"
+            val executionPlan = resultSet.executionPlan!!.prettyPrint(10, 8)
+            "Query: $sqlQuery, \n execution plan:\n  $executionPlan"
         }
         tx.bindResultSet(resultSet)
         return resultSet

@@ -88,7 +88,7 @@ class XodusToOrientDataMigratorLauncher(
 
         val dbName = orient.orientConfig.databaseName
         val classesCount = dbProvider.withSession { session ->
-            session.schema.getClasses(session).filter { schemaClass -> !schemaClass.name.startsWith("O") }.size
+            session.schema.classes.filter { schemaClass -> !schemaClass.name.startsWith("O") }.size
         }
         if (classesCount > VERTEX_CLASSES_TO_SKIP_MIGRATION) {
             log.info { "There are already $classesCount classes in the database so it's considered as migrated" }

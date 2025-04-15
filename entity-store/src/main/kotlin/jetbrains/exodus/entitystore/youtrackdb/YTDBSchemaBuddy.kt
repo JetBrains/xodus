@@ -79,17 +79,15 @@ class YTDBSchemaBuddyImpl(
 
     init {
         if (autoInitialize) {
-            dbProvider.withCurrentOrNewSession { session ->
-                initialize(session)
-            }
+            dbProvider.withSession(this::initialize)
         }
     }
 
     override fun initialize(session: DatabaseSession) {
         session.createClassIdSequenceIfAbsent()
-        for (oClass in session.schema.getClasses(session)) {
+        for (oClass in session.schema.classes) {
             if (oClass.isVertexType && !INTERNAL_CLASS_NAMES.contains(oClass.name)) {
-                classIdToOClassId[oClass.requireClassId()] = oClass.clusterIds[0] to oClass.name
+                classIdToOClassId[oClass.requireClassId()] = oClass.collectionIds[0] to oClass.name
             }
         }
     }
@@ -103,9 +101,10 @@ class YTDBSchemaBuddyImpl(
             (session as DatabaseSessionInternal).metadata.sequenceLibrary.getSequence(sequenceName)
         if (oSequence != null) return oSequence
 
-        return session.executeInASeparateSessionIfCurrentHasTransaction(dbProvider) { sessionToWork ->
+
+        return dbProvider.withSession { dbSession ->
             val params = DBSequence.CreateParams().setStart(initialValue).setIncrement(1)
-            (sessionToWork as DatabaseSessionInternal).metadata.sequenceLibrary.createSequence(
+            (dbSession as DatabaseSessionInternal).metadata.sequenceLibrary.createSequence(
                 sequenceName,
                 DBSequence.SEQUENCE_TYPE.ORDERED,
                 params
@@ -114,17 +113,17 @@ class YTDBSchemaBuddyImpl(
     }
 
     override fun renameOClass(session: DatabaseSession, oldName: String, newName: String) {
-        session.executeInASeparateSessionIfCurrentHasTransaction(dbProvider) { sessionToWork ->
+        dbProvider.withSession { sessionToWork ->
             val oldClass = sessionToWork.schema.getClass(oldName)
                 ?: throw IllegalArgumentException("Class $oldName not found")
-            oldClass.setName(sessionToWork, newName)
+            oldClass.setName(newName)
         }
     }
 
     override fun deleteOClass(session: DatabaseSession, name: String) {
-        session.executeInASeparateSessionIfCurrentHasTransaction(dbProvider) { sessionToWork ->
+        dbProvider.withSession { sessionToWork ->
             val targetClass = sessionToWork.schema.getClass(name)
-            if (targetClass != null){
+            if (targetClass != null) {
                 sessionToWork.schema.dropClass(name)
             }
         }
@@ -137,12 +136,13 @@ class YTDBSchemaBuddyImpl(
         inClassName: String
     ): SchemaClass {
         val edgeClassName = YTDBVertexEntity.edgeClassName(linkName)
-        val oClass = session.getClass(edgeClassName)
+        val oClass = session.schema.getClass(edgeClassName)
         if (oClass != null) return oClass
 
-        return session.executeInASeparateSessionIfCurrentHasTransaction(dbProvider) { sessionToWork ->
-            sessionToWork.createEdgeClass(edgeClassName)
-        }
+        dbProvider.withSession { it.schema.createEdgeClass(edgeClassName) }
+
+        return session.schema.getClass(edgeClassName)
+            ?: throw IllegalStateException("Class $edgeClassName could not be created")
     }
 
     override fun getSequence(session: DatabaseSession, sequenceName: String): DBSequence {
@@ -163,9 +163,10 @@ class YTDBSchemaBuddyImpl(
         sequenceName: String,
         currentValue: Long
     ) {
-        session.executeInASeparateSessionIfCurrentHasTransaction(dbProvider) { sessionToWork ->
-            sessionToWork.begin()
+        dbProvider.withSession { sessionToWork ->
+            sessionToWork.begin();
             getSequence(sessionToWork, sequenceName).updateParams(
+                sessionToWork as DatabaseSessionInternal,
                 DBSequence.CreateParams().setCurrentValue(
                     currentValue
                 )
@@ -185,15 +186,15 @@ class YTDBSchemaBuddyImpl(
         val localEntityId = entityId.localId
         val oClassId = classIdToOClassId[classId]?.first ?: return RIDEntityId.EMPTY_ID
         val schema = session.schema
-        val oClass = schema.getClassByClusterId(oClassId) ?: return RIDEntityId.EMPTY_ID
+        val oClass = schema.getClassByCollectionId(oClassId) ?: return RIDEntityId.EMPTY_ID
 
-        val resultSet: ResultSet = session.query(
+        val resultSet: ResultSet = session.activeTransaction.query(
             "SELECT FROM ${oClass.name} WHERE $LOCAL_ENTITY_ID_PROPERTY_NAME = ?",
             localEntityId
         )
         val oid = if (resultSet.hasNext()) {
             val result = resultSet.next()
-            result.toVertex()?.identity ?: return RIDEntityId.EMPTY_ID
+            result.asVertexOrNull()?.identity ?: return RIDEntityId.EMPTY_ID
         } else {
             return RIDEntityId.EMPTY_ID
         }
@@ -202,7 +203,7 @@ class YTDBSchemaBuddyImpl(
     }
 
     override fun getTypeId(session: DatabaseSession, entityType: String): Int {
-        return session.getClass(entityType)?.requireClassId() ?: -1
+        return session.schema.getClass(entityType)?.requireClassId() ?: -1
     }
 
     override fun getType(
@@ -210,7 +211,7 @@ class YTDBSchemaBuddyImpl(
         entityTypeId: Int
     ): String {
         val (_, typeName) = classIdToOClassId.computeIfAbsent(entityTypeId) {
-            val oClass = session.schema.getClasses(session).find { oClass ->
+            val oClass = session.schema.classes.find { oClass ->
                 oClass.getCustom(CLASS_ID_CUSTOM_PROPERTY_NAME)?.toInt() == entityTypeId
             } ?: throw EntityRemovedInDatabaseException("Invalid type ID $entityTypeId")
             oClass.requireClassId() to oClass.name
@@ -219,23 +220,10 @@ class YTDBSchemaBuddyImpl(
     }
 
     override fun requireTypeExists(session: DatabaseSession, entityType: String) {
-        val oClass = session.getClass(entityType)
+        val oClass = session.schema.getClass(entityType)
         check(oClass != null) { "$entityType has not been found" }
     }
 
-}
-
-fun <T> DatabaseSession.executeInASeparateSessionIfCurrentHasTransaction(
-    dbProvider: YTDBDatabaseProvider,
-    action: (DatabaseSession) -> T
-): T {
-    return if (this.hasActiveTransaction()) {
-        dbProvider.executeInASeparateSession(this) { newSession ->
-            action(newSession)
-        }
-    } else {
-        action(this)
-    }
 }
 
 fun DatabaseSession.createClassIdSequenceIfAbsent(startFrom: Long = -1L) {
@@ -264,7 +252,7 @@ fun DatabaseSession.setClassIdIfAbsent(oClass: SchemaClass) {
         val sequence: DBSequence = sequences.getSequence(CLASS_ID_SEQUENCE_NAME)
             ?: throw IllegalStateException("$CLASS_ID_SEQUENCE_NAME not found")
 
-        oClass.setCustom(this, CLASS_ID_CUSTOM_PROPERTY_NAME, sequence.next().toString())
+        oClass.setCustom(CLASS_ID_CUSTOM_PROPERTY_NAME, sequence.next(this).toString())
     }
 }
 
@@ -273,20 +261,20 @@ fun DatabaseSession.setLocalEntityId(className: String, vertex: Vertex) {
     val sequenceName = localEntityIdSequenceName(className)
     val sequence: DBSequence = sequences.getSequence(sequenceName)
         ?: throw IllegalStateException("$sequenceName not found")
-    vertex.setProperty(LOCAL_ENTITY_ID_PROPERTY_NAME, sequence.next())
+    vertex.setProperty(LOCAL_ENTITY_ID_PROPERTY_NAME, sequence.next(this))
 }
 
 fun DatabaseSession.createVertexClassWithClassId(className: String): SchemaClass {
     requireNoActiveTransaction()
     createClassIdSequenceIfAbsent()
-    val oClass = createVertexClass(className)
+    val oClass = schema.createVertexClass(className)
     setClassIdIfAbsent(oClass)
     createLocalEntityIdSequenceIfAbsent(oClass)
     return oClass
 }
 
 internal fun DatabaseSession.getOrCreateVertexClass(className: String): SchemaClass {
-    val existingClass = this.getClass(className)
+    val existingClass = this.schema.getClass(className)
     if (existingClass != null) return existingClass
 
     return createVertexClassWithClassId(className)

@@ -17,6 +17,7 @@ package jetbrains.exodus.entitystore.youtrackdb
 
 import com.jetbrains.youtrack.db.api.DatabaseSession
 import com.jetbrains.youtrack.db.api.YouTrackDB
+import com.jetbrains.youtrack.db.internal.core.db.DatabaseSessionInternal
 import java.io.File
 
 //username and password are considered to be same for all databases
@@ -69,7 +70,7 @@ class YTDBDatabaseProviderImpl(
             }
         } finally {
             // the previous session does not get activated on the current thread by default
-            assert(!currentSession.isActiveOnCurrentThread)
+            assert(!(currentSession as DatabaseSessionInternal).isActiveOnCurrentThread)
             currentSession.activateOnCurrentThread()
         }
         return result
@@ -82,7 +83,7 @@ class YTDBDatabaseProviderImpl(
         get() = _readOnly
         set(value) {
             if (_readOnly == value) return
-            requireNoActiveSession()
+//            requireNoActiveSession()
 
             withSession { session ->
                 if (value) {
@@ -96,9 +97,9 @@ class YTDBDatabaseProviderImpl(
         }
 
     private fun acquireSessionImpl(checkNoActiveSession: Boolean = true): DatabaseSession {
-        if (checkNoActiveSession) {
-            requireNoActiveSession()
-        }
+//        if (checkNoActiveSession) {
+//            requireNoActiveSession()
+//        }
         return database.cachedPool(
             params.databaseName,
             params.userName,

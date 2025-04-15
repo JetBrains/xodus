@@ -25,22 +25,23 @@ class YTDBModelMetaData(
 ) : ModelMetaDataImpl(), YTDBSchemaBuddy by schemaBuddy {
 
     override fun onPrepared(entitiesMetaData: MutableCollection<EntityMetaData>) {
-        dbProvider.withCurrentOrNewSession(requireNoActiveTransaction = true) { session ->
-            val result = session.applySchema(entitiesMetaData, indexForEverySimpleProperty = true, applyLinkCardinality = true)
+        dbProvider.withSession { session ->
+            val result =
+                session.applySchema(entitiesMetaData, indexForEverySimpleProperty = true, applyLinkCardinality = true)
             session.initializeIndices(result)
             initialize(session)
         }
     }
 
     override fun onAddAssociation(entityMetaData: EntityMetaData, association: AssociationEndMetaData) {
-        dbProvider.withCurrentOrNewSession(requireNoActiveTransaction = true) { session ->
+        dbProvider.withSession { session ->
             val result = session.addAssociation(entityMetaData, association)
             session.initializeIndices(result)
         }
     }
 
     override fun onRemoveAssociation(sourceTypeName: String, targetTypeName: String, associationName: String) {
-        dbProvider.withCurrentOrNewSession(requireNoActiveTransaction = true) { session ->
+        dbProvider.withSession { session ->
             session.removeAssociation(sourceTypeName, targetTypeName, associationName)
         }
     }
@@ -56,13 +57,18 @@ class YTDBModelMetaData(
          * We reuse the same edge class for all the links with the same name.
          */
         val edgeClassName = YTDBVertexEntity.edgeClassName(linkName)
-        val oClass = session.getClass(edgeClassName)
+        val oClass = session.schema.getClass(edgeClassName)
         if (oClass != null) {
             return oClass
         }
 
-        return session.executeInASeparateSessionIfCurrentHasTransaction(dbProvider) { sessionToWork ->
-            val link = LinkMetadata(name = linkName, outClassName = outClassName, inClassName = inClassName, AssociationEndCardinality._0_n)
+        dbProvider.withSession { sessionToWork ->
+            val link = LinkMetadata(
+                name = linkName,
+                outClassName = outClassName,
+                inClassName = inClassName,
+                AssociationEndCardinality._0_n
+            )
 
             /**
              * We do not apply link cardinality because:
@@ -72,9 +78,12 @@ class YTDBModelMetaData(
              * Keep in mind that we create this edge class (and those extra properties) in a separate session.
              * So, there is an original session with the business logic that may fail if we change vertices here.
              */
-            val result = sessionToWork.addAssociation(link, indicesContainingLink = listOf(), applyLinkCardinality = false)
+            val result =
+                sessionToWork.addAssociation(link, indicesContainingLink = listOf(), applyLinkCardinality = false)
             sessionToWork.initializeIndices(result)
-            sessionToWork.getClass(edgeClassName) ?: throw IllegalStateException("$edgeClassName not found, it must never happen")
         }
+
+        return session.schema.getClass(edgeClassName)
+            ?: throw IllegalStateException("$edgeClassName not found, it must never happen")
     }
 }

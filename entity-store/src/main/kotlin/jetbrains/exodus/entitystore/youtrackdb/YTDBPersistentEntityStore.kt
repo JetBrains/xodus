@@ -16,10 +16,11 @@
 package jetbrains.exodus.entitystore.youtrackdb
 
 import com.jetbrains.youtrack.db.api.DatabaseSession
-import com.jetbrains.youtrack.db.internal.core.db.DatabaseRecordThreadLocal
+import com.jetbrains.youtrack.db.internal.core.db.DatabaseSessionInternal
 import jetbrains.exodus.backup.BackupStrategy
 import jetbrains.exodus.bindings.ComparableBinding
 import jetbrains.exodus.entitystore.*
+import mu.withLoggingContext
 
 class YTDBPersistentEntityStore(
     private val databaseProvider: YTDBDatabaseProvider,
@@ -94,15 +95,15 @@ class YTDBPersistentEntityStore(
         check(!tx.isFinished) { "Cannot deactivate a finished transaction" }
         check(!session.isClosed) { "Cannot deactivate a closed session" }
         currentTransaction.remove()
-        DatabaseRecordThreadLocal.instance().remove()
+//        DatabaseRecordThreadLocal.instance().remove()
     }
 
     private fun onTransactionActivated(session: DatabaseSession, tx: YTDBStoreTransaction) {
         check(currentTransaction.get() == null) { "Impossible to activate the transaction. There is already an active transaction on the current thread." }
-        check(!hasActiveSession()) { "There is an active session on the current thread" }
+//        check(!hasActiveSession()) { "There is an active session on the current thread" }
         check(!tx.isFinished) { "Cannot activate a finished transaction" }
         check(!session.isClosed) { "Cannot activate a closed session" }
-        session.activateOnCurrentThread()
+        (session as DatabaseSessionInternal).activateOnCurrentThread()
         currentTransaction.set(tx)
     }
 
@@ -133,8 +134,13 @@ class YTDBPersistentEntityStore(
             tx.commit()
             return result
         } finally {
-            if (!tx.isFinished) {
-                tx.abort()
+            try {
+                if (!tx.isFinished) {
+                    tx.abort()
+                }
+            } catch (e: Throwable) {
+                println("Error while calling abort on transaction $tx: ${e.message}")
+                e.printStackTrace()
             }
         }
     }

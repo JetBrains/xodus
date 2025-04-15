@@ -15,12 +15,12 @@
  */
 package jetbrains.exodus.entitystore.youtrackdb
 
-import com.jetbrains.youtrack.db.internal.core.db.record.TrackedSet
+import com.jetbrains.youtrack.db.internal.core.db.record.TrackedMultiValue
 
 class YTDBComparableSet<E>(val source: MutableSet<E>) : MutableSet<E> by source, Comparable<MutableSet<E>> {
     val isDirty: Boolean
         get() {
-            return if (source is TrackedSet) {
+            return if (source is TrackedMultiValue<*, *>) {
                 source.isTransactionModified
             } else {
                 true

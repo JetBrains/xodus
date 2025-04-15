@@ -83,7 +83,7 @@ class YTDBSequenceImplTest : OTestMixin {
                 "s1",
                 DBSequence.SEQUENCE_TYPE.ORDERED, DBSequence.CreateParams().setStart(300).setIncrement(1)
             )
-            assertFailsWith<RecordNotFoundException> { seq.current() }
+            assertFailsWith<RecordNotFoundException> { seq.current(session) }
         }
     }
 }

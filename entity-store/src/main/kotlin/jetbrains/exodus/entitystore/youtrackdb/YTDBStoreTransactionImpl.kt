@@ -56,7 +56,7 @@ class YTDBStoreTransactionImpl(
      */
     private val transactionIdImpl by lazy {
         requireActiveTransaction()
-        (session as DatabaseSessionInternal).transaction.id
+        (session as DatabaseSessionInternal).activeTransaction.id
     }
 
     private val resultSets: MutableCollection<ResultSet> = arrayListOf()
@@ -67,9 +67,8 @@ class YTDBStoreTransactionImpl(
 
     override fun <T> getRecord(id: YTDBEntityId): T
             where T : DBRecord {
-        requireActiveTransaction()
         try {
-            return session.load(id.asOId())
+            return requireActiveTransaction().load(id.asOId())
         } catch (_: RecordNotFoundException) {
             throw EntityRemovedInDatabaseException(id.getTypeName(), id)
         }
@@ -77,8 +76,7 @@ class YTDBStoreTransactionImpl(
     }
 
     override fun query(sql: String, params: Map<String, Any>): ResultSet {
-        requireActiveTransaction()
-        return session.query(sql, params)
+        return requireActiveTransaction().query(sql, params)
     }
 
     override fun getStore(): EntityStore {
@@ -86,7 +84,7 @@ class YTDBStoreTransactionImpl(
     }
 
     override fun isIdempotent(): Boolean {
-        return readOnly || (session as DatabaseSessionInternal).transaction.recordOperations.none()
+        return readOnly || (session as DatabaseSessionInternal).activeTransaction.recordOperations.findAny().isEmpty
     }
 
     override fun isReadonly(): Boolean {
@@ -94,11 +92,11 @@ class YTDBStoreTransactionImpl(
     }
 
     override fun isFinished(): Boolean {
-        return session.status == DatabaseSession.STATUS.CLOSED
+        return session.isClosed
     }
 
     override fun isCurrent(): Boolean {
-        return !isFinished && session.isActiveOnCurrentThread
+        return !isFinished && (session as DatabaseSessionInternal).isActiveOnCurrentThread
     }
 
     override val databaseSession: DatabaseSession
@@ -108,21 +106,23 @@ class YTDBStoreTransactionImpl(
         return store
     }
 
-    override fun requireActiveTransaction() {
+    override fun requireActiveTransaction(): FrontendTransaction {
         check(session.status == DatabaseSession.STATUS.OPEN) {
             "The transaction is finished, the internal session state: ${session.status}"
         }
-        check(session.isActiveOnCurrentThread) {
+        check((session as DatabaseSessionInternal).isActiveOnCurrentThread) {
             "The active session is no the session the transaction was started in"
         }
-        check((session as DatabaseSessionInternal).transaction.status == FrontendTransaction.TXSTATUS.BEGUN) {
-            "The current OTransaction status is ${session.transaction.status}, but the status ${FrontendTransaction.TXSTATUS.BEGUN} was expected."
+        val currentTx = session.activeTransaction
+        check(currentTx.status == FrontendTransaction.TXSTATUS.BEGUN) {
+            "The current OTransaction status is ${currentTx.status}, but the status ${FrontendTransaction.TXSTATUS.BEGUN} was expected."
         }
+        return currentTx;
     }
 
-    override fun requireActiveWritableTransaction() {
+    override fun requireActiveWritableTransaction(): FrontendTransaction {
         check(!readOnly) { "Cannot modify read-only transaction" }
-        requireActiveTransaction()
+        return requireActiveTransaction()
     }
 
     override fun deactivateOnCurrentThread() {
@@ -132,13 +132,13 @@ class YTDBStoreTransactionImpl(
 
     override fun activateOnCurrentThread() {
         check(session.status == DatabaseSession.STATUS.OPEN) { "The transaction is finished, the internal session state: ${session.status}" }
-        check(!session.isActiveOnCurrentThread) { "The transaction is already active on the current thread" }
+        check(!(session as DatabaseSessionInternal).isActiveOnCurrentThread) { "The transaction is already active on the current thread" }
         onActivated(session, this)
     }
 
     fun begin() {
         check(session.status == DatabaseSession.STATUS.OPEN) { "The session status is ${session.status}. But ${DatabaseSession.STATUS.OPEN} is required." }
-        check(session.isActiveOnCurrentThread) { "The session is not active on the current thread" }
+        check((session as DatabaseSessionInternal).isActiveOnCurrentThread) { "The session is not active on the current thread" }
         check(session.activeTxCount() == 0) { "The session must not have a transaction" }
         try {
             session.begin()
@@ -150,9 +150,8 @@ class YTDBStoreTransactionImpl(
     }
 
     override fun commit(): Boolean {
-        requireActiveTransaction()
         try {
-            session.commit()
+            requireActiveTransaction().commit()
         } finally {
             cleanUpTxIfNeeded()
         }
@@ -161,9 +160,8 @@ class YTDBStoreTransactionImpl(
     }
 
     override fun flush(): Boolean {
-        requireActiveTransaction()
         try {
-            session.commit()
+            requireActiveTransaction().commit()
             session.begin()
         } catch (_: ModificationOperationProhibitedException) {
             throw ReadonlyTransactionException()
@@ -175,18 +173,15 @@ class YTDBStoreTransactionImpl(
     }
 
     override fun abort() {
-        requireActiveTransaction()
         try {
-            session.rollback()
+            requireActiveTransaction().rollback()
         } finally {
             cleanUpTxIfNeeded()
         }
     }
 
     override fun bindToSession(vertex: Vertex): Vertex {
-        requireActiveTransaction()
-
-        return session.bindToSession(vertex)
+        return requireActiveTransaction().loadVertex(vertex)
     }
 
     override fun bindToSession(entity: YTDBVertexEntity): YTDBVertexEntity {
@@ -200,9 +195,8 @@ class YTDBStoreTransactionImpl(
     }
 
     override fun revert() {
-        requireActiveTransaction()
         try {
-            session.rollback()
+            requireActiveTransaction().rollback()
             session.begin()
         } finally {
             cleanUpTxIfNeeded()
@@ -222,42 +216,36 @@ class YTDBStoreTransactionImpl(
     }
 
     override fun newEntity(entityType: String): Entity {
-        requireActiveWritableTransaction()
         schemaBuddy.requireTypeExists(session, entityType)
-        val vertex = session.newVertex(entityType)
+        val vertex = requireActiveWritableTransaction().newVertex(entityType)
         session.setLocalEntityId(entityType, vertex)
-        vertex.save()
         return YTDBVertexEntity(vertex, store)
     }
 
     override fun newEntity(entityType: String, localEntityId: Long): YTDBVertexEntity {
-        requireActiveWritableTransaction()
         schemaBuddy.requireTypeExists(session, entityType)
-        val vertex = session.newVertex(entityType)
+        val vertex = requireActiveWritableTransaction().newVertex(entityType)
         vertex.setProperty(LOCAL_ENTITY_ID_PROPERTY_NAME, localEntityId)
-        vertex.save()
         return YTDBVertexEntity(vertex, store)
     }
 
     override fun generateEntityId(entityType: String, vertex: Vertex) {
         session.setLocalEntityId(entityType, vertex)
-        vertex.save()
     }
 
     override fun saveEntity(entity: Entity) {
         require(entity is YTDBVertexEntity) { "Only OVertexEntity is supported, but was ${entity.javaClass.simpleName}" }
         requireActiveWritableTransaction()
-        entity.save()
     }
 
     override fun getEntity(id: EntityId): Entity {
-        requireActiveTransaction()
+        val tx = requireActiveTransaction()
         val oId = store.requireOEntityId(id)
         if (oId == RIDEntityId.EMPTY_ID) {
             throw EntityRemovedInDatabaseException(oId.getTypeName(), id)
         }
         try {
-            val vertex: Vertex = session.load(oId.asOId())
+            val vertex: Vertex = tx.load(oId.asOId())
             return YTDBVertexEntity(vertex, store)
         } catch (_: RecordNotFoundException) {
             throw EntityRemovedInDatabaseException(oId.getTypeName(), id)
@@ -266,7 +254,7 @@ class YTDBStoreTransactionImpl(
 
     override fun getEntityTypes(): List<String> {
         requireActiveTransaction()
-        return session.schema.getClasses(session)
+        return session.schema.classes
             .filter { it.isVertexType && it.name != Vertex.CLASS_NAME }
             .map { it.name }
     }
@@ -475,7 +463,7 @@ class YTDBStoreTransactionImpl(
         requireActiveTransaction()
         // make sure the OSequence created
         schemaBuddy.getOrCreateSequence(session, sequenceName, initialValue)
-        return YTDBSequenceImpl(sequenceName, store)
+        return YTDBSequenceImpl(session as DatabaseSessionInternal, sequenceName, store)
     }
 
     override fun getOSequence(sequenceName: String): DBSequence {
@@ -528,7 +516,6 @@ class YTDBStoreTransactionImpl(
         requireActiveTransaction()
         return schemaBuddy.getType(session, entityTypeId)
     }
-
 
 
     override fun bindResultSet(resultSet: ResultSet) {

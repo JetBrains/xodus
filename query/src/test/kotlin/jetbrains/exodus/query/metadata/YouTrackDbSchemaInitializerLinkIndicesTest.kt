@@ -32,7 +32,7 @@ import kotlin.test.assertTrue
 class YouTrackDbSchemaInitializerLinkIndicesTest {
     @Rule
     @JvmField
-    val orientDb = InMemoryYouTrackDB(initializeIssueSchema = false)
+    val youTrackDb = InMemoryYouTrackDB(initializeIssueSchema = false)
 
     @Test
     fun `the same DeferredIndices are equal`() {
@@ -61,7 +61,7 @@ class YouTrackDbSchemaInitializerLinkIndicesTest {
             association("type2", "ass1", "type1", AssociationEndCardinality._0_n)
         }
 
-        val newIndexedLinks = orientDb.withSession { oSession ->
+        val newIndexedLinks = youTrackDb.withSession { oSession ->
             oSession.applySchema(model).newIndexedLinks
         }
 
@@ -74,7 +74,7 @@ class YouTrackDbSchemaInitializerLinkIndicesTest {
             newIndexedLinks.getValue("type2")
         )
 
-        val newIndexedLinksAgain = orientDb.withSession { oSession ->
+        val newIndexedLinksAgain = youTrackDb.withSession { oSession ->
             oSession.applySchema(model).newIndexedLinks
         }
         assertTrue(newIndexedLinksAgain.isEmpty())
@@ -89,11 +89,11 @@ class YouTrackDbSchemaInitializerLinkIndicesTest {
             association("type2", "ass2", "type1", AssociationEndCardinality._0_n)
         }
 
-        orientDb.withSession { session ->
+        youTrackDb.withSession { session ->
             session.applySchema(model)
         }
 
-        val (id11, id12, id21) = orientDb.withTxSession { oSession ->
+        val (id11, id12, id21) = youTrackDb.withTxSession { oSession ->
             val v11 = oSession.createVertexAndSetLocalEntityId("type1")
             val v12 = oSession.createVertexAndSetLocalEntityId("type1")
             val v21 = oSession.createVertexAndSetLocalEntityId("type2")
@@ -104,9 +104,9 @@ class YouTrackDbSchemaInitializerLinkIndicesTest {
             Triple(v11.identity, v12.identity, v21.identity)
         }
 
-        orientDb.withTxSession { session ->
-            val type1 = session.getClass("type1")
-            val type2 = session.getClass("type2")
+        youTrackDb.withTxSession { session ->
+            val type1 = session.schema.getClass("type1")
+            val type2 = session.schema.getClass("type2")
             assertFalse(type1.existsProperty(linkTargetEntityIdPropertyName("ass1")))
             assertFalse(type2.existsProperty(linkTargetEntityIdPropertyName("ass2")))
         }
@@ -122,27 +122,28 @@ class YouTrackDbSchemaInitializerLinkIndicesTest {
             association("type2", "ass2", "type1", AssociationEndCardinality._0_n)
         }
 
-        val (_, newIndexedLinks) = orientDb.withSession { session ->
+        val (_, newIndexedLinks) = youTrackDb.withSession { session ->
             session.applySchema(modelWithIndexes)
         }
 
-        orientDb.withSession { session ->
+        youTrackDb.withSession { session ->
             session.initializeComplementaryPropertiesForNewIndexedLinks(newIndexedLinks)
         }
 
-        orientDb.withTxSession { session ->
-            val v11 = session.loadVertex(id11)
-            val v12 = session.loadVertex(id12)
-            val v21 = session.loadVertex(id21)
+        youTrackDb.withTxSession { session ->
+            val tx = session.activeTransaction
+            val v11 = tx.loadVertex(id11)
+            val v12 = tx.loadVertex(id12)
+            val v21 = tx.loadVertex(id21)
 
             val bag11 = v11.getTargetLocalEntityIds("ass1")
             val bag21 = v21.getTargetLocalEntityIds("ass2")
 
             assertTrue(bag11.size() == 1)
-            assertTrue(bag11.contains(v21))
+            assertTrue(bag11.contains(v21.identity))
             assertTrue(bag21.size() == 2)
-            assertTrue(bag21.contains(v11))
-            assertTrue(bag21.contains(v12))
+            assertTrue(bag21.contains(v11.identity))
+            assertTrue(bag21.contains(v12.identity))
         }
     }
 
@@ -156,21 +157,21 @@ class YouTrackDbSchemaInitializerLinkIndicesTest {
             association("type1", "ass1", "type2", AssociationEndCardinality._0_n)
         }
 
-        orientDb.withSession { oSession ->
+        youTrackDb.withSession { oSession ->
             val (indices, _) = oSession.applySchema(model)
             oSession.applyIndices(indices)
         }
 
         // (no links) == (no links)
         assertFailsWith<RecordDuplicatedException> {
-            orientDb.withTxSession { oSession ->
+            youTrackDb.withTxSession { oSession ->
                 oSession.createVertexAndSetLocalEntityId("type1")
                 oSession.createVertexAndSetLocalEntityId("type1")
             }
         }
 
         // ({ v3 }) != (no links)
-        val (id1, id2, id3) = orientDb.withTxSession { oSession ->
+        val (id1, id2, id3) = youTrackDb.withTxSession { oSession ->
             val v1 = oSession.createVertexAndSetLocalEntityId("type1")
             val v2 = oSession.createVertexAndSetLocalEntityId("type1")
             val v3 = oSession.createVertexAndSetLocalEntityId("type2")
@@ -182,9 +183,9 @@ class YouTrackDbSchemaInitializerLinkIndicesTest {
 
         // ({ v3 }) == ({ v3 })
         assertFailsWith<RecordDuplicatedException> {
-            orientDb.withTxSession { oSession ->
-                val v1 = oSession.loadVertex(id1)
-                val v3 = oSession.loadVertex(id3)
+            youTrackDb.withTxSession { oSession ->
+                val v1 = oSession.activeTransaction.loadVertex(id1)
+                val v3 = oSession.activeTransaction.loadVertex(id3)
 
                 v1.addIndexedEdge("ass1", v3)
             }
@@ -192,10 +193,11 @@ class YouTrackDbSchemaInitializerLinkIndicesTest {
 
         // ({ v2, v3 }) == ({ v3 })
         assertFailsWith<RecordDuplicatedException> {
-            orientDb.withTxSession { oSession ->
-                val v1 = oSession.loadVertex(id1)
-                val v2 = oSession.loadVertex(id2)
-                val v3 = oSession.loadVertex(id3)
+            youTrackDb.withTxSession { oSession ->
+                val tx = oSession.activeTransaction
+                val v1 = tx.loadVertex(id1)
+                val v2 = tx.loadVertex(id2)
+                val v3 = tx.loadVertex(id3)
 
                 v1.addIndexedEdge("ass1", v2)
                 v2.addIndexedEdge("ass1", v3)
@@ -203,10 +205,11 @@ class YouTrackDbSchemaInitializerLinkIndicesTest {
         }
 
         // ({ v2 }) != ({ v3 })
-        orientDb.withTxSession { oSession ->
-            val v1 = oSession.loadVertex(id1)
-            val v2 = oSession.loadVertex(id2)
-            val v3 = oSession.loadVertex(id3)
+        youTrackDb.withTxSession { oSession ->
+            val tx = oSession.activeTransaction
+            val v1 = tx.loadVertex(id1)
+            val v2 = tx.loadVertex(id2)
+            val v3 = tx.loadVertex(id3)
 
             v2.addIndexedEdge("ass1", v3)
             v1.deleteIndexedEdge("ass1", v3)
@@ -227,14 +230,14 @@ class YouTrackDbSchemaInitializerLinkIndicesTest {
             association("type1", "ass1", "type2", AssociationEndCardinality._0_n)
         }
 
-        orientDb.withSession { oSession ->
+        youTrackDb.withSession { oSession ->
             val (indices, _) = oSession.applySchema(model)
             oSession.applyIndices(indices)
         }
 
         // (1, no links) == (1, no links)
         assertFailsWith<RecordDuplicatedException> {
-            orientDb.withTxSession { oSession ->
+            youTrackDb.withTxSession { oSession ->
                 val v1 = oSession.createVertexAndSetLocalEntityId("type1")
                 val v2 = oSession.createVertexAndSetLocalEntityId("type1")
 
@@ -245,7 +248,7 @@ class YouTrackDbSchemaInitializerLinkIndicesTest {
 
         // (1, { v3 }) == (1, { v3 }), trying to set in the same transaction
         assertFailsWith<RecordDuplicatedException> {
-            orientDb.withTxSession { oSession ->
+            youTrackDb.withTxSession { oSession ->
                 val v1 = oSession.createVertexAndSetLocalEntityId("type1")
                 val v2 = oSession.createVertexAndSetLocalEntityId("type1")
                 val v3 = oSession.createVertexAndSetLocalEntityId("type2")
@@ -260,7 +263,7 @@ class YouTrackDbSchemaInitializerLinkIndicesTest {
         }
 
         // (1, { v3 } ) != (1, no links)
-        val (id1, id2, id3) = orientDb.withTxSession { oSession ->
+        val (id1, id2, id3) = youTrackDb.withTxSession { oSession ->
             val v1 = oSession.createVertexAndSetLocalEntityId("type1")
             val v2 = oSession.createVertexAndSetLocalEntityId("type1")
             val v3 = oSession.createVertexAndSetLocalEntityId("type2")
@@ -274,27 +277,30 @@ class YouTrackDbSchemaInitializerLinkIndicesTest {
 
         // (1, { v3 } ) == (1, { v3 } )
         assertFailsWith<RecordDuplicatedException> {
-            orientDb.withTxSession { oSession ->
-                val v2 = oSession.loadVertex(id2)
-                val v3 = oSession.loadVertex(id3)
+            youTrackDb.withTxSession { oSession ->
+                val tx = oSession.activeTransaction
+                val v2 = tx.loadVertex(id2)
+                val v3 = tx.loadVertex(id3)
 
                 v2.addIndexedEdge("ass1", v3)
             }
         }
 
         // (1, { v2, v3 } ) != (1, no links)
-        orientDb.withTxSession { oSession ->
-            val v1 = oSession.loadVertex(id1)
-            val v2 = oSession.loadVertex(id2)
+        youTrackDb.withTxSession { oSession ->
+            val tx = oSession.activeTransaction
+            val v1 = tx.loadVertex(id1)
+            val v2 = tx.loadVertex(id2)
 
             v1.addIndexedEdge("ass1", v2)
         }
 
         // (1, { v2, v3 } ) == (1, { v3 } ), who could think...
         assertFailsWith<RecordDuplicatedException> {
-            orientDb.withTxSession { oSession ->
-                val v2 = oSession.loadVertex(id2)
-                val v3 = oSession.loadVertex(id3)
+            youTrackDb.withTxSession { oSession ->
+                val tx = oSession.activeTransaction
+                val v2 = tx.loadVertex(id2)
+                val v3 = tx.loadVertex(id3)
 
                 v2.addIndexedEdge("ass1", v3)
             }
@@ -315,13 +321,13 @@ class YouTrackDbSchemaInitializerLinkIndicesTest {
             association("type1", "ass1", "type2", AssociationEndCardinality._0_n)
         }
 
-        orientDb.withSession { oSession ->
+        youTrackDb.withSession { oSession ->
             val (indices, _) = oSession.applySchema(model)
             oSession.applyIndices(indices)
         }
 
         // (1, { v3 } ) != (1, no links)
-        val (id1, id2, id3) = orientDb.withTxSession { oSession ->
+        val (id1, id2, id3) = youTrackDb.withTxSession { oSession ->
             val v1 = oSession.createVertexAndSetLocalEntityId("type1")
             val v2 = oSession.createVertexAndSetLocalEntityId("type1")
             val v3 = oSession.createVertexAndSetLocalEntityId("type2")
@@ -334,10 +340,11 @@ class YouTrackDbSchemaInitializerLinkIndicesTest {
         }
 
         // (1, no links) != (1, { v3 })
-        orientDb.withTxSession { oSession ->
-            val v1 = oSession.loadVertex(id1)
-            val v2 = oSession.loadVertex(id2)
-            val v3 = oSession.loadVertex(id3)
+        youTrackDb.withTxSession { oSession ->
+            val tx = oSession.activeTransaction
+            val v1 = tx.loadVertex(id1)
+            val v2 = tx.loadVertex(id2)
+            val v3 = tx.loadVertex(id3)
 
             v2.addIndexedEdge("ass1", v3)
             v1.deleteIndexedEdge("ass1", v3)
@@ -358,13 +365,13 @@ class YouTrackDbSchemaInitializerLinkIndicesTest {
             association("type1", "ass1", "type2", AssociationEndCardinality._0_n)
         }
 
-        orientDb.withSession { oSession ->
+        youTrackDb.withSession { oSession ->
             val (indices, _) = oSession.applySchema(model)
             oSession.applyIndices(indices)
         }
 
         // (1, { v3 } ) != (1, no links)
-        val (id1, id2, id3) = orientDb.withStoreTx { tx ->
+        val (id1, id2, id3) = youTrackDb.withStoreTx { tx ->
             val e1 = tx.newEntity("type1")
             val e2 = tx.newEntity("type1")
             val e3 = tx.newEntity("type2")
@@ -378,7 +385,7 @@ class YouTrackDbSchemaInitializerLinkIndicesTest {
 
         // (1, { v3 } ) == (1, { v3 } )
         assertFailsWith<RecordDuplicatedException> {
-            orientDb.withStoreTx { tx ->
+            youTrackDb.withStoreTx { tx ->
                 val e2 = tx.getEntity(id2)
                 val e3 = tx.getEntity(id3)
 
@@ -387,7 +394,7 @@ class YouTrackDbSchemaInitializerLinkIndicesTest {
         }
 
         // (1, no links) != (1, { v3 } )
-        orientDb.withStoreTx { tx ->
+        youTrackDb.withStoreTx { tx ->
             val e1 = tx.getEntity(id1)
             val e2 = tx.getEntity(id1)
             val e3 = tx.getEntity(id1)
@@ -406,12 +413,12 @@ class YouTrackDbSchemaInitializerLinkIndicesTest {
             association("type1", "ass1", "type1", AssociationEndCardinality._0_n)
         }
 
-        orientDb.withSession { oSession ->
+        youTrackDb.withSession { oSession ->
             oSession.applySchema(model, indexForEverySimpleProperty = false)
         }
 
         val edgeClassName = edgeClassName("ass1")
-        orientDb.withStoreTx { tx ->
+        youTrackDb.withStoreTx { tx ->
             val e1 = tx.newEntity("type1")
             e1.setProperty("prop1", 1)
             val e2 = tx.newEntity("type1")
@@ -421,9 +428,9 @@ class YouTrackDbSchemaInitializerLinkIndicesTest {
             e1.addLink("ass1", e2)
         }
 
-        orientDb.withTxSession { oSession ->
+        youTrackDb.withTxSession { oSession ->
             val v1 =
-                oSession.query("select from type1").vertexStream().toList()
+                oSession.activeTransaction.query("select from type1").vertexStream().toList()
                     .first { it.getProperty<Int>("prop1") == 1 }
             val links: MutableIterable<Vertex> = v1.getVertices(Direction.OUT, edgeClassName)
             assertEquals(2, links.count())
@@ -439,14 +446,14 @@ class YouTrackDbSchemaInitializerLinkIndicesTest {
             association("type1", "ass1", "type1", AssociationEndCardinality._0_n)
         }
 
-        orientDb.withSession { oSession ->
+        youTrackDb.withSession { oSession ->
             val (indices, _) = oSession.applySchema(model, indexForEverySimpleProperty = false)
             oSession.applyIndices(indices)
         }
 
         val edgeClassName = edgeClassName("ass1")
         // trying to add the same edge in a single transaction
-        val (id1, id2) = orientDb.withStoreTx { tx ->
+        val (id1, id2) = youTrackDb.withStoreTx { tx ->
             val e1 = tx.newEntity("type1")
             val e2 = tx.newEntity("type1")
             e1.setProperty("prop1", 1)
@@ -458,15 +465,15 @@ class YouTrackDbSchemaInitializerLinkIndicesTest {
         }
 
         // trying to add the same edge in another transaction
-        orientDb.withStoreTx { tx ->
+        youTrackDb.withStoreTx { tx ->
             val e1 = tx.getEntity(id1)
             val e2 = tx.getEntity(id2)
             e1.addLink("ass1", e2)
         }
 
-        orientDb.withTxSession { oSession ->
+        youTrackDb.withTxSession { oSession ->
             val v1 =
-                oSession.query("select from type1").vertexStream().toList()
+                oSession.activeTransaction.query("select from type1").vertexStream().toList()
                     .first { it.getProperty<Int>("prop1") == 1 }
             val links: MutableIterable<Vertex> = v1.getVertices(Direction.OUT, edgeClassName)
             assertEquals(1, links.count())

@@ -66,7 +66,7 @@ class YTDBSchemaBuddyTest : OTestMixin {
         val buddy = YTDBSchemaBuddyImpl(youTrackDb.provider)
         val className = "trista"
         withSession { session ->
-            assertNull(session.getClass(className))
+            assertNull(session.schema.getClass(className))
             assertFailsWith<IllegalStateException> { buddy.requireTypeExists(session, className) }
         }
     }
@@ -111,7 +111,7 @@ class YTDBSchemaBuddyTest : OTestMixin {
         youTrackDb.withTxSession { session ->
             val res =
                 (session as DatabaseSessionInternal).metadata.sequenceLibrary.getSequence("seq")
-                    .next()
+                    .next(session)
             assertEquals(1, res)
             session.rollback()
         }
@@ -119,7 +119,7 @@ class YTDBSchemaBuddyTest : OTestMixin {
         youTrackDb.withTxSession { session ->
             val res =
                 (session as DatabaseSessionInternal).metadata.sequenceLibrary.getSequence("seq")
-                    .next()
+                    .next(session)
             assertEquals(2, res)
         }
     }
@@ -131,27 +131,26 @@ class YTDBSchemaBuddyTest : OTestMixin {
 
         // the edge class is not there
         withSession { session ->
-            session.createVertexClass("issue")
-            assertNull(session.getClass(edgeClassName))
+            session.schema.createVertexClass("issue")
+            assertNull(session.schema.getClass(edgeClassName))
         }
 
         // create the edge class in a transaction
         val issId = withSession { session ->
-            session.begin()
-            val iss = session.newVertex("issue")
-            iss.save()
+            val tx = session.begin()
+            val iss = tx.newVertex("issue")
 
             val edgeClass = buddy.getOrCreateEdgeClass(session, "trista", "issue", "issue")
             assertNotNull(edgeClass)
             assertTrue(edgeClass.isEdgeType)
 
-            session.commit()
+            tx.commit()
             iss.identity
         }
 
         // the changes made in the transaction are still there
         withSession { session ->
-            assertNotNull(session.loadVertex(issId))
+            assertNotNull(session.activeTransaction.loadVertex(issId))
         }
     }
 

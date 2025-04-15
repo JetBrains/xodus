@@ -43,15 +43,15 @@ internal class IndicesCreator(
                 appendLine("creating indices if absent:")
                 for ((ownerVertexName, indices) in indicesByOwnerVertexName) {
                     val dbClass =
-                        dbSession.getClass(ownerVertexName) ?: throw IllegalStateException("$ownerVertexName not found")
+                        dbSession.schema.getClass(ownerVertexName) ?: throw IllegalStateException("$ownerVertexName not found")
                     appendLine("${dbClass.name}:")
                     withPadding {
                         for ((_, indexName, properties, unique) in indices) {
                             append(indexName)
-                            if (!dbSession.schema.indexExists(dbSession, indexName)) {
+                            if (!dbSession.schema.indexExists(indexName)) {
                                 val indexType =
                                     if (unique) SchemaClass.INDEX_TYPE.UNIQUE else SchemaClass.INDEX_TYPE.NOTUNIQUE
-                                dbClass.createIndex(dbSession, indexName, indexType, *properties.toTypedArray())
+                                dbClass.createIndex(indexName, indexType, *properties.toTypedArray())
                                 appendLine(", created")
                             } else {
                                 appendLine(", already created")
@@ -89,20 +89,19 @@ internal fun DatabaseSession.initializeComplementaryPropertiesForNewIndexedLinks
     var counter = 0
     withTx {
         for ((className, indexedLinks) in newIndexedLinks) {
-            for (vertex in query("select from $className").vertexStream().map { it as Vertex }) {
+            for (vertex in activeTransaction.query("select from $className").vertexStream().map { it as Vertex }) {
                 for (indexedLink in indexedLinks) {
                     val edgeClassName = edgeClassName(indexedLink)
                     val targetLocalEntityIds = vertex.getTargetLocalEntityIds(indexedLink)
                     for (target in vertex.getVertices(Direction.OUT, edgeClassName)) {
-                        targetLocalEntityIds.add(target)
+                        targetLocalEntityIds.add(target.identity)
                     }
                     vertex.setTargetLocalEntityIds(indexedLink, targetLocalEntityIds)
-                    vertex.save()
 
                     counter++
                     if (counter == commitEvery) {
                         counter = 0
-                        commit()
+                        activeTransaction.commit()
                         begin()
                     }
                 }

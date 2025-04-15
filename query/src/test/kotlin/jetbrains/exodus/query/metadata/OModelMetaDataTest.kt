@@ -42,8 +42,8 @@ class OModelMetaDataTest : OTestMixin {
         }
 
         youTrackDb.withSession { session ->
-            Assert.assertNull(session.getClass("type1"))
-            Assert.assertNull(session.getClass("type2"))
+            Assert.assertNull(session.schema.getClass("type1"))
+            Assert.assertNull(session.schema.getClass("type2"))
         }
 
         model.prepare()
@@ -115,7 +115,7 @@ class OModelMetaDataTest : OTestMixin {
         }
 
         youTrackDb.withSession { session ->
-            session.begin()
+            val tx = session.begin()
             model.prepare()
             model.addAssociation(
                 "type2", "type1", AssociationType.Directed, "ass1", AssociationEndCardinality._1,
@@ -123,7 +123,7 @@ class OModelMetaDataTest : OTestMixin {
                 null, false, false, false, false
             )
             model.removeAssociation("type2", "ass1")
-            session.commit()
+            tx.commit()
         }
     }
 
@@ -177,14 +177,14 @@ class OModelMetaDataTest : OTestMixin {
         val oldSchoolEntityId = PersistentEntityId(entityId.typeId, entityId.localId)
 
         // model does not find the id because internal data structures are not initialized yet
-        youTrackDb.withSession {
+        youTrackDb.withTxSession {
             assertEquals(RIDEntityId.EMPTY_ID, model.getOEntityId(it, oldSchoolEntityId))
         }
 
         // prepare() must initialize internal data structures in the end
         model.prepare()
 
-        youTrackDb.withSession { session ->
+        youTrackDb.withTxSession { session ->
             assertEquals(entityId, model.getOEntityId(session, oldSchoolEntityId))
         }
     }
@@ -209,16 +209,13 @@ class OModelMetaDataTest : OTestMixin {
             v21.addEdge("ass2", v11)
             v21.addEdge("ass2", v12)
 
-            v11.save()
-            v12.save()
-            v21.save()
             Triple(v11.identity, v12.identity, v21.identity)
         }
 
         // links are not indexes, so there are no complementary properties
         youTrackDb.withTxSession { session ->
-            val type1 = session.getClass("type1")
-            val type2 = session.getClass("type2")
+            val type1 = session.schema.getClass("type1")
+            val type2 = session.schema.getClass("type2")
             assertFalse(type1.existsProperty(linkTargetEntityIdPropertyName("ass1")))
             assertFalse(type2.existsProperty(linkTargetEntityIdPropertyName("ass2")))
         }
@@ -236,18 +233,19 @@ class OModelMetaDataTest : OTestMixin {
 
         // prepare() must have called initializeComplementaryPropertiesForNewIndexedLinks
         youTrackDb.withTxSession { session ->
-            val v11 = session.loadVertex(id11)
-            val v12 = session.loadVertex(id12)
-            val v21 = session.loadVertex(id21)
+            val tx = session.activeTransaction
+            val v11 = tx.loadVertex(id11)
+            val v12 = tx.loadVertex(id12)
+            val v21 = tx.loadVertex(id21)
 
             val bag11 = v11.getTargetLocalEntityIds("ass1")
             val bag21 = v21.getTargetLocalEntityIds("ass2")
 
             assertTrue(bag11.size() == 1)
-            assertTrue(bag11.contains(v21))
+            assertTrue(bag11.contains(v21.identity))
             assertTrue(bag21.size() == 2)
-            assertTrue(bag21.contains(v11))
-            assertTrue(bag21.contains(v12))
+            assertTrue(bag21.contains(v11.identity))
+            assertTrue(bag21.contains(v12.identity))
 
             session.checkIndex("type1", true, linkTargetEntityIdPropertyName("ass1"))
             session.checkIndex("type2", true, linkTargetEntityIdPropertyName("ass2"))

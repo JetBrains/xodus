@@ -45,7 +45,7 @@ class YTDBVertexEntityIterable(
         override fun skip(number: Int) =
             (0 until number).count { iterator.hasNext() }.also { iterator.next() } == number
 
-        override fun nextId() = iterator.next().run { PersistentEntityId(identity.clusterId, identity.clusterPosition) }
+        override fun nextId() = iterator.next().run { PersistentEntityId(identity.collectionId, identity.collectionPosition) }
 
         override fun dispose() = true
 

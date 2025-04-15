@@ -47,19 +47,17 @@ class OTransactionLifecycleTest : OTestMixin {
     fun `session-freeze(true) makes the session read-only`() {
         val session = youTrackDb.openSession()
         session.freeze(true)
-        session.begin()
+        val tx = session.begin()
 
-        val v = session.newVertex()
-        v.save()
-        assertFailsWith<ModificationOperationProhibitedException> { session.commit() }
+        val v = tx.newVertex()
+        assertFailsWith<ModificationOperationProhibitedException> { tx.commit() }
 
         // after release() we can write again
         session.release()
 
-        session.begin()
-        val v2 = session.newVertex()
-        v2.save()
-        session.commit()
+        val tx2 = session.begin()
+        val v2 = tx2.newVertex()
+        tx2.commit()
 
         session.close()
     }
@@ -68,15 +66,15 @@ class OTransactionLifecycleTest : OTestMixin {
     fun `open, begin, commit, close - no changes`() {
         val session = youTrackDb.openSession() as DatabaseSessionInternal
 
-        assertFalse(session.transaction == null)
+        assertFalse(session.transactionInternal == null)
         assertEquals(DatabaseSession.STATUS.OPEN, session.status)
         session.begin()
 
-        assertEquals(session.transaction.status, TXSTATUS.BEGUN)
+        assertEquals(session.transactionInternal.status, TXSTATUS.BEGUN)
 
         session.commit()
 
-        assertEquals(session.transaction.status, TXSTATUS.INVALID)
+        assertEquals(session.transactionInternal.status, TXSTATUS.INVALID)
         assertEquals(DatabaseSession.STATUS.OPEN, session.status)
         assertFalse(session.hasActiveTransaction())
         assertTrue(session.isActiveOnCurrentThread)
@@ -92,18 +90,17 @@ class OTransactionLifecycleTest : OTestMixin {
         val session = youTrackDb.openSession() as DatabaseSessionInternal
         val oClass = session.getOrCreateVertexClass("trista")
 
-        assertFalse(session.transaction == null)
+        assertFalse(session.transactionInternal == null)
 
         session.begin()
 
-        assertTrue(session.transaction.status == TXSTATUS.BEGUN)
+        assertTrue(session.transactionInternal.status == TXSTATUS.BEGUN)
 
         val trista = session.newVertex(oClass)
         trista.setProperty("name", "opca trista")
-        trista.save()
         session.commit()
 
-        assertTrue(session.transaction.status == TXSTATUS.INVALID)
+        assertTrue(session.transactionInternal.status == TXSTATUS.INVALID)
         assertFalse(session.hasActiveTransaction())
         assertTrue(session.isActiveOnCurrentThread)
 
@@ -120,15 +117,15 @@ class OTransactionLifecycleTest : OTestMixin {
     fun `open, begin, rollback, close - no changes`() {
         val session = youTrackDb.openSession() as DatabaseSessionInternal
 
-        assertFalse(session.transaction == null)
+        assertFalse(session.transactionInternal == null)
 
         session.begin()
 
-        assertEquals(session.transaction.status, TXSTATUS.BEGUN)
+        assertEquals(session.transactionInternal.status, TXSTATUS.BEGUN)
 
         session.rollback()
 
-        assertEquals(TXSTATUS.INVALID, session.transaction.status)
+        assertEquals(TXSTATUS.INVALID, session.transactionInternal.status)
         assertFalse(session.hasActiveTransaction())
         assertTrue(session.isActiveOnCurrentThread)
 
@@ -142,18 +139,17 @@ class OTransactionLifecycleTest : OTestMixin {
         val session = youTrackDb.openSession() as DatabaseSessionInternal
         val oClass = session.getOrCreateVertexClass("trista")
 
-        assertFalse(session.transaction == null)
+        assertFalse(session.transactionInternal == null)
 
         session.begin()
 
-        assertEquals(session.transaction.status, TXSTATUS.BEGUN)
+        assertEquals(session.transactionInternal.status, TXSTATUS.BEGUN)
 
         val trista = session.newVertex(oClass)
         trista.setProperty("name", "opca trista")
-        trista.save()
         session.rollback()
 
-        assertEquals(TXSTATUS.INVALID, session.transaction.status)
+        assertEquals(TXSTATUS.INVALID, session.transactionInternal.status)
         assertFalse(session.hasActiveTransaction())
         assertTrue(session.isActiveOnCurrentThread)
 
@@ -174,7 +170,7 @@ class OTransactionLifecycleTest : OTestMixin {
 
     @Test
     fun `commit() throws an exception if there is no active transaction`() {
-        val session = youTrackDb.openSession()
+        val session: DatabaseSessionInternal = youTrackDb.openSession() as DatabaseSessionInternal
 
         assertFalse(session.hasActiveTransaction())
         assertFailsWith<DatabaseException> { session.commit() }
@@ -214,13 +210,13 @@ class OTransactionLifecycleTest : OTestMixin {
 
         session.commit()
 
-        assertEquals(TXSTATUS.INVALID, session.transaction.status)
+        assertEquals(TXSTATUS.INVALID, session.transactionInternal.status)
         assertFalse(session.hasActiveTransaction())
         assertTrue(session.isActiveOnCurrentThread)
 
         // rollback() does not throw an exception if there is no active transaction, but commit() throws
         session.rollback()
-        assertEquals(TXSTATUS.INVALID, session.transaction.status)
+        assertEquals(TXSTATUS.INVALID, session.transactionInternal.status)
 
         session.close()
         assertFalse(session.isActiveOnCurrentThread)
@@ -231,23 +227,21 @@ class OTransactionLifecycleTest : OTestMixin {
     fun `if commit() fails, changes get rolled back`() {
         val session = youTrackDb.openSession() as DatabaseSessionInternal
         val oClass = session.getOrCreateVertexClass("trista")
-        oClass.createProperty(session, "name", PropertyType.STRING)
-        oClass.createIndex(session, "idx_name", SchemaClass.INDEX_TYPE.UNIQUE, "name")
+        oClass.createProperty("name", PropertyType.STRING)
+        oClass.createIndex("idx_name", SchemaClass.INDEX_TYPE.UNIQUE, "name")
 
         session.begin() // tx1
         assertTrue(session.hasActiveTransaction())
 
         val trista1 = session.newVertex("trista")
         trista1.setProperty("name", "dvesti")
-        trista1.save()
         val trista2 = session.newVertex("trista")
         trista2.setProperty("name", "dvesti")
-        trista2.save()
 
         // if commit
         assertFailsWith<RecordDuplicatedException> { session.commit() }
 
-        assertEquals(TXSTATUS.INVALID, session.transaction.status)
+        assertEquals(TXSTATUS.INVALID, session.transactionInternal.status)
         assertFalse(session.hasActiveTransaction())
         assertTrue(session.isActiveOnCurrentThread)
 
@@ -272,49 +266,47 @@ class OTransactionLifecycleTest : OTestMixin {
     fun `embedded transactions successful case`() {
         val session = youTrackDb.openSession() as DatabaseSessionInternal
         session.getOrCreateVertexClass("trista")
-        assertEquals(TXSTATUS.INVALID, session.transaction.status)
-        assertEquals(0, session.transaction.amountOfNestedTxs())
+        assertEquals(TXSTATUS.INVALID, session.transactionInternal.status)
+        assertEquals(0, session.transactionInternal.amountOfNestedTxs())
 
         session.begin() // tx1
-        val tx1 = session.transaction
-        assertEquals(TXSTATUS.BEGUN, session.transaction.status)
-        assertEquals(1, session.transaction.amountOfNestedTxs())
+        val tx1 = session.transactionInternal
+        assertEquals(TXSTATUS.BEGUN, session.transactionInternal.status)
+        assertEquals(1, session.transactionInternal.amountOfNestedTxs())
         assertTrue(session.hasActiveTransaction())
 
         val trista1 = session.newVertex("trista")
         trista1.setProperty("name", "dvesti")
-        trista1.save()
 
         session.begin() // tx2
-        val tx2 = session.transaction
+        val tx2 = session.transactionInternal
         // Orient does not a separate transaction instance for an embedded transaction
         assertEquals(tx1, tx2)
-        assertEquals(TXSTATUS.BEGUN, session.transaction.status)
-        assertEquals(2, session.transaction.amountOfNestedTxs())
+        assertEquals(TXSTATUS.BEGUN, session.transactionInternal.status)
+        assertEquals(2, session.transactionInternal.amountOfNestedTxs())
         assertTrue(session.hasActiveTransaction())
 
         val trista2 = session.newVertex("trista")
         trista2.setProperty("name", "sth")
-        trista2.save()
 
         session.commit() // tx2
 
-        assertEquals(tx1, session.transaction)
-        assertEquals(TXSTATUS.BEGUN, session.transaction.status)
-        assertEquals(1, session.transaction.amountOfNestedTxs())
+        assertEquals(tx1, session.transactionInternal)
+        assertEquals(TXSTATUS.BEGUN, session.transactionInternal.status)
+        assertEquals(1, session.transactionInternal.amountOfNestedTxs())
         assertTrue(session.hasActiveTransaction())
 
         session.commit() // tx1
 
-        assertNotEquals(tx1, session.transaction)
-        assertIs<FrontendTransactionNoTx>(session.transaction)
+        assertNotEquals(tx1, session.transactionInternal)
+        assertIs<FrontendTransactionNoTx>(session.transactionInternal)
         assertEquals(TXSTATUS.COMPLETED, tx1.status)
-        assertEquals(TXSTATUS.INVALID, session.transaction.status)
-        assertEquals(0, session.transaction.amountOfNestedTxs())
+        assertEquals(TXSTATUS.INVALID, session.transactionInternal.status)
+        assertEquals(0, session.transactionInternal.amountOfNestedTxs())
         assertFalse(session.hasActiveTransaction())
 
         session.begin()
-        assertNotEquals(tx1, session.transaction)
+        assertNotEquals(tx1, session.transactionInternal)
         session.load<Vertex>(trista1.identity)
         session.load<Vertex>(trista2.identity)
         session.commit()
@@ -327,27 +319,25 @@ class OTransactionLifecycleTest : OTestMixin {
         session.getOrCreateVertexClass("trista")
 
         session.begin() // tx1
-        assertEquals(TXSTATUS.BEGUN, session.transaction.status)
-        assertEquals(1, session.transaction.amountOfNestedTxs())
+        assertEquals(TXSTATUS.BEGUN, session.transactionInternal.status)
+        assertEquals(1, session.transactionInternal.amountOfNestedTxs())
         assertTrue(session.hasActiveTransaction())
 
         val trista1 = session.newVertex("trista")
         trista1.setProperty("name", "dvesti")
-        trista1.save()
 
         session.begin() // tx2
-        assertEquals(TXSTATUS.BEGUN, session.transaction.status)
-        assertEquals(2, session.transaction.amountOfNestedTxs())
+        assertEquals(TXSTATUS.BEGUN, session.transactionInternal.status)
+        assertEquals(2, session.transactionInternal.amountOfNestedTxs())
         assertTrue(session.hasActiveTransaction())
 
         val trista2 = session.newVertex("trista")
         trista2.setProperty("name", "sth")
-        trista2.save()
 
         session.rollback(true)
 
-        assertEquals(TXSTATUS.INVALID, session.transaction.status)
-        assertEquals(0, session.transaction.amountOfNestedTxs())
+        assertEquals(TXSTATUS.INVALID, session.transactionInternal.status)
+        assertEquals(0, session.transactionInternal.amountOfNestedTxs())
 
         session.begin()
         try {
@@ -372,32 +362,30 @@ class OTransactionLifecycleTest : OTestMixin {
         session.getOrCreateVertexClass("trista")
 
         session.begin() // tx1
-        assertEquals(TXSTATUS.BEGUN, session.transaction.status)
-        assertEquals(1, session.transaction.amountOfNestedTxs())
+        assertEquals(TXSTATUS.BEGUN, session.transactionInternal.status)
+        assertEquals(1, session.transactionInternal.amountOfNestedTxs())
         assertTrue(session.hasActiveTransaction())
 
         val trista1 = session.newVertex("trista")
         trista1.setProperty("name", "dvesti")
-        trista1.save()
 
         session.begin() // tx2
-        assertEquals(TXSTATUS.BEGUN, session.transaction.status)
-        assertEquals(2, session.transaction.amountOfNestedTxs())
+        assertEquals(TXSTATUS.BEGUN, session.transactionInternal.status)
+        assertEquals(2, session.transactionInternal.amountOfNestedTxs())
         assertTrue(session.hasActiveTransaction())
 
         val trista2 = session.newVertex("trista")
         trista2.setProperty("name", "sth")
-        trista2.save()
 
         session.rollback()
 
-        assertEquals(TXSTATUS.ROLLBACKING, session.transaction.status)
-        assertEquals(1, session.transaction.amountOfNestedTxs())
+        assertEquals(TXSTATUS.ROLLBACKING, session.transactionInternal.status)
+        assertEquals(1, session.transactionInternal.amountOfNestedTxs())
 
         session.rollback()
 
-        assertEquals(TXSTATUS.INVALID, session.transaction.status)
-        assertEquals(0, session.transaction.amountOfNestedTxs())
+        assertEquals(TXSTATUS.INVALID, session.transactionInternal.status)
+        assertEquals(0, session.transactionInternal.amountOfNestedTxs())
 
         session.begin()
         try {
@@ -420,42 +408,40 @@ class OTransactionLifecycleTest : OTestMixin {
     fun `commit() on an embedded transaction does not validate constraints, only top level transaction validates`() {
         val session = youTrackDb.openSession()
         val oClass = session.getOrCreateVertexClass("trista")
-        oClass.createProperty(session, "name", PropertyType.STRING)
-        oClass.createIndex(session, "idx_name", SchemaClass.INDEX_TYPE.UNIQUE, "name")
+        oClass.createProperty("name", PropertyType.STRING)
+        oClass.createIndex("idx_name", SchemaClass.INDEX_TYPE.UNIQUE, "name")
 
-        session.begin() // tx1
+        val tx1 = session.begin() // tx1
         assertTrue(session.hasActiveTransaction())
 
-        session.begin() // tx2
+        val tx2 = session.begin() // tx2
         assertTrue(session.hasActiveTransaction())
 
-        val trista1 = session.newVertex("trista")
+        val trista1 = tx2.newVertex("trista")
         trista1.setProperty("name", "dvesti")
-        trista1.save()
-        val trista2 = session.newVertex("trista")
+        val trista2 = tx2.newVertex("trista")
         trista2.setProperty("name", "dvesti")
-        trista2.save()
 
-        session.commit() // tx2
-        assertFailsWith<RecordDuplicatedException> { session.commit() } // tx1
+        tx2.commit() // tx2
+        assertFailsWith<RecordDuplicatedException> { tx1.commit() } // tx1
 
         assertFalse(session.hasActiveTransaction())
 
-        session.begin()
+        val tx = session.begin()
         try {
-            session.load<DBRecord>(trista1.identity)
+            tx.load<DBRecord>(trista1.identity)
             Assert.fail()
         } catch (e: RecordNotFoundException) {
             // expected
         }
 
         try {
-            session.load<DBRecord>(trista2.identity)
+            tx.load<DBRecord>(trista2.identity)
             Assert.fail()
         } catch (e: RecordNotFoundException) {
             // expected
         }
-        session.commit()
+        tx.commit()
         session.close()
     }
 }
