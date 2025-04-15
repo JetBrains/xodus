@@ -78,7 +78,7 @@ class EncryptedDBTest(val number: Int) {
             session.schema.createVertexClass("TEST")
         }
         provider.withSession { session ->
-            session.executeInTx { tx ->
+            session.transaction { tx ->
                 val vertex = tx.newVertex("TEST")
                 vertex.setProperty("hello", "world")
             }
@@ -90,7 +90,7 @@ class EncryptedDBTest(val number: Int) {
         logger.info("Connect to db one more time and read")
         provider = YTDBDatabaseProviderFactory.createProvider(params)
         provider.withSession { session ->
-            session.executeInTx { tx ->
+            session.transaction { tx ->
                 val vertex = tx.query("SELECT FROM TEST").vertexStream().toList()
                 Assert.assertEquals(1, vertex.size)
             }
@@ -103,7 +103,7 @@ class EncryptedDBTest(val number: Int) {
         provider = YTDBDatabaseProviderFactory.createProvider(noEncryptionParams)
         try {
             provider.withSession { session ->
-                session.executeInTx { tx ->
+                session.transaction { tx ->
                     val vertex = tx.query("SELECT FROM TEST").vertexStream().toList()
                     print(vertex.size)
                 }

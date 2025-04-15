@@ -16,6 +16,7 @@
 package jetbrains.exodus.entitystore.youtrackdb
 
 import com.jetbrains.youtrack.db.api.DatabaseSession
+import com.jetbrains.youtrack.db.api.transaction.Transaction
 import com.jetbrains.youtrack.db.internal.core.db.DatabaseSessionInternal
 
 interface YTDBDatabaseProvider {
@@ -92,6 +93,11 @@ internal fun DatabaseSession.requireActiveTransaction() {
 internal fun DatabaseSession.requireNoActiveTransaction() {
     assert((this as DatabaseSessionInternal).isActiveOnCurrentThread && activeTxCount() == 0) { "Active transaction is detected. Changes in the schema must not happen in a transaction." }
 }
+
+fun <R> DatabaseSession.transaction(fn: (Transaction) -> R) {
+    computeInTx<R, Nothing>(fn)
+}
+
 //
 //internal fun requireNoActiveSession() {
 //    check(!hasActiveSession()) { "Active session is detected on the current thread" }

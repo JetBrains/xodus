@@ -48,14 +48,16 @@ class YTDBSequenceImplTest : OTestMixin {
 
     @Test
     fun `sequence may be created in one session and used in another`() {
-        val seq: Sequence = youTrackDb.store.computeInTransaction { tx ->
+        youTrackDb.store.computeInTransaction { tx ->
             tx.getSequence("s1", 300)
         }
         youTrackDb.store.executeInTransaction {
+            val seq: Sequence = it.getSequence("s1")
             Assert.assertEquals(300, seq.get())
             Assert.assertEquals(301, seq.increment())
         }
         youTrackDb.store.executeInTransaction {
+            val seq: Sequence = it.getSequence("s1")
             Assert.assertEquals(301, seq.get())
             Assert.assertEquals(302, seq.increment())
         }
@@ -63,13 +65,14 @@ class YTDBSequenceImplTest : OTestMixin {
 
     @Test
     fun `sequence_set() resets the current value`() {
-        val seq = youTrackDb.store.computeInTransaction { tx ->
+        youTrackDb.store.computeInTransaction { tx ->
             val seq = tx.getSequence("s1", 300)
             Assert.assertEquals(300, seq.get())
             Assert.assertEquals(301, seq.increment())
             seq
         }
         youTrackDb.store.executeInTransaction {
+            val seq: Sequence = it.getSequence("s1")
             seq.set(200)
             Assert.assertEquals(200, seq.get())
             Assert.assertEquals(201, seq.increment())

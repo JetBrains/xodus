@@ -592,7 +592,7 @@ class YTDBEntityIterableTest : OTestMixin {
         youTrackDb.provider.acquireSession().use { session ->
             val subIssue = session.getOrCreateVertexClass("ChildIssue")
             val issueClass = session.getOrCreateVertexClass(Issues.CLASS)
-            subIssue.setSuperClasses(listOf(issueClass))
+            subIssue.addSuperClass(issueClass)
         }
         (1..10).forEach {
             youTrackDb.createIssue("issue$it")

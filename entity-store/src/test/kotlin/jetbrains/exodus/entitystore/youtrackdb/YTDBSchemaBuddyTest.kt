@@ -56,7 +56,7 @@ class YTDBSchemaBuddyTest : OTestMixin {
             buddy.initialize(it)
         }
 
-        withSession {
+        withTxSession {
             assertEquals(issueId, buddy.getOEntityId(it, totallyExistingEntityId))
         }
     }
@@ -85,7 +85,7 @@ class YTDBSchemaBuddyTest : OTestMixin {
         val partiallyExistingEntityId1 = PersistentEntityId(issueId.typeId, 301)
         val partiallyExistingEntityId2 = PersistentEntityId(300, issueId.localId)
         val totallyExistingEntityId = PersistentEntityId(issueId.typeId, issueId.localId)
-        withSession {
+        withTxSession {
             assertEquals(RIDEntityId.EMPTY_ID, buddy.getOEntityId(it, notExistingEntityId))
             assertEquals(RIDEntityId.EMPTY_ID, buddy.getOEntityId(it, partiallyExistingEntityId1))
             assertEquals(RIDEntityId.EMPTY_ID, buddy.getOEntityId(it, partiallyExistingEntityId2))
@@ -149,17 +149,17 @@ class YTDBSchemaBuddyTest : OTestMixin {
         }
 
         // the changes made in the transaction are still there
-        withSession { session ->
+        withTxSession { session ->
             assertNotNull(session.activeTransaction.loadVertex(issId))
         }
     }
 
     @Test
     fun `require both classId and localEntityId to create an instance`() {
-        val oClass = youTrackDb.provider.withSession { oSession ->
-            oSession.createVertexClassWithClassId("type1")
+        val typeID = youTrackDb.provider.withSession { oSession ->
+            val oClass = oSession.createVertexClassWithClassId("type1")
+            oClass.requireClassId()
         }
-        val typeID = oClass.requireClassId()
         youTrackDb.provider.withSession { oSession ->
             assertEquals("type1", youTrackDb.schemaBuddy.getType(oSession, typeID))
         }

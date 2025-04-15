@@ -23,7 +23,7 @@ import com.jetbrains.youtrack.db.api.record.Vertex
 import com.jetbrains.youtrack.db.api.schema.SchemaClass
 import com.jetbrains.youtrack.db.internal.core.db.DatabaseSessionInternal
 import com.jetbrains.youtrack.db.internal.core.db.record.TrackedMultiValue
-import com.jetbrains.youtrack.db.internal.core.db.record.ridbag.RidBag
+import com.jetbrains.youtrack.db.internal.core.db.record.ridbag.LinkBag
 import com.jetbrains.youtrack.db.internal.core.id.RecordId
 import com.jetbrains.youtrack.db.internal.core.metadata.schema.SchemaClassInternal
 import com.jetbrains.youtrack.db.internal.core.record.impl.RecordBytes
@@ -359,8 +359,8 @@ open class YTDBVertexEntity(vertex: Vertex, private val store: YTDBEntityStore) 
     private fun Vertex.addTargetEntityIdIfLinkIndexed(linkName: String, targetId: RID) {
         val linkTargetEntityIdPropertyName = linkTargetEntityIdPropertyName(linkName)
         if (requireSchemaClass().existsProperty(linkTargetEntityIdPropertyName)) {
-            val bag = getProperty<RidBag>(linkTargetEntityIdPropertyName)
-                ?: RidBag(boundedToSession as DatabaseSessionInternal)
+            val bag = getProperty<LinkBag>(linkTargetEntityIdPropertyName)
+                ?: LinkBag(boundedToSession as DatabaseSessionInternal)
             bag.add(targetId)
             setProperty(linkTargetEntityIdPropertyName, bag)
         }
@@ -408,8 +408,8 @@ open class YTDBVertexEntity(vertex: Vertex, private val store: YTDBEntityStore) 
     private fun Vertex.deleteTargetEntityIdIfLinkIndexed(linkName: String, targetId: RID) {
         val linkTargetEntityIdPropertyName = linkTargetEntityIdPropertyName(linkName)
         if (requireSchemaClass().existsProperty(linkTargetEntityIdPropertyName)) {
-            val bag = getProperty<RidBag>(linkTargetEntityIdPropertyName)
-                ?: RidBag(boundedToSession as DatabaseSessionInternal)
+            val bag = getProperty<LinkBag>(linkTargetEntityIdPropertyName)
+                ?: LinkBag(boundedToSession as DatabaseSessionInternal)
             bag.remove(targetId)
             setProperty(linkTargetEntityIdPropertyName, bag)
         }
@@ -418,7 +418,7 @@ open class YTDBVertexEntity(vertex: Vertex, private val store: YTDBEntityStore) 
     private fun Vertex.deleteAllTargetEntityIdsIfLinkIndexed(linkName: String) {
         val propName = linkTargetEntityIdPropertyName(linkName)
         if (requireSchemaClass().existsProperty(propName)) {
-            setProperty(propName, RidBag(boundedToSession as DatabaseSessionInternal))
+            setProperty(propName, LinkBag(boundedToSession as DatabaseSessionInternal))
         }
     }
 
@@ -509,7 +509,7 @@ open class YTDBVertexEntity(vertex: Vertex, private val store: YTDBEntityStore) 
 
     private fun YTDBStoreTransaction.findEdge(edgeClassName: String, targetId: RID): Edge? {
         val query =
-            "SELECT FROM $edgeClassName WHERE ${Edge.DIRECTION_OUT} = :outId AND ${Edge.DIRECTION_IN} = :inId"
+            "SELECT FROM $edgeClassName WHERE outV() = :outId AND inV() = :inId"
         val result = query(query, mapOf("outId" to vertex.identity, "inId" to targetId))
         val foundEdge = result.edgeStream().findFirst()
         return foundEdge.getOrNull()
@@ -543,12 +543,12 @@ fun SchemaClass.requireClassId(): Int {
         ?: throw IllegalStateException("classId not found for ${this.name}")
 }
 
-fun Vertex.getTargetLocalEntityIds(linkName: String): RidBag {
-    return getProperty<RidBag>(linkTargetEntityIdPropertyName(linkName))
-        ?: RidBag(boundedToSession as DatabaseSessionInternal)
+fun Vertex.getTargetLocalEntityIds(linkName: String): LinkBag {
+    return getProperty<LinkBag>(linkTargetEntityIdPropertyName(linkName))
+        ?: LinkBag(boundedToSession as DatabaseSessionInternal)
 }
 
-fun Vertex.setTargetLocalEntityIds(linkName: String, ids: RidBag) {
+fun Vertex.setTargetLocalEntityIds(linkName: String, ids: LinkBag) {
     setProperty(linkTargetEntityIdPropertyName(linkName), ids)
 }
 
