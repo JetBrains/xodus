@@ -61,7 +61,12 @@ class RIDEntityId(
         if (other !is RIDEntityId) {
             throw IllegalArgumentException("Cannot compare ORIDEntityId with ${other?.javaClass?.name}")
         }
-        return oId.compareTo(other.oId)
+        val classCompare = classId.compareTo(other.classId)
+        if (classCompare == 0) {
+            return localEntityId.compareTo(other.localEntityId);
+        } else {
+            return classCompare;
+        }
     }
 
     override fun toString(): String {

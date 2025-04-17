@@ -21,6 +21,7 @@ import jetbrains.exodus.backup.BackupStrategy
 import jetbrains.exodus.bindings.ComparableBinding
 import jetbrains.exodus.entitystore.*
 import mu.withLoggingContext
+import javax.xml.crypto.Data
 
 class YTDBPersistentEntityStore(
     private val databaseProvider: YTDBDatabaseProvider,
@@ -103,7 +104,7 @@ class YTDBPersistentEntityStore(
 //        check(!hasActiveSession()) { "There is an active session on the current thread" }
         check(!tx.isFinished) { "Cannot activate a finished transaction" }
         check(!session.isClosed) { "Cannot activate a closed session" }
-        (session as DatabaseSessionInternal).activateOnCurrentThread()
+//        (session as DatabaseSessionInternal).activateOnCurrentThread()
         currentTransaction.set(tx)
     }
 

@@ -60,22 +60,6 @@ class YTDBDatabaseProviderImpl(
         return acquireSessionImpl(true)
     }
 
-    override fun <T> executeInASeparateSession(
-        currentSession: DatabaseSession,
-        action: (DatabaseSession) -> T
-    ): T {
-        val result = try {
-            acquireSessionImpl(checkNoActiveSession = false).use { session ->
-                action(session)
-            }
-        } finally {
-            // the previous session does not get activated on the current thread by default
-            assert(!(currentSession as DatabaseSessionInternal).isActiveOnCurrentThread)
-            currentSession.activateOnCurrentThread()
-        }
-        return result
-    }
-
     // it is always false at the beginning (it is impossible to close the database in the frozen state)
     private var _readOnly: Boolean = false
 

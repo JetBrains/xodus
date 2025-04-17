@@ -300,8 +300,8 @@ internal fun Vertex.addIndexedEdge(linkName: String, target: Vertex) {
 }
 
 internal fun Vertex.deleteIndexedEdge(linkName: String, target: Vertex) {
-    val bag = getTargetLocalEntityIds(linkName)
+//    val bag = getTargetLocalEntityIds(linkName)
     target.delete()
-    bag.remove(target.identity)
-    setTargetLocalEntityIds(linkName, bag)
+//    bag.remove(target.identity)
+//    setTargetLocalEntityIds(linkName, bag)
 }

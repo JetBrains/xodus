@@ -491,10 +491,10 @@ class YTDBStoreTransactionTest : OTestMixin {
             val issuesAsc = tx.sortLinks(
                 Issues.CLASS, // entity class
                 tx.sort(Projects.CLASS, "name", links, false), // links sorted desc by name
-                false, // is multiple
+                true, // is multiple
                 Issues.Links.IN_PROJECT, // link name
                 issues // entities
-            ).distinct()
+            )
 
             // Then
             assertNamesExactlyInOrder(issuesAsc, "issue3", "issue2", "issue1")

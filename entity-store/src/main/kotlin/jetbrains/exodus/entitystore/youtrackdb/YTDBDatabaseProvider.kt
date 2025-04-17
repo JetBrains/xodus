@@ -24,18 +24,6 @@ interface YTDBDatabaseProvider {
     fun acquireSession(): DatabaseSession
 
     /**
-     * If there is a session on the current thread, create a new session, executes the action in it,
-     * and returns the previous session back to the current thread.
-     *
-     * Never use this method. If you use this method, make sure you 100% understand what happens,
-     * and do not hesitate to invite people to review your code.
-     */
-    fun <T> executeInASeparateSession(
-        currentSession: DatabaseSession,
-        action: (DatabaseSession) -> T
-    ): T
-
-    /**
      * Database-wise read-only mode.
      * Always false by default.
      */
@@ -86,9 +74,9 @@ internal fun DatabaseSession.hasActiveTransaction(): Boolean {
     return (this as DatabaseSessionInternal).isActiveOnCurrentThread && activeTxCount() > 0
 }
 
-internal fun DatabaseSession.requireActiveTransaction() {
-    require(hasActiveTransaction()) { "No active transaction is found. Happy debugging, pal!" }
-}
+//internal fun DatabaseSession.requireActiveTransaction() {
+//    require(hasActiveTransaction()) { "No active transaction is found. Happy debugging, pal!" }
+//}
 
 internal fun DatabaseSession.requireNoActiveTransaction() {
     assert((this as DatabaseSessionInternal).isActiveOnCurrentThread && activeTxCount() == 0) { "Active transaction is detected. Changes in the schema must not happen in a transaction." }
