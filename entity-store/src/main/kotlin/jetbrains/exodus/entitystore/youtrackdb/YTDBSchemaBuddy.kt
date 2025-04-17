@@ -199,7 +199,7 @@ class YTDBSchemaBuddyImpl(
             return RIDEntityId.EMPTY_ID
         }
 
-        return RIDEntityId(classId, localEntityId, oid, oClass)
+        return RIDEntityId(classId, localEntityId, oid, oClass.name)
     }
 
     override fun getTypeId(session: DatabaseSession, entityType: String): Int {

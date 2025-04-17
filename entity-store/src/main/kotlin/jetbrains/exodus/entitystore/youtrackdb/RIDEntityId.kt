@@ -25,7 +25,7 @@ class RIDEntityId(
     private val classId: Int,
     private val localEntityId: Long,
     private val oId: RID,
-    private val schemaClass: SchemaClass?
+    private val schemaClassName: String?
 ) : YTDBEntityId {
 
     companion object {
@@ -37,7 +37,7 @@ class RIDEntityId(
             val oClass = vertex.requireSchemaClass()
             val classId = oClass.requireClassId()
             val localEntityId = vertex.requireLocalEntityId()
-            return RIDEntityId(classId, localEntityId, vertex.identity, oClass)
+            return RIDEntityId(classId, localEntityId, vertex.identity, oClass.name)
         }
     }
 
@@ -50,7 +50,7 @@ class RIDEntityId(
     }
 
     override fun getTypeName(): String {
-        return schemaClass?.name ?: "typeNotFound"
+        return schemaClassName ?: "typeNotFound"
     }
 
     override fun getLocalId(): Long {
