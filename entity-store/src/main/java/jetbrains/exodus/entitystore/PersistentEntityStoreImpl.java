@@ -318,12 +318,9 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         var blobHandles = new LongHashSet();
         var blobSource = blobVault.getSourceVault();
         if (blobSource instanceof FileSystemBlobVaultOld) {
-            var blobHandleIterator = ((FileSystemBlobVaultOld) blobSource).storedBlobHandles();
+            var blobHandleStream = ((FileSystemBlobVaultOld) blobSource).storedBlobHandles();
             logger.info("Database: {}. Collecting existing BLOBs ...", getLocation());
-            while (blobHandleIterator.hasNext()) {
-                blobHandles.add(blobHandleIterator.next());
-            }
-
+            blobHandleStream.forEach(blobHandles::add);
             if (blobHandles.isEmpty()) {
                 logger.info("Database: {}. No BLOBs were found in the BLOB vault.", getLocation());
                 return;
@@ -349,6 +346,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
             }
 
             var processed = 0;
+            var embeddedBlobReferences = 0;
             var reportInterval = refCount / 100;
             var lasReported = reportInterval;
 
@@ -361,12 +359,28 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                     while (cursor.getNext()) {
                         var value = cursor.getValue();
                         var blobHandle = entryToBlobHandle(value);
-                        blobHandles.remove(blobHandle);
 
+                        if (blobHandle == EMPTY_BLOB_HANDLE ||
+                                blobHandle == IN_PLACE_BLOB_HANDLE ||
+                                blobHandle == IN_PLACE_BLOB_REFERENCE_HANDLE) {
+                            processed++;
+                            embeddedBlobReferences++;
+
+                            if (processed > lasReported) {
+                                logger.info("Database: {}. {} BLOB references were checked. From them references on embedded blobs {}.",
+                                        getLocation(), processed, embeddedBlobReferences);
+                                lasReported += reportInterval;
+                            }
+
+                            continue;
+                        }
+
+                        blobHandles.remove(blobHandle);
                         processed++;
 
                         if (processed > lasReported) {
-                            logger.info("Database: {}. {} BLOB references were checked.", getLocation(), processed);
+                            logger.info("Database: {}. {} BLOB references were checked. From them references on embedded blobs {}.",
+                                    getLocation(), processed, embeddedBlobReferences);
                             lasReported += reportInterval;
                         }
                     }
