@@ -24,7 +24,6 @@ import com.jetbrains.youtrack.db.api.schema.SchemaClass
 import com.jetbrains.youtrack.db.internal.core.db.DatabaseSessionInternal
 import com.jetbrains.youtrack.db.internal.core.db.record.TrackedMultiValue
 import com.jetbrains.youtrack.db.internal.core.db.record.ridbag.LinkBag
-import com.jetbrains.youtrack.db.internal.core.id.RecordId
 import com.jetbrains.youtrack.db.internal.core.metadata.schema.SchemaClassInternal
 import com.jetbrains.youtrack.db.internal.core.record.impl.RecordBytes
 import jetbrains.exodus.ByteIterable
@@ -130,12 +129,8 @@ open class YTDBVertexEntity(vertex: Vertex, private val store: YTDBEntityStore) 
     }
 
     override fun resetToNew() {
-        val identity = vertexRecord.identity as RecordId
-        val collectionId = identity.collectionId
-        identity.reset()
-
-        identity.collectionId = collectionId
-//        vertexRecord = (store.databaseSession as DatabaseSessionInternal).newVertex(identity)
+        val className = vertexRecord.schemaClassName
+        vertexRecord = (store.databaseSession as DatabaseSessionInternal).newVertex(className)
     }
 
     override fun generateId() {
@@ -165,11 +160,11 @@ open class YTDBVertexEntity(vertex: Vertex, private val store: YTDBEntityStore) 
 
     override fun setProperty(propertyName: String, value: Comparable<*>): Boolean {
         requireActiveWritableTransaction()
-        val oldProperty = vertex.getProperty<Any>(propertyName)
+        val oldValue = vertex.getProperty<Any>(propertyName)
 
-        if (value is YTDBComparableSet<*> || oldProperty is MutableSet<*>) {
-            return setPropertyAsSet(propertyName, value as YTDBComparableSet<*>)
-        } else if (oldProperty == value) {
+        if (value is MutableSet<*> || oldValue is MutableSet<*>) {
+            return setPropertyAsSet(propertyName, value)
+        } else if (oldValue == value) {
             return false
         } else {
             vertex.setProperty(propertyName, value)
@@ -177,17 +172,27 @@ open class YTDBVertexEntity(vertex: Vertex, private val store: YTDBEntityStore) 
         }
     }
 
-    private fun setPropertyAsSet(propertyName: String, value: Any?): Boolean {
-        val theSet = if (value is YTDBComparableSet<*>) value.source else value as MutableSet<*>
-        val it = theSet.iterator()
-
-        // we can suppress unchecked cast here because "newLinkSet" validates the input
-        @Suppress("UNCHECKED_CAST") val databaseSet =
-            if (it.hasNext() && it.next() is Identifiable)
-                store.databaseSession.newLinkSet(theSet as MutableSet<Identifiable>)
-            else store.databaseSession.newEmbeddedSet(theSet)
+    private fun setPropertyAsSet(propertyName: String, newValue: Any?): Boolean {
+        val set = when (newValue) {
+            is YTDBComparableSet<*> -> newValue.source
+            is MutableSet<*> -> newValue
+            else -> throw IllegalArgumentException("Unexpected value: $newValue")
+        }
+        val databaseSet =
+            if (set is TrackedMultiValue<*, *>) set
+            else {
+                val it = set.iterator()
+                if (it.hasNext() && it.next() is Identifiable) {
+                    // we can suppress unchecked cast here because "newLinkSet" validates the input
+                    @Suppress("UNCHECKED_CAST")
+                    store.databaseSession.newLinkSet(set as MutableSet<Identifiable>)
+                } else {
+                    store.databaseSession.newEmbeddedSet(set)
+                }
+            }
 
         vertex.setProperty(propertyName, databaseSet)
+
         return vertex.getProperty<TrackedMultiValue<*, *>>(propertyName)?.isTransactionModified == true
     }
 
