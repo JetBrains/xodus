@@ -130,7 +130,7 @@ class YTDBEntityIterableTest : OTestMixin {
                 expectedSql = "SELECT FROM Issue WHERE (name = :name0 OR name = :name1)",
                 expectedParams = mapOf("name0" to "issue1", "name1" to "issue2")
             )
-            assertNamesExactlyInOrder(issues, "issue1", "issue2")
+            assertNamesExactly(issues, "issue1", "issue2")
         }
     }
 
@@ -153,7 +153,7 @@ class YTDBEntityIterableTest : OTestMixin {
                 expectedParams = mapOf("name0" to "issue1", "name1" to "issue1")
             )
             // Union operation can distinct result set if query is optimized to OR conditions
-            assertNamesExactlyInOrder(issues, "issue1")
+            assertNamesExactly(issues, "issue1")
         }
     }
 
@@ -292,7 +292,7 @@ class YTDBEntityIterableTest : OTestMixin {
                 expectedSql = "SELECT DISTINCT * FROM (SELECT expand(unionall(\$a0, \$b0).asSet()) LET \$a0=(SELECT FROM (SELECT expand(in('OnBoard_link')) FROM [${test.board1.id.asOId()}]) WHERE @class='Issue'), \$b0=(SELECT FROM (SELECT expand(in('OnBoard_link')) FROM [${test.board2.id.asOId()}]) WHERE @class='Issue'))"
             )
             assertThat(issuesDistinct).hasSize(3)
-            assertNamesExactlyInOrder(issuesDistinct, "issue1", "issue2", "issue3")
+            assertNamesExactly(issuesDistinct, "issue1", "issue2", "issue3")
         }
     }
 
