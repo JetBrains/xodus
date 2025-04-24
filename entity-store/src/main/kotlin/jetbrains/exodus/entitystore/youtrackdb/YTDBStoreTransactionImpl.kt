@@ -241,11 +241,12 @@ class YTDBStoreTransactionImpl(
     override fun getEntity(id: EntityId): Entity {
         val tx = requireActiveTransaction()
         val oId = store.requireOEntityId(id)
-        if (oId == RIDEntityId.EMPTY_ID) {
+        val ytdbId = oId.asOId()
+        if (ytdbId == ImmutableRecordId.EMPTY_RECORD_ID) {
             throw EntityRemovedInDatabaseException(oId.getTypeName(), id)
         }
         try {
-            val vertex: Vertex = tx.load(oId.asOId())
+            val vertex: Vertex = tx.load(ytdbId)
             return YTDBVertexEntity(vertex, store)
         } catch (_: RecordNotFoundException) {
             throw EntityRemovedInDatabaseException(oId.getTypeName(), id)
