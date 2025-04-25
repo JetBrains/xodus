@@ -735,27 +735,6 @@ class YTDBStoreTransactionTest : OTestMixin {
         }
     }
 
-//    @Test
-//    fun `active session still has an active transaction after flush`() {
-//        assertFailsWith<DatabaseException> { DatabaseRecordThreadLocal.instance().get() }
-//        withStoreTx { tx ->
-//            DatabaseRecordThreadLocal.instance().get().requireActiveTransaction()
-//            tx.flush()
-//            DatabaseRecordThreadLocal.instance().get().requireActiveTransaction()
-//        }
-//    }
-
-//    @Test
-//    fun `transactionId does not get changed on flush()`() {
-//        withStoreTx { tx ->
-//            val oTransactionId =
-//                DatabaseRecordThreadLocal.instance().get().transaction.id
-//            assertEquals(oTransactionId, tx.getTransactionId())
-//            tx.flush()
-//            assertEquals(oTransactionId, tx.getTransactionId())
-//        }
-//    }
-
     @Test
     fun `deactivate, activate transactions`() {
         // TX1

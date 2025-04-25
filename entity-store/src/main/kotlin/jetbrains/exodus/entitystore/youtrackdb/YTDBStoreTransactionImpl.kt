@@ -132,7 +132,6 @@ class YTDBStoreTransactionImpl(
 
     override fun activateOnCurrentThread() {
         check(session.status == DatabaseSession.STATUS.OPEN) { "The transaction is finished, the internal session state: ${session.status}" }
-//        check(!(session as DatabaseSessionInternal).isActiveOnCurrentThread) { "The transaction is already active on the current thread" }
         onActivated(session, this)
     }
 

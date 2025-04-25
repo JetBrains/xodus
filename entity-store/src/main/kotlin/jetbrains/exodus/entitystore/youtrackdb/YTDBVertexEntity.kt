@@ -343,7 +343,7 @@ open class YTDBVertexEntity(vertex: Vertex, private val store: YTDBEntityStore) 
          */
         val currentEdge: Edge? =
             if ((edgeClass as SchemaClassInternal).areIndexed(
-                    databaseSession as DatabaseSessionInternal,
+                    vertex.boundedToSession as DatabaseSessionInternal,
                     Edge.DIRECTION_IN,
                     Edge.DIRECTION_OUT
                 )

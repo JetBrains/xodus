@@ -96,15 +96,12 @@ class YTDBPersistentEntityStore(
         check(!tx.isFinished) { "Cannot deactivate a finished transaction" }
         check(!session.isClosed) { "Cannot deactivate a closed session" }
         currentTransaction.remove()
-//        DatabaseRecordThreadLocal.instance().remove()
     }
 
     private fun onTransactionActivated(session: DatabaseSession, tx: YTDBStoreTransaction) {
         check(currentTransaction.get() == null) { "Impossible to activate the transaction. There is already an active transaction on the current thread." }
-//        check(!hasActiveSession()) { "There is an active session on the current thread" }
         check(!tx.isFinished) { "Cannot activate a finished transaction" }
         check(!session.isClosed) { "Cannot activate a closed session" }
-//        (session as DatabaseSessionInternal).activateOnCurrentThread()
         currentTransaction.set(tx)
     }
 
@@ -135,14 +132,14 @@ class YTDBPersistentEntityStore(
             tx.commit()
             return result
         } finally {
-            try {
+//            try {
                 if (!tx.isFinished) {
                     tx.abort()
                 }
-            } catch (e: Throwable) {
-                println("Error while calling abort on transaction $tx: ${e.message}")
-                e.printStackTrace()
-            }
+//            } catch (e: Throwable) {
+//                println("Error while calling abort on transaction $tx: ${e.message}")
+//                e.printStackTrace()
+//            }
         }
     }
 

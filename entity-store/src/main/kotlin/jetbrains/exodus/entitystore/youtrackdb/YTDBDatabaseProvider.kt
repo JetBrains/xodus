@@ -40,58 +40,10 @@ fun <R> YTDBDatabaseProvider.withSession(block: (DatabaseSession) -> R): R {
     }
 }
 
-//fun <R> YTDBDatabaseProvider.withCurrentOrNewSession(
-//    requireNoActiveTransaction: Boolean = false,
-//    block: (DatabaseSession) -> R
-//): R {
-//    return if (hasActiveSession()) {
-//        val activeSession = DatabaseRecordThreadLocal.instance().getIfDefined() as DatabaseSession
-//        if (requireNoActiveTransaction) {
-//            if (activeSession.isTxActive) {
-//                val copy = (activeSession as DatabaseSessionInternal).copy()
-//                copy.activateOnCurrentThread()
-//                try {
-//                    copy.use {
-//                        block(copy)
-//                    }
-//                } finally {
-//                    activeSession.activateOnCurrentThread()
-//                }
-//            } else {
-//                block(activeSession)
-//            }
-//        } else {
-//            block(activeSession)
-//        }
-//    } else {
-//        withSession { newSession ->
-//            block(newSession)
-//        }
-//    }
-//}
-
 internal fun DatabaseSession.hasActiveTransaction(): Boolean {
     return (this as DatabaseSessionInternal).isActiveOnCurrentThread && activeTxCount() > 0
 }
 
-//internal fun DatabaseSession.requireActiveTransaction() {
-//    require(hasActiveTransaction()) { "No active transaction is found. Happy debugging, pal!" }
-//}
-
 internal fun DatabaseSession.requireNoActiveTransaction() {
     assert((this as DatabaseSessionInternal).isActiveOnCurrentThread && activeTxCount() == 0) { "Active transaction is detected. Changes in the schema must not happen in a transaction." }
 }
-
-fun <R> DatabaseSession.transaction(fn: (Transaction) -> R) {
-    computeInTx<R, Nothing>(fn)
-}
-
-//
-//internal fun requireNoActiveSession() {
-//    check(!hasActiveSession()) { "Active session is detected on the current thread" }
-//}
-//
-//internal fun hasActiveSession(): Boolean {
-//    val db = DatabaseRecordThreadLocal.instance().getIfDefined()
-//    return db != null
-//}

@@ -57,7 +57,7 @@ class YTDBDatabaseProviderImpl(
         get() = File(params.databasePath, params.databaseName).absolutePath
 
     override fun acquireSession(): DatabaseSession {
-        return acquireSessionImpl(true)
+        return acquireSessionImpl()
     }
 
     // it is always false at the beginning (it is impossible to close the database in the frozen state)
@@ -67,7 +67,6 @@ class YTDBDatabaseProviderImpl(
         get() = _readOnly
         set(value) {
             if (_readOnly == value) return
-//            requireNoActiveSession()
 
             withSession { session ->
                 if (value) {
@@ -80,10 +79,7 @@ class YTDBDatabaseProviderImpl(
             _readOnly = value
         }
 
-    private fun acquireSessionImpl(checkNoActiveSession: Boolean = true): DatabaseSession {
-//        if (checkNoActiveSession) {
-//            requireNoActiveSession()
-//        }
+    private fun acquireSessionImpl(): DatabaseSession {
         return database.cachedPool(
             params.databaseName,
             params.userName,

@@ -96,9 +96,6 @@ class InMemoryYouTrackDB(
             }
             return result
         } finally {
-//            if (!session.hasActiveTransaction()) {
-//                session.rollback()
-//            }
             if (!session.isClosed) {
                 session.close()
             }
