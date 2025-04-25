@@ -31,26 +31,25 @@ class RIDEntityIdTest {
 
     @Test
     fun `require both classId and localEntityId to create an instance`() {
-        val oClass = youTrackDb.provider.withSession { oSession ->
-            oSession.createVertexClass("type1")
+        youTrackDb.provider.withSession { oSession ->
+            oSession.schema.createVertexClass("type1")
         }
         var vertex: Vertex = youTrackDb.withTxSession { oSession ->
-            val v = oSession.newVertex(oClass)
-            v.save()
-            v
+            oSession.activeTransaction.newVertex("type1")
         }
         youTrackDb.withTxSession {
             assertFailsWith<IllegalStateException> {
-                vertex = it.bindToSession(vertex)
+                vertex = it.activeTransaction.loadVertex(vertex)
                 RIDEntityId.fromVertex(vertex)
             }
         }
 
-        youTrackDb.provider.withSession {
-            oClass.setCustom(it, YTDBVertexEntity.CLASS_ID_CUSTOM_PROPERTY_NAME, 300.toString())
+        youTrackDb.provider.withSession { oSession ->
+            val oClass = oSession.schema.getClass("type1")
+            oClass.setCustom(YTDBVertexEntity.CLASS_ID_CUSTOM_PROPERTY_NAME, 300.toString())
         }
         youTrackDb.withTxSession {
-            vertex = it.bindToSession(vertex)
+            vertex = it.activeTransaction.loadVertex(vertex)
             assertFailsWith<IllegalStateException> {
                 RIDEntityId.fromVertex(vertex)
             }

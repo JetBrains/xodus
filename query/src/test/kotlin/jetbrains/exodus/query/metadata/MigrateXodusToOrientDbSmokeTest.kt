@@ -108,8 +108,8 @@ class MigrateXodusToOrientDbSmokeTest {
 
     private fun YTDBDatabaseProvider.checkSchemaCreated() {
         withSession { session ->
-            val type1 = session.getClass("type1")!!
-            val type2 = session.getClass("type2")!!
+            val type1 = session.schema.getClass("type1")!!
+            val type2 = session.schema.getClass("type2")!!
 
             assertTrue(type1.existsProperty("prop4"))
             assertTrue(type1.existsProperty(Vertex.getEdgeLinkFieldName(Direction.IN, "link1".asEdgeClass)))

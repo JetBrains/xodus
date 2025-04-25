@@ -34,13 +34,13 @@ fun <R> PersistentEntityStore.withReadonlyTx(block: (StoreTransaction) -> R): R 
 }
 
 fun <R> DatabaseSession.withTx(block: (DatabaseSession) -> R): R {
-    this.begin()
+    val tx = this.begin()
     try {
         val result = block(this)
-        this.commit()
+        tx.commit()
         return result
     } catch(e: Throwable) {
-        this.rollback()
+        tx.rollback()
         throw e
     }
 }

@@ -53,7 +53,7 @@ class EncryptedDBTest(val number: Int) {
             .withDatabasePath(databasePath)
             .withPassword(password)
             .withUserName(username)
-            .withDatabaseType(DatabaseType.PLOCAL)
+            .withDatabaseType(DatabaseType.DISK)
             .withDatabaseName(dbName)
             .withCloseDatabaseInDbProvider(true)
             .apply { encryptionKey?.let { withEncryptionKey(it) } }
@@ -75,13 +75,12 @@ class EncryptedDBTest(val number: Int) {
 
         provider = YTDBDatabaseProviderFactory.createProvider(params)
         provider.withSession { session ->
-            session.createVertexClass("TEST")
+            session.schema.createVertexClass("TEST")
         }
         provider.withSession { session ->
-            session.executeInTx {
-                val vertex = session.newVertex("TEST")
+            session.transaction { tx ->
+                val vertex = tx.newVertex("TEST")
                 vertex.setProperty("hello", "world")
-                vertex.save()
             }
         }
         provider.close()
@@ -91,8 +90,8 @@ class EncryptedDBTest(val number: Int) {
         logger.info("Connect to db one more time and read")
         provider = YTDBDatabaseProviderFactory.createProvider(params)
         provider.withSession { session ->
-            session.executeInTx {
-                val vertex = session.query("SELECT FROM TEST").vertexStream().toList()
+            session.transaction { tx ->
+                val vertex = tx.query("SELECT FROM TEST").vertexStream().toList()
                 Assert.assertEquals(1, vertex.size)
             }
         }
@@ -104,8 +103,8 @@ class EncryptedDBTest(val number: Int) {
         provider = YTDBDatabaseProviderFactory.createProvider(noEncryptionParams)
         try {
             provider.withSession { session ->
-                session.executeInTx {
-                    val vertex = session.query("SELECT FROM TEST").vertexStream().toList()
+                session.transaction { tx ->
+                    val vertex = tx.query("SELECT FROM TEST").vertexStream().toList()
                     print(vertex.size)
                 }
             }

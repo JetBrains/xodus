@@ -111,15 +111,15 @@ internal fun DatabaseSession.addAssociation(
     inPropName: String
 ) {
     val fromClass =
-        getClass(fromClassName) ?: throw IllegalStateException("$fromClassName not found")
-    val toClass = getClass(toClassName) ?: throw IllegalStateException("$toClassName not found")
+        schema.getClass(fromClassName) ?: throw IllegalStateException("$fromClassName not found")
+    val toClass = schema.getClass(toClassName) ?: throw IllegalStateException("$toClassName not found")
     val inEdgeName = YTDBVertexEntity.edgeClassName(inPropName)
     val outEdgeName = YTDBVertexEntity.edgeClassName(outPropName)
-    getClass(inEdgeName) ?: this.createEdgeClass(inEdgeName)
-    getClass(outEdgeName) ?: this.createEdgeClass(outEdgeName)
+    schema.getClass(inEdgeName) ?: this.schema.createEdgeClass(inEdgeName)
+    schema.getClass(outEdgeName) ?: this.schema.createEdgeClass(outEdgeName)
 
     val linkInPropName = Vertex.getEdgeLinkFieldName(Direction.IN, inEdgeName)
     val linkOutPropName = Vertex.getEdgeLinkFieldName(Direction.OUT, outEdgeName)
-    fromClass.createProperty(this, linkOutPropName, PropertyType.LINKBAG)
-    toClass.createProperty(this, linkInPropName, PropertyType.LINKBAG)
+    fromClass.createProperty(linkOutPropName, PropertyType.LINKBAG)
+    toClass.createProperty(linkInPropName, PropertyType.LINKBAG)
 }

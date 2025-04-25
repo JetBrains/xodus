@@ -17,6 +17,7 @@ package jetbrains.exodus.entitystore.youtrackdb
 
 import com.jetbrains.youtrack.db.api.DatabaseSession
 import com.jetbrains.youtrack.db.api.YouTrackDB
+import com.jetbrains.youtrack.db.internal.core.db.DatabaseSessionInternal
 import java.io.File
 
 //username and password are considered to be same for all databases
@@ -56,23 +57,7 @@ class YTDBDatabaseProviderImpl(
         get() = File(params.databasePath, params.databaseName).absolutePath
 
     override fun acquireSession(): DatabaseSession {
-        return acquireSessionImpl(true)
-    }
-
-    override fun <T> executeInASeparateSession(
-        currentSession: DatabaseSession,
-        action: (DatabaseSession) -> T
-    ): T {
-        val result = try {
-            acquireSessionImpl(checkNoActiveSession = false).use { session ->
-                action(session)
-            }
-        } finally {
-            // the previous session does not get activated on the current thread by default
-            assert(!currentSession.isActiveOnCurrentThread)
-            currentSession.activateOnCurrentThread()
-        }
-        return result
+        return acquireSessionImpl()
     }
 
     // it is always false at the beginning (it is impossible to close the database in the frozen state)
@@ -82,7 +67,6 @@ class YTDBDatabaseProviderImpl(
         get() = _readOnly
         set(value) {
             if (_readOnly == value) return
-            requireNoActiveSession()
 
             withSession { session ->
                 if (value) {
@@ -95,10 +79,7 @@ class YTDBDatabaseProviderImpl(
             _readOnly = value
         }
 
-    private fun acquireSessionImpl(checkNoActiveSession: Boolean = true): DatabaseSession {
-        if (checkNoActiveSession) {
-            requireNoActiveSession()
-        }
+    private fun acquireSessionImpl(): DatabaseSession {
         return database.cachedPool(
             params.databaseName,
             params.userName,

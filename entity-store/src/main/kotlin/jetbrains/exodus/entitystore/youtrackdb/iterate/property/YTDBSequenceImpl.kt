@@ -15,20 +15,22 @@
  */
 package jetbrains.exodus.entitystore.youtrackdb.iterate.property
 
+import com.jetbrains.youtrack.db.internal.core.db.DatabaseSessionInternal
 import com.jetbrains.youtrack.db.internal.core.metadata.sequence.DBSequence
 import jetbrains.exodus.entitystore.Sequence
 import jetbrains.exodus.entitystore.youtrackdb.YTDBPersistentEntityStore
 
 internal class YTDBSequenceImpl(
+    private val session: DatabaseSessionInternal,
     private val sequenceName: String,
     private val store: YTDBPersistentEntityStore
 ) : Sequence {
     override fun increment(): Long {
-        return getOSequence().next()
+        return getOSequence().next(session)
     }
 
     override fun get(): Long {
-        return getOSequence().current()
+        return getOSequence().current(session)
     }
 
     override fun set(l: Long) {

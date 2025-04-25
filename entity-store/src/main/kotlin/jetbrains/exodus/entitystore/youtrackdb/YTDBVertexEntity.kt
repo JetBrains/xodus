@@ -17,16 +17,20 @@ package jetbrains.exodus.entitystore.youtrackdb
 
 import com.jetbrains.youtrack.db.api.record.Direction
 import com.jetbrains.youtrack.db.api.record.Edge
+import com.jetbrains.youtrack.db.api.record.Identifiable
 import com.jetbrains.youtrack.db.api.record.RID
 import com.jetbrains.youtrack.db.api.record.Vertex
 import com.jetbrains.youtrack.db.api.schema.SchemaClass
 import com.jetbrains.youtrack.db.internal.core.db.DatabaseSessionInternal
-import com.jetbrains.youtrack.db.internal.core.db.record.TrackedSet
-import com.jetbrains.youtrack.db.internal.core.db.record.ridbag.RidBag
-import com.jetbrains.youtrack.db.internal.core.id.RecordId
+import com.jetbrains.youtrack.db.internal.core.db.record.TrackedMultiValue
+import com.jetbrains.youtrack.db.internal.core.db.record.ridbag.LinkBag
+import com.jetbrains.youtrack.db.internal.core.metadata.schema.SchemaClassInternal
 import com.jetbrains.youtrack.db.internal.core.record.impl.RecordBytes
 import jetbrains.exodus.ByteIterable
-import jetbrains.exodus.entitystore.*
+import jetbrains.exodus.entitystore.Entity
+import jetbrains.exodus.entitystore.EntityId
+import jetbrains.exodus.entitystore.EntityIterable
+import jetbrains.exodus.entitystore.EntityRemovedInDatabaseException
 import jetbrains.exodus.entitystore.youtrackdb.YTDBVertexEntity.Companion.CLASS_ID_CUSTOM_PROPERTY_NAME
 import jetbrains.exodus.entitystore.youtrackdb.YTDBVertexEntity.Companion.LOCAL_ENTITY_ID_PROPERTY_NAME
 import jetbrains.exodus.entitystore.youtrackdb.YTDBVertexEntity.Companion.linkTargetEntityIdPropertyName
@@ -48,10 +52,10 @@ open class YTDBVertexEntity(vertex: Vertex, private val store: YTDBEntityStore) 
         private const val BLOB_SIZE_PROPERTY_NAME_SUFFIX = "_blob_size"
         private const val STRING_BLOB_HASH_PROPERTY_NAME_SUFFIX = "_string_blob_hash"
         fun blobSizeProperty(propertyName: String) =
-            "\$$propertyName$BLOB_SIZE_PROPERTY_NAME_SUFFIX"
+            "_$propertyName$BLOB_SIZE_PROPERTY_NAME_SUFFIX"
 
         fun blobHashProperty(propertyName: String) =
-            "\$$propertyName$STRING_BLOB_HASH_PROPERTY_NAME_SUFFIX"
+            "_$propertyName$STRING_BLOB_HASH_PROPERTY_NAME_SUFFIX"
 
         // Backward compatible EntityId
 
@@ -125,12 +129,8 @@ open class YTDBVertexEntity(vertex: Vertex, private val store: YTDBEntityStore) 
     }
 
     override fun resetToNew() {
-        val identity = vertexRecord.identity as RecordId
-        val clusterId = identity.clusterId
-        identity.reset()
-
-        identity.clusterId = clusterId
-        vertexRecord = (store.databaseSession as DatabaseSessionInternal).newVertex(identity)
+        val className = vertexRecord.schemaClassName
+        vertexRecord = (store.databaseSession as DatabaseSessionInternal).newVertex(className)
     }
 
     override fun generateId() {
@@ -160,34 +160,46 @@ open class YTDBVertexEntity(vertex: Vertex, private val store: YTDBEntityStore) 
 
     override fun setProperty(propertyName: String, value: Comparable<*>): Boolean {
         requireActiveWritableTransaction()
-        val oldProperty = vertex.getProperty<Any>(propertyName)
+        val oldValue = vertex.getProperty<Any>(propertyName)
 
-        if (value is YTDBComparableSet<*> || oldProperty is MutableSet<*>) {
-            return setPropertyAsSet(propertyName, value as YTDBComparableSet<*>)
-        } else if (oldProperty == value) {
+        if (value is MutableSet<*> || oldValue is MutableSet<*>) {
+            return setPropertyAsSet(propertyName, value)
+        } else if (oldValue == value) {
             return false
         } else {
             vertex.setProperty(propertyName, value)
-            vertex.save()
             return true
         }
     }
 
-    private fun setPropertyAsSet(propertyName: String, value: Any?): Boolean {
-        if (value is YTDBComparableSet<*>) {
-            vertex.setProperty(propertyName, value.source)
-        } else {
-            vertex.setProperty(propertyName, value)
+    private fun setPropertyAsSet(propertyName: String, newValue: Any?): Boolean {
+        val set = when (newValue) {
+            is YTDBComparableSet<*> -> newValue.source
+            is MutableSet<*> -> newValue
+            else -> throw IllegalArgumentException("Unexpected value: $newValue")
         }
-        vertex.save()
-        return vertex.getProperty<TrackedSet<*>>(propertyName)?.isTransactionModified == true
+        val databaseSet =
+            if (set is TrackedMultiValue<*, *>) set
+            else {
+                val it = set.iterator()
+                if (it.hasNext() && it.next() is Identifiable) {
+                    // we can suppress unchecked cast here because "newLinkSet" validates the input
+                    @Suppress("UNCHECKED_CAST")
+                    store.databaseSession.newLinkSet(set as MutableSet<Identifiable>)
+                } else {
+                    store.databaseSession.newEmbeddedSet(set)
+                }
+            }
+
+        vertex.setProperty(propertyName, databaseSet)
+
+        return vertex.getProperty<TrackedMultiValue<*, *>>(propertyName)?.isTransactionModified == true
     }
 
     override fun deleteProperty(propertyName: String): Boolean {
         requireActiveWritableTransaction()
         if (vertex.hasProperty(propertyName)) {
             vertex.removeProperty<Any>(propertyName)
-            vertex.save()
             return true
         } else {
             return false
@@ -228,10 +240,9 @@ open class YTDBVertexEntity(vertex: Vertex, private val store: YTDBEntityStore) 
         }
 
         val allBytes = blob.readAllBytes()
-        val oBlob = RecordBytes(allBytes)
+        val oBlob = store.databaseSession.activeTransaction.newBlob(allBytes)
         vertex.setProperty(blobName, oBlob)
         vertex.setProperty(blobSizeProperty(blobName), allBytes.size.toLong())
-        vertex.save()
     }
 
     override fun deleteBlob(blobName: String): Boolean {
@@ -240,7 +251,6 @@ open class YTDBVertexEntity(vertex: Vertex, private val store: YTDBEntityStore) 
             vertex.removeProperty<Any>(blobName)
             vertex.removeProperty<Any>(blobSizeProperty(blobName))
             vertex.removeProperty<Any>(blobHashProperty(blobName))
-            vertex.save()
             return true
         }
         return false
@@ -277,11 +287,10 @@ open class YTDBVertexEntity(vertex: Vertex, private val store: YTDBEntityStore) 
             vertex.removeProperty<Any>(blobName)
         }
 
-        val oBlob = RecordBytes(baos.toByteArray())
+        val oBlob = store.databaseSession.activeTransaction.newBlob(baos.toByteArray())
         vertex.setProperty(blobName, oBlob)
         vertex.setProperty(blobHashProperty(blobName), blobString.hashCode())
         vertex.setProperty(blobSizeProperty(blobName), baos.size().toLong())
-        vertex.save()
         return true
     }
 
@@ -333,8 +342,8 @@ open class YTDBVertexEntity(vertex: Vertex, private val store: YTDBEntityStore) 
         skipping this findEdge(...) call is exactly what we need.
          */
         val currentEdge: Edge? =
-            if (edgeClass.areIndexed(
-                    vertex.boundedToSession,
+            if ((edgeClass as SchemaClassInternal).areIndexed(
+                    vertex.boundedToSession as DatabaseSessionInternal,
                     Edge.DIRECTION_IN,
                     Edge.DIRECTION_OUT
                 )
@@ -346,7 +355,6 @@ open class YTDBVertexEntity(vertex: Vertex, private val store: YTDBEntityStore) 
             vertex.addEdge(target, edgeClassName)
             // If the link is indexed, we have to update the complementary internal property.
             vertex.addTargetEntityIdIfLinkIndexed(linkName, target.identity)
-            vertex.save()
             return true
         } else {
             return false
@@ -356,8 +364,8 @@ open class YTDBVertexEntity(vertex: Vertex, private val store: YTDBEntityStore) 
     private fun Vertex.addTargetEntityIdIfLinkIndexed(linkName: String, targetId: RID) {
         val linkTargetEntityIdPropertyName = linkTargetEntityIdPropertyName(linkName)
         if (requireSchemaClass().existsProperty(linkTargetEntityIdPropertyName)) {
-            val bag = getProperty<RidBag>(linkTargetEntityIdPropertyName)
-                ?: RidBag(boundedToSession as DatabaseSessionInternal)
+            val bag = getProperty<LinkBag>(linkTargetEntityIdPropertyName)
+                ?: LinkBag(boundedToSession as DatabaseSessionInternal)
             bag.add(targetId)
             setProperty(linkTargetEntityIdPropertyName, bag)
         }
@@ -386,7 +394,6 @@ open class YTDBVertexEntity(vertex: Vertex, private val store: YTDBEntityStore) 
             it.delete()
         }
         vertex.deleteAllTargetEntityIdsIfLinkIndexed(linkName)
-        vertex.save()
     }
 
     private fun YTDBStoreTransaction.deleteLinkImpl(linkName: String, targetId: RID): Boolean {
@@ -397,7 +404,6 @@ open class YTDBVertexEntity(vertex: Vertex, private val store: YTDBEntityStore) 
             edge.delete()
             // if the link in a composite index, we have to update the complementary internal property.
             vertex.deleteTargetEntityIdIfLinkIndexed(linkName, targetId)
-            vertex.save()
             return true
         }
 
@@ -407,8 +413,8 @@ open class YTDBVertexEntity(vertex: Vertex, private val store: YTDBEntityStore) 
     private fun Vertex.deleteTargetEntityIdIfLinkIndexed(linkName: String, targetId: RID) {
         val linkTargetEntityIdPropertyName = linkTargetEntityIdPropertyName(linkName)
         if (requireSchemaClass().existsProperty(linkTargetEntityIdPropertyName)) {
-            val bag = getProperty<RidBag>(linkTargetEntityIdPropertyName)
-                ?: RidBag(boundedToSession as DatabaseSessionInternal)
+            val bag = getProperty<LinkBag>(linkTargetEntityIdPropertyName)
+                ?: LinkBag(boundedToSession as DatabaseSessionInternal)
             bag.remove(targetId)
             setProperty(linkTargetEntityIdPropertyName, bag)
         }
@@ -417,7 +423,7 @@ open class YTDBVertexEntity(vertex: Vertex, private val store: YTDBEntityStore) 
     private fun Vertex.deleteAllTargetEntityIdsIfLinkIndexed(linkName: String) {
         val propName = linkTargetEntityIdPropertyName(linkName)
         if (requireSchemaClass().existsProperty(propName)) {
-            setProperty(propName, RidBag(boundedToSession as DatabaseSessionInternal))
+            setProperty(propName, LinkBag(boundedToSession as DatabaseSessionInternal))
         }
     }
 
@@ -508,7 +514,7 @@ open class YTDBVertexEntity(vertex: Vertex, private val store: YTDBEntityStore) 
 
     private fun YTDBStoreTransaction.findEdge(edgeClassName: String, targetId: RID): Edge? {
         val query =
-            "SELECT FROM $edgeClassName WHERE ${Edge.DIRECTION_OUT} = :outId AND ${Edge.DIRECTION_IN} = :inId"
+            "SELECT FROM $edgeClassName WHERE outV() = :outId AND inV() = :inId"
         val result = query(query, mapOf("outId" to vertex.identity, "inId" to targetId))
         val foundEdge = result.edgeStream().findFirst()
         return foundEdge.getOrNull()
@@ -528,12 +534,6 @@ open class YTDBVertexEntity(vertex: Vertex, private val store: YTDBEntityStore) 
         return id.hashCode()
     }
 
-    override fun save(): YTDBVertexEntity {
-        requireActiveWritableTransaction()
-        vertex.save()
-        return this
-    }
-
     override val isLoaded = !vertex.isUnloaded
 
     protected open fun requireActiveWritableTransaction(): YTDBStoreTransaction {
@@ -548,12 +548,12 @@ fun SchemaClass.requireClassId(): Int {
         ?: throw IllegalStateException("classId not found for ${this.name}")
 }
 
-fun Vertex.getTargetLocalEntityIds(linkName: String): RidBag {
-    return getProperty<RidBag>(linkTargetEntityIdPropertyName(linkName))
-        ?: RidBag(boundedToSession as DatabaseSessionInternal)
+fun Vertex.getTargetLocalEntityIds(linkName: String): LinkBag {
+    return getProperty<LinkBag>(linkTargetEntityIdPropertyName(linkName))
+        ?: LinkBag(boundedToSession as DatabaseSessionInternal)
 }
 
-fun Vertex.setTargetLocalEntityIds(linkName: String, ids: RidBag) {
+fun Vertex.setTargetLocalEntityIds(linkName: String, ids: LinkBag) {
     setProperty(linkTargetEntityIdPropertyName(linkName), ids)
 }
 

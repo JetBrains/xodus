@@ -322,9 +322,9 @@ internal class YouTrackDbSchemaInitializer(
     }
 
     private fun DatabaseSession.createVertexClassIfAbsent(name: String): SchemaClass {
-        var oClass: SchemaClass? = getClass(name)
+        var oClass: SchemaClass? = schema.getClass(name)
         if (oClass == null) {
-            oClass = oSession.createVertexClass(name)!!
+            oClass = oSession.schema.createVertexClass(name)!!
             append(", created")
         } else {
             append(", already created")
@@ -334,9 +334,9 @@ internal class YouTrackDbSchemaInitializer(
 
     private fun DatabaseSession.createEdgeClassIfAbsent(name: String): SchemaClass {
         val className = YTDBVertexEntity.edgeClassName(name)
-        var oClass: SchemaClass? = getClass(className)
+        var oClass: SchemaClass? = schema.getClass(className)
         if (oClass == null) {
-            oClass = oSession.createEdgeClass(className)!!
+            oClass = oSession.schema.createEdgeClass(className)!!
             append(", edge class created")
         } else {
             append(", edge class already created")
@@ -349,11 +349,11 @@ internal class YouTrackDbSchemaInitializer(
             append(", no super type")
         } else {
             append(", super type is $superClassName")
-            val superClass = oSession.getClass(superClassName)
+            val superClass = oSession.schema.getClass(superClassName)
             if (superClasses.contains(superClass)) {
                 append(", already set")
             } else {
-                addSuperClass(oSession, superClass)
+                addSuperClass(superClass)
                 append(", set")
             }
         }
@@ -368,9 +368,9 @@ internal class YouTrackDbSchemaInitializer(
     ) {
         append(link.name)
 
-        val outClass = oSession.getClass(link.outClassName)
+        val outClass = oSession.schema.getClass(link.outClassName)
             ?: throw IllegalStateException("${link.outClassName} class is not found")
-        val inClass = oSession.getClass(link.inClassName)
+        val inClass = oSession.schema.getClass(link.inClassName)
             ?: throw IllegalStateException("${link.inClassName} class is not found")
 
         val edgeClass = oSession.createEdgeClassIfAbsent(link.name)
@@ -489,7 +489,7 @@ internal class YouTrackDbSchemaInitializer(
         if (this.max == max) {
             append(" already set")
         } else {
-            setMax(oSession, max)
+            setMax(max)
             append(" set")
         }
     }
@@ -499,7 +499,7 @@ internal class YouTrackDbSchemaInitializer(
         if (this.min == min) {
             append(" already set")
         } else {
-            setMin(oSession, min)
+            setMin(min)
             append(" set")
         }
     }
@@ -511,13 +511,13 @@ internal class YouTrackDbSchemaInitializer(
 
     private fun removeEdge(className: String, associationName: String, direction: Direction) {
         append(className)
-        val sourceClass = oSession.getClass(className)
+        val sourceClass = oSession.schema.getClass(className)
         val edgeClassName = YTDBVertexEntity.edgeClassName(associationName)
         if (sourceClass != null) {
             val propOutName = Vertex.getEdgeLinkFieldName(direction, edgeClassName)
             append(".$propOutName")
             if (sourceClass.existsProperty(propOutName)) {
-                sourceClass.dropProperty(oSession, propOutName)
+                sourceClass.dropProperty(propOutName)
                 append(" deleted")
             } else {
                 append(" not found")
@@ -534,7 +534,7 @@ internal class YouTrackDbSchemaInitializer(
     private fun createSimplePropertiesIfAbsent(dnqEntity: EntityMetaData) {
         appendLine(dnqEntity.type)
 
-        val oClass = oSession.getClass(dnqEntity.type)
+        val oClass = oSession.schema.getClass(dnqEntity.type)
 
         withPadding {
             for (propertyMetaData in dnqEntity.propertiesMetaData) {
@@ -614,7 +614,7 @@ internal class YouTrackDbSchemaInitializer(
                         addIndex(simplePropertyIndex(name, propertyName))
                     }
                     if (primitiveTypeName.lowercase() == "boolean" && oProperty.defaultValue == null) {
-                        oProperty.setDefaultValue(oSession, "false")
+                        oProperty.setDefaultValue("false")
                     }
                 }
 
@@ -672,13 +672,13 @@ internal class YouTrackDbSchemaInitializer(
         if (required) {
             append(", required")
             if (!isMandatory) {
-                setMandatory(oSession, true)
+                setMandatory(true)
             }
             setNotNullIfDifferent(true)
         } else {
             append(", optional")
             if (isMandatory) {
-                setMandatory(oSession, false)
+                setMandatory(false)
             }
         }
     }
@@ -687,12 +687,12 @@ internal class YouTrackDbSchemaInitializer(
         if (notNull) {
             append(", not nullable")
             if (!isNotNull) {
-                setNotNull(oSession, true)
+                setNotNull(true)
             }
         } else {
             append(", nullable")
             if (isNotNull) {
-                setNotNull(oSession, false)
+                setNotNull(false)
             }
         }
     }
@@ -707,13 +707,13 @@ internal class YouTrackDbSchemaInitializer(
             getProperty(propertyName)
         } else {
             append(", created")
-            createProperty(oSession, propertyName, oType)
+            createProperty(propertyName, oType)
         }
         if (oType == PropertyType.STRING) {
             if (oProperty.collate.name == CaseInsensitiveCollate.NAME) {
                 append(", case-insensitive collate already set")
             } else {
-                oProperty.setCollate(oSession, CaseInsensitiveCollate.NAME)
+                oProperty.setCollate(CaseInsensitiveCollate.NAME)
                 append(", set case-insensitive collate")
             }
         }
@@ -740,7 +740,7 @@ internal class YouTrackDbSchemaInitializer(
             getProperty(propertyName)
         } else {
             append(", created")
-            createProperty(oSession, propertyName, PropertyType.LINKBAG)
+            createProperty(propertyName, PropertyType.LINKBAG)
         }
         require(oProperty.type == PropertyType.LINKBAG) {
             "$propertyName type is ${oProperty.type} but ${PropertyType.LINKBAG} was expected instead. Types migration is not supported."
@@ -758,13 +758,13 @@ internal class YouTrackDbSchemaInitializer(
             getProperty(propertyName)
         } else {
             append(", created")
-            createProperty(oSession, propertyName, PropertyType.EMBEDDEDSET, oType)
+            createProperty(propertyName, PropertyType.EMBEDDEDSET, oType)
         }
         if (oType == PropertyType.STRING) {
             if (oProperty.collate.name == CaseInsensitiveCollate.NAME) {
                 append(", case-insensitive collate already set")
             } else {
-                oProperty.setCollate(oSession, CaseInsensitiveCollate.NAME)
+                oProperty.setCollate(CaseInsensitiveCollate.NAME)
                 append(", set case-insensitive collate")
             }
         }

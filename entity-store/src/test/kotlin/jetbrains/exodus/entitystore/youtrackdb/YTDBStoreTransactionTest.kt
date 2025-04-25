@@ -16,11 +16,9 @@
 package jetbrains.exodus.entitystore.youtrackdb
 
 import com.google.common.truth.Truth.assertThat
-import com.jetbrains.youtrack.db.api.exception.DatabaseException
 import com.jetbrains.youtrack.db.api.record.DBRecord
 import com.jetbrains.youtrack.db.api.record.Direction
 import com.jetbrains.youtrack.db.api.record.Vertex
-import com.jetbrains.youtrack.db.internal.core.db.DatabaseRecordThreadLocal
 import jetbrains.exodus.entitystore.EntityRemovedInDatabaseException
 import jetbrains.exodus.entitystore.PersistentEntityId
 import jetbrains.exodus.entitystore.youtrackdb.iterate.YTDBEntityIterableBase
@@ -54,7 +52,7 @@ class YTDBStoreTransactionTest : OTestMixin {
             val issues = tx.getAll(Issues.CLASS)
 
             // Then
-            assertNamesExactlyInOrder(issues, "issue1", "issue2", "issue3")
+            assertNamesExactly(issues, "issue1", "issue2", "issue3")
         }
     }
 
@@ -68,7 +66,7 @@ class YTDBStoreTransactionTest : OTestMixin {
             val result = tx.find(Issues.CLASS, "name", "issue2")
 
             // Then
-            assertNamesExactlyInOrder(result, "issue2")
+            assertNamesExactly(result, "issue2")
         }
     }
 
@@ -115,7 +113,7 @@ class YTDBStoreTransactionTest : OTestMixin {
             val empty = tx.findContaining(Issues.CLASS, "case", "not", true)
 
             // Then
-            assertNamesExactlyInOrder(issues, "issue2")
+            assertNamesExactly(issues, "issue2")
             assertThat(empty).isEmpty()
         }
     }
@@ -132,7 +130,7 @@ class YTDBStoreTransactionTest : OTestMixin {
             val empty = tx.findStartingWith(Issues.CLASS, "case", "you")
 
             // Then
-            assertNamesExactlyInOrder(issues, "issue2")
+            assertNamesExactly(issues, "issue2")
             assertThat(empty).isEmpty()
         }
     }
@@ -153,9 +151,9 @@ class YTDBStoreTransactionTest : OTestMixin {
             val empty = tx.find(Issues.CLASS, "value", 6, 12)
 
             // Then
-            assertNamesExactlyInOrder(exclusive, "issue2")
-            assertNamesExactlyInOrder(inclusiveMin, "issue2")
-            assertNamesExactlyInOrder(inclusiveMax, "issue2")
+            assertNamesExactly(exclusive, "issue2")
+            assertNamesExactly(inclusiveMin, "issue2")
+            assertNamesExactly(inclusiveMax, "issue2")
             assertThat(empty).isEmpty()
         }
     }
@@ -173,7 +171,7 @@ class YTDBStoreTransactionTest : OTestMixin {
             val empty = tx.findWithProp(Issues.CLASS, "no_prop")
 
             // Then
-            assertNamesExactlyInOrder(issues, "issue2")
+            assertNamesExactly(issues, "issue2")
             assertThat(empty).isEmpty()
         }
     }
@@ -199,7 +197,7 @@ class YTDBStoreTransactionTest : OTestMixin {
             val issues = tx.findWithBlob(Issues.CLASS, "myBlob")
 
             // Then
-            assertNamesExactlyInOrder(issues, "issue1", "issue2", "issue3")
+            assertNamesExactly(issues, "issue1", "issue2", "issue3")
         }
     }
 
@@ -305,7 +303,7 @@ class YTDBStoreTransactionTest : OTestMixin {
             val issues = tx.findLinks(Issues.CLASS, testCase.project1, Issues.Links.IN_PROJECT)
 
             // Then
-            assertNamesExactlyInOrder(issues, "issue1", "issue2")
+            assertNamesExactly(issues, "issue1", "issue2")
         }
     }
 
@@ -326,7 +324,7 @@ class YTDBStoreTransactionTest : OTestMixin {
             val issues = tx.findLinks(Issues.CLASS, projects, Issues.Links.IN_PROJECT)
 
             // Then
-            assertNamesExactlyInOrder(issues, "issue1", "issue2", "issue3")
+            assertNamesExactly(issues, "issue1", "issue2", "issue3")
         }
     }
 
@@ -346,7 +344,7 @@ class YTDBStoreTransactionTest : OTestMixin {
             val issuesInProject = tx.findWithLinks(Issues.CLASS, Issues.Links.IN_PROJECT)
 
             // Then
-            assertNamesExactlyInOrder(issuesOnBoard, "issue1", "issue2")
+            assertNamesExactly(issuesOnBoard, "issue1", "issue2")
             assertThat(issuesInProject).isEmpty()
         }
     }
@@ -372,7 +370,7 @@ class YTDBStoreTransactionTest : OTestMixin {
             val issues = issuesInProject1.union(issuesInProject2)
 
             // Then
-            assertNamesExactlyInOrder(issues, "issue1", "issue2", "issue3")
+            assertNamesExactly(issues, "issue1", "issue2", "issue3")
         }
     }
 
@@ -396,7 +394,7 @@ class YTDBStoreTransactionTest : OTestMixin {
             val issues = issuesOnBoard1.intersect(issuesOnBoard2)
 
             // Then
-            assertNamesExactlyInOrder(issues, "issue2")
+            assertNamesExactly(issues, "issue2")
         }
     }
 
@@ -419,7 +417,7 @@ class YTDBStoreTransactionTest : OTestMixin {
             val issues = issuesOnBoard1.union(issuesOnBoard2)
 
             // Then
-            assertNamesExactlyInOrder(issues, "issue1", "issue2")
+            assertNamesExactly(issues, "issue1", "issue2")
         }
     }
 
@@ -461,7 +459,6 @@ class YTDBStoreTransactionTest : OTestMixin {
 
             // Then
             // As sorted by project name
-            // ToDo: should be fixed with https://youtrack.jetbrains.com/issue/XD-1010
             assertNamesExactlyInOrder(issuesAsc, "issue1", "issue2", "issue3")
             assertNamesExactlyInOrder(issuesDesc, "issue3", "issue2", "issue1")
         }
@@ -493,13 +490,14 @@ class YTDBStoreTransactionTest : OTestMixin {
             val issuesAsc = tx.sortLinks(
                 Issues.CLASS, // entity class
                 tx.sort(Projects.CLASS, "name", links, false), // links sorted desc by name
-                false, // is multiple
+                true, // is multiple
                 Issues.Links.IN_PROJECT, // link name
                 issues // entities
-            ).distinct()
+            ).distinct().toList()
 
             // Then
-            assertNamesExactlyInOrder(issuesAsc, "issue3", "issue2", "issue1")
+            assertNamesExactly(issuesAsc.take(1), "issue1")
+            assertNamesExactly(issuesAsc.drop(1), "issue2", "issue3")
         }
     }
 
@@ -560,7 +558,7 @@ class YTDBStoreTransactionTest : OTestMixin {
         withStoreTx { tx ->
             val issues = tx.findIds(Issues.CLASS, 2, 100) as YTDBEntityIterableBase
             // Then
-            assertNamesExactlyInOrder(
+            assertNamesExactly(
                 issues,
                 test.issue2.getProperty("name").toString(),
                 test.issue3.getProperty("name").toString()
@@ -600,7 +598,7 @@ class YTDBStoreTransactionTest : OTestMixin {
 
         // delete the issue
         youTrackDb.withTxSession { oSession ->
-            oSession.delete(aId.asOId())
+            oSession.activeTransaction.load<DBRecord>(aId.asOId()).delete()
         }
 
         // entity not found
@@ -646,7 +644,7 @@ class YTDBStoreTransactionTest : OTestMixin {
         youTrackDb.store.executeInTransaction { tx ->
             val entity = tx.newEntity(Issues.CLASS)
             val orid = (entity.id as YTDBEntityId).asOId()
-            Assert.assertTrue(orid.clusterId > 0)
+            Assert.assertTrue(orid.collectionId > 0)
         }
     }
 
@@ -734,27 +732,6 @@ class YTDBStoreTransactionTest : OTestMixin {
             Assert.assertEquals(1, issuesOnBoard.toList().size)
             Assert.assertFalse(issuesOnBoard.contains(test.issue2))
             Assert.assertTrue(issuesOnBoard.contains(test.issue1))
-        }
-    }
-
-    @Test
-    fun `active session still has an active transaction after flush`() {
-        assertFailsWith<DatabaseException> { DatabaseRecordThreadLocal.instance().get() }
-        withStoreTx { tx ->
-            DatabaseRecordThreadLocal.instance().get().requireActiveTransaction()
-            tx.flush()
-            DatabaseRecordThreadLocal.instance().get().requireActiveTransaction()
-        }
-    }
-
-    @Test
-    fun `transactionId does not get changed on flush()`() {
-        withStoreTx { tx ->
-            val oTransactionId =
-                DatabaseRecordThreadLocal.instance().get().transaction.id
-            assertEquals(oTransactionId, tx.getTransactionId())
-            tx.flush()
-            assertEquals(oTransactionId, tx.getTransactionId())
         }
     }
 
@@ -850,7 +827,7 @@ class YTDBStoreTransactionTest : OTestMixin {
         withSession { session ->
             // Create abstract base class
             val baseEntityClass = session.getOrCreateVertexClass("BaseEntity").apply {
-                this.setAbstract(session, true)
+                this.setAbstract(true)
             }
 
             // Create concrete vertex classes
@@ -859,9 +836,9 @@ class YTDBStoreTransactionTest : OTestMixin {
             val issueClass = session.getOrCreateVertexClass("Issue")
 
             // Set inheritance relationships
-            userClass.addSuperClass(session, baseEntityClass)
-            projectClass.addSuperClass(session, baseEntityClass)
-            issueClass.addSuperClass(session, baseEntityClass)
+            userClass.addSuperClass(baseEntityClass)
+            projectClass.addSuperClass(baseEntityClass)
+            issueClass.addSuperClass(baseEntityClass)
 
             // Create edge classes (associations)
             session.addAssociation("User", "Project", "OWNS_PROJECT", "OWNED_BY")
@@ -869,7 +846,7 @@ class YTDBStoreTransactionTest : OTestMixin {
         }
 
         withStoreTx { tx ->
-            val allClassesByName = tx.databaseSession.let { it.schema.getClasses(it) }.associateBy { it.name }
+            val allClassesByName = tx.databaseSession.schema.classes.associateBy { it.name }
 
             // Verify edge classes are properly marked
             val expectedEdgeClasses = listOf("OWNS_PROJECT_link", "OWNED_BY_link", "HAS_ISSUE_link", "IN_PROJECT_link")

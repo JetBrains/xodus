@@ -25,12 +25,9 @@ import jetbrains.exodus.bindings.StringBinding
 import jetbrains.exodus.entitystore.PersistentEntityStore
 import jetbrains.exodus.entitystore.StoreTransaction
 import jetbrains.exodus.entitystore.XodusTestDB
-import jetbrains.exodus.entitystore.youtrackdb.YTDBVertexEntity
+import jetbrains.exodus.entitystore.youtrackdb.*
 import jetbrains.exodus.entitystore.youtrackdb.YTDBVertexEntity.Companion.CLASS_ID_SEQUENCE_NAME
 import jetbrains.exodus.entitystore.youtrackdb.YTDBVertexEntity.Companion.localEntityIdSequenceName
-import jetbrains.exodus.entitystore.youtrackdb.createVertexClassWithClassId
-import jetbrains.exodus.entitystore.youtrackdb.requireClassId
-import jetbrains.exodus.entitystore.youtrackdb.requireLocalEntityId
 import jetbrains.exodus.entitystore.youtrackdb.testutil.InMemoryYouTrackDB
 import jetbrains.exodus.util.ByteArraySizedInputStream
 import jetbrains.exodus.util.LightOutputStream
@@ -140,7 +137,7 @@ class MigrateDataTest {
     @Test
     fun `orient add extra bytes to blobs once in a while`() {
         youTrackDB.withSession { session ->
-            session.createVertexClass("turbo")
+            session.schema.createVertexClass("turbo")
         }
 
         val brokenSizes = mutableSetOf<String>()
@@ -150,19 +147,18 @@ class MigrateDataTest {
             message.append("given $size bytes")
 
             val id = youTrackDB.withTxSession { session ->
-                val e1 = session.newVertex("turbo")
-                val blob = RecordBytes()
+                val e1 = session.activeTransaction.newVertex("turbo")
+                val blob = session.activeTransaction.newBlob()
                 // this thing reads more bytes than necessary
                 val readBytes = blob.fromInputStream(ByteArrayInputStream(bytes))
                 message.append(", fromInputStream() read $readBytes bytes")
                 e1.setProperty("blob1", blob)
-                e1.save()
                 e1.identity
             }
 
             youTrackDB.withTxSession { session ->
-                val e1 = session.loadVertex(id)
-                val blob = e1.getBlobProperty("blob1")
+                val e1 = session.activeTransaction.loadVertex(id)
+                val blob = e1.getBlob("blob1")
                 val gotBytes = blob!!.toStream()
                 message.append(", got ${gotBytes.size} from the database")
                 if (!gotBytes.contentEquals(bytes)) {
@@ -445,7 +441,7 @@ class MigrateDataTest {
             youTrackDB.withSession { oSession ->
                 for (type in xTx.entityTypes) {
                     val typeId = xodus.store.getEntityTypeId(type)
-                    Assert.assertEquals(typeId, oSession.getClass(type).requireClassId())
+                    Assert.assertEquals(typeId, oSession.schema.getClass(type).requireClassId())
                     maxClassId = maxOf(maxClassId, typeId)
                 }
                 assertTrue(maxClassId > 0)
@@ -453,7 +449,7 @@ class MigrateDataTest {
                 val nextGeneratedClassId =
                     (oSession as DatabaseSessionInternal).metadata.sequenceLibrary.getSequence(
                         CLASS_ID_SEQUENCE_NAME
-                    ).next()
+                    ).next(oSession)
                 assertEquals(maxClassId.toLong() + 1, nextGeneratedClassId)
             }
         }
@@ -489,10 +485,12 @@ class MigrateDataTest {
                         maxLocalEntityId = maxOf(maxLocalEntityId, localEntityId)
                     }
 
-                    for (oEntity in oSession.query("select from $type").vertexStream()) {
-                        val testId = oEntity.getTestId()
-                        val localEntityId = oEntity.requireLocalEntityId()
-                        oTestIdToLocalEntityId[testId] = localEntityId
+                    oSession.transaction { tx ->
+                        for (oEntity in tx.query("select from $type").vertexStream()) {
+                            val testId = oEntity.getTestId()
+                            val localEntityId = oEntity.requireLocalEntityId()
+                            oTestIdToLocalEntityId[testId] = localEntityId
+                        }
                     }
 
                     assertTrue(maxLocalEntityId > 0)
@@ -500,7 +498,7 @@ class MigrateDataTest {
                         (oSession as DatabaseSessionInternal).metadata.sequenceLibrary.getSequence(
                             localEntityIdSequenceName(type)
                         )
-                            .next()
+                            .next(oSession)
                     assertEquals(maxLocalEntityId + 1, nextGeneratedLocalEntityId)
 
                     assertEquals(xTestIdToLocalEntityId, oTestIdToLocalEntityId)

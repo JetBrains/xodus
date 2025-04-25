@@ -56,7 +56,7 @@ class YTDBSchemaBuddyTest : OTestMixin {
             buddy.initialize(it)
         }
 
-        withSession {
+        withTxSession {
             assertEquals(issueId, buddy.getOEntityId(it, totallyExistingEntityId))
         }
     }
@@ -66,7 +66,7 @@ class YTDBSchemaBuddyTest : OTestMixin {
         val buddy = YTDBSchemaBuddyImpl(youTrackDb.provider)
         val className = "trista"
         withSession { session ->
-            assertNull(session.getClass(className))
+            assertNull(session.schema.getClass(className))
             assertFailsWith<IllegalStateException> { buddy.requireTypeExists(session, className) }
         }
     }
@@ -85,7 +85,7 @@ class YTDBSchemaBuddyTest : OTestMixin {
         val partiallyExistingEntityId1 = PersistentEntityId(issueId.typeId, 301)
         val partiallyExistingEntityId2 = PersistentEntityId(300, issueId.localId)
         val totallyExistingEntityId = PersistentEntityId(issueId.typeId, issueId.localId)
-        withSession {
+        withTxSession {
             assertEquals(RIDEntityId.EMPTY_ID, buddy.getOEntityId(it, notExistingEntityId))
             assertEquals(RIDEntityId.EMPTY_ID, buddy.getOEntityId(it, partiallyExistingEntityId1))
             assertEquals(RIDEntityId.EMPTY_ID, buddy.getOEntityId(it, partiallyExistingEntityId2))
@@ -111,7 +111,7 @@ class YTDBSchemaBuddyTest : OTestMixin {
         youTrackDb.withTxSession { session ->
             val res =
                 (session as DatabaseSessionInternal).metadata.sequenceLibrary.getSequence("seq")
-                    .next()
+                    .next(session)
             assertEquals(1, res)
             session.rollback()
         }
@@ -119,7 +119,7 @@ class YTDBSchemaBuddyTest : OTestMixin {
         youTrackDb.withTxSession { session ->
             val res =
                 (session as DatabaseSessionInternal).metadata.sequenceLibrary.getSequence("seq")
-                    .next()
+                    .next(session)
             assertEquals(2, res)
         }
     }
@@ -131,36 +131,35 @@ class YTDBSchemaBuddyTest : OTestMixin {
 
         // the edge class is not there
         withSession { session ->
-            session.createVertexClass("issue")
-            assertNull(session.getClass(edgeClassName))
+            session.schema.createVertexClass("issue")
+            assertNull(session.schema.getClass(edgeClassName))
         }
 
         // create the edge class in a transaction
         val issId = withSession { session ->
-            session.begin()
-            val iss = session.newVertex("issue")
-            iss.save()
+            val tx = session.begin()
+            val iss = tx.newVertex("issue")
 
             val edgeClass = buddy.getOrCreateEdgeClass(session, "trista", "issue", "issue")
             assertNotNull(edgeClass)
             assertTrue(edgeClass.isEdgeType)
 
-            session.commit()
+            tx.commit()
             iss.identity
         }
 
         // the changes made in the transaction are still there
-        withSession { session ->
-            assertNotNull(session.loadVertex(issId))
+        withTxSession { session ->
+            assertNotNull(session.activeTransaction.loadVertex(issId))
         }
     }
 
     @Test
     fun `require both classId and localEntityId to create an instance`() {
-        val oClass = youTrackDb.provider.withSession { oSession ->
-            oSession.createVertexClassWithClassId("type1")
+        val typeID = youTrackDb.provider.withSession { oSession ->
+            val oClass = oSession.createVertexClassWithClassId("type1")
+            oClass.requireClassId()
         }
-        val typeID = oClass.requireClassId()
         youTrackDb.provider.withSession { oSession ->
             assertEquals("type1", youTrackDb.schemaBuddy.getType(oSession, typeID))
         }

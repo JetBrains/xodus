@@ -111,7 +111,7 @@ class YTDBEntityTest : OTestMixin {
         val issueC = youTrackDb.createIssue("C")
         val linkName = "link"
         youTrackDb.withSession { session ->
-            session.createEdgeClass(YTDBVertexEntity.edgeClassName(linkName))
+            session.schema.createEdgeClass(YTDBVertexEntity.edgeClassName(linkName))
         }
 
         youTrackDb.withStoreTx {
@@ -301,11 +301,10 @@ class YTDBEntityTest : OTestMixin {
     fun `delete links`() {
         val linkName = "link"
         youTrackDb.withSession { session ->
-            session.createEdgeClass(YTDBVertexEntity.edgeClassName(linkName))
-            val oClass = session.getClass(Issues.CLASS)!!
+            session.schema.createEdgeClass(YTDBVertexEntity.edgeClassName(linkName))
+            val oClass = session.schema.getClass(Issues.CLASS)!!
             // pretend that the link is indexed
             oClass.createProperty(
-                session,
                 linkTargetEntityIdPropertyName(linkName),
                 PropertyType.LINKBAG
             )
@@ -340,11 +339,10 @@ class YTDBEntityTest : OTestMixin {
     fun `set links`() {
         val linkName = "link"
         youTrackDb.withSession { session ->
-            session.createEdgeClass(YTDBVertexEntity.edgeClassName(linkName))
-            val oClass = session.getClass(Issues.CLASS)!!
+            session.schema.createEdgeClass(YTDBVertexEntity.edgeClassName(linkName))
+            val oClass = session.schema.getClass(Issues.CLASS)!!
             // pretend that the link is indexed
             oClass.createProperty(
-                session,
                 linkTargetEntityIdPropertyName(linkName),
                 PropertyType.LINKBAG
             )
@@ -388,11 +386,10 @@ class YTDBEntityTest : OTestMixin {
     fun `should delete all links`() {
         val linkName = "link"
         youTrackDb.withSession { session ->
-            session.createEdgeClass(YTDBVertexEntity.edgeClassName(linkName))
-            val oClass = session.getClass(Issues.CLASS)!!
+            session.schema.createEdgeClass(YTDBVertexEntity.edgeClassName(linkName))
+            val oClass = session.schema.getClass(Issues.CLASS)!!
             // pretend that the link is indexed
             oClass.createProperty(
-                session,
                 linkTargetEntityIdPropertyName(linkName),
                 PropertyType.LINKBAG
             )
@@ -421,7 +418,7 @@ class YTDBEntityTest : OTestMixin {
     fun `should replace a link correctly`() {
         val linkName = "link"
         youTrackDb.withSession { session ->
-            session.createEdgeClass(YTDBVertexEntity.edgeClassName(linkName))
+            session.schema.createEdgeClass(YTDBVertexEntity.edgeClassName(linkName))
         }
 
         val issueA = youTrackDb.createIssue("A")
@@ -446,7 +443,7 @@ class YTDBEntityTest : OTestMixin {
     fun `setLink() and addLink() should work correctly with PersistentEntityId`() {
         val linkName = "link"
         youTrackDb.withSession { session ->
-            session.createEdgeClass(YTDBVertexEntity.edgeClassName(linkName))
+            session.schema.createEdgeClass(YTDBVertexEntity.edgeClassName(linkName))
         }
 
         val issueA = youTrackDb.createIssue("A")
@@ -473,7 +470,7 @@ class YTDBEntityTest : OTestMixin {
     fun `setLink() and addLink() return false if the target entity is not found`() {
         val linkName = "link"
         youTrackDb.withSession { session ->
-            session.createEdgeClass(YTDBVertexEntity.edgeClassName(linkName))
+            session.schema.createEdgeClass(YTDBVertexEntity.edgeClassName(linkName))
         }
 
         val issueB = youTrackDb.createIssue("A")

@@ -21,6 +21,7 @@ import com.jetbrains.youtrack.db.api.record.DBRecord
 import com.jetbrains.youtrack.db.api.record.Vertex
 import com.jetbrains.youtrack.db.api.schema.SchemaClass
 import com.jetbrains.youtrack.db.internal.core.metadata.sequence.DBSequence
+import com.jetbrains.youtrack.db.internal.core.tx.FrontendTransaction
 import jetbrains.exodus.entitystore.PersistentEntityId
 import jetbrains.exodus.entitystore.StoreTransaction
 
@@ -31,9 +32,9 @@ interface YTDBStoreTransaction : StoreTransaction {
 
     fun getTransactionId(): Long
 
-    fun requireActiveTransaction()
+    fun requireActiveTransaction(): FrontendTransaction
 
-    fun requireActiveWritableTransaction()
+    fun requireActiveWritableTransaction(): FrontendTransaction
 
     fun deactivateOnCurrentThread()
 

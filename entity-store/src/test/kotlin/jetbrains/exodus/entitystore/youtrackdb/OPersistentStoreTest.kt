@@ -16,6 +16,7 @@
 package jetbrains.exodus.entitystore.youtrackdb
 
 import com.jetbrains.youtrack.db.api.exception.RecordDuplicatedException
+import com.jetbrains.youtrack.db.api.record.DBRecord
 import com.jetbrains.youtrack.db.api.schema.PropertyType
 import com.jetbrains.youtrack.db.api.schema.SchemaClass
 import com.jetbrains.youtrack.db.internal.core.id.ChangeableRecordId
@@ -95,13 +96,13 @@ class OPersistentStoreTest : OTestMixin {
             it.getSequence("first")
         }
         store.executeInTransaction {
-            assertEquals(0, sequence.increment())
+            assertEquals(0, it.getSequence("first").increment())
         }
         store.executeInTransaction {
             assertEquals(0, it.getSequence("first").get())
         }
         store.executeInTransaction {
-            assertEquals(1, sequence.increment())
+            assertEquals(1, it.getSequence("first").increment())
         }
     }
 
@@ -112,7 +113,7 @@ class OPersistentStoreTest : OTestMixin {
             it.getSequence("first", 99)
         }
         store.executeInTransaction {
-            assertEquals(100, sequence.increment())
+            assertEquals(100, it.getSequence("first").increment())
         }
     }
 
@@ -164,7 +165,7 @@ class OPersistentStoreTest : OTestMixin {
 
         // delete the issue
         youTrackDb.withTxSession { oSession ->
-            oSession.delete(aId.asOId())
+            oSession.activeTransaction.load<DBRecord>(aId.asOId()).delete()
         }
 
         // entity not found
@@ -217,20 +218,20 @@ class OPersistentStoreTest : OTestMixin {
             with(txn.toEntityId(notExistingEntityId.toString()) as YTDBEntityId) {
                 assertEquals(notExistingEntityId.localId, localId)
                 assertEquals(notExistingEntityId.typeId, typeId)
-                assertEquals(empty.clusterId, asOId().clusterId)
-                assertEquals(empty.clusterPosition, asOId().clusterPosition)
+                assertEquals(empty.collectionId, asOId().collectionId)
+                assertEquals(empty.collectionPosition, asOId().collectionPosition)
             }
             with(txn.toEntityId(partiallyExistingEntityId1.toString()) as YTDBEntityId) {
                 assertEquals(partiallyExistingEntityId1.localId, localId)
                 assertEquals(partiallyExistingEntityId1.typeId, typeId)
-                assertEquals(empty.clusterId, asOId().clusterId)
-                assertEquals(empty.clusterPosition, asOId().clusterPosition)
+                assertEquals(empty.collectionId, asOId().collectionId)
+                assertEquals(empty.collectionPosition, asOId().collectionPosition)
             }
             with(txn.toEntityId(partiallyExistingEntityId2.toString()) as YTDBEntityId) {
                 assertEquals(partiallyExistingEntityId2.localId, localId)
                 assertEquals(partiallyExistingEntityId2.typeId, typeId)
-                assertEquals(empty.clusterId, asOId().clusterId)
-                assertEquals(empty.clusterPosition, asOId().clusterPosition)
+                assertEquals(empty.collectionId, asOId().collectionId)
+                assertEquals(empty.collectionPosition, asOId().collectionPosition)
             }
             with(txn.toEntityId(totallyExistingEntityId.toString()) as YTDBEntityId) {
                 assertEquals(totallyExistingEntityId.localId, localId)
@@ -261,16 +262,16 @@ class OPersistentStoreTest : OTestMixin {
     }
 
     @Test
-    fun `can delete entityType`(){
-        youTrackDb.withSession { session->
-            Assert.assertNotNull(session.getClass(Issues.CLASS))
+    fun `can delete entityType`() {
+        youTrackDb.withSession { session ->
+            Assert.assertNotNull(session.schema.getClass(Issues.CLASS))
         }
         youTrackDb.createIssue("trista")
         youTrackDb.withStoreTx {
             youTrackDb.store.deleteEntityType(Issues.CLASS)
         }
-        youTrackDb.withSession { session->
-            Assert.assertNull(session.getClass(Issues.CLASS))
+        youTrackDb.withSession { session ->
+            Assert.assertNull(session.schema.getClass(Issues.CLASS))
         }
     }
 
@@ -300,8 +301,8 @@ class OPersistentStoreTest : OTestMixin {
     fun `computeInTransaction and Co handle exceptions properly`() {
         withSession { session ->
             val t1 = session.getOrCreateVertexClass("type1")
-            t1.createProperty(session, "name", PropertyType.STRING)
-            t1.createIndex(session, "opca_index", SchemaClass.INDEX_TYPE.UNIQUE, "name")
+            t1.createProperty("name", PropertyType.STRING)
+            t1.createIndex("opca_index", SchemaClass.INDEX_TYPE.UNIQUE, "name")
         }
         fun StoreTransaction.violateIndexRestriction() {
             val e1 = this.newEntity("type1")

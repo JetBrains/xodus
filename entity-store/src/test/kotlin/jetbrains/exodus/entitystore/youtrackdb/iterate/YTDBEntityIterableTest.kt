@@ -62,7 +62,7 @@ class YTDBEntityIterableTest : OTestMixin {
                 expectedSql = "SELECT FROM Issue WHERE none is null"
             )
 
-            assertNamesExactlyInOrder(issues, "issue2", "issue3")
+            assertNamesExactly(issues, "issue2", "issue3")
         }
     }
 
@@ -84,7 +84,7 @@ class YTDBEntityIterableTest : OTestMixin {
                 expectedSql = "SELECT FROM Issue WHERE outE('InProject_link').size() == 0"
             )
 
-            assertNamesExactlyInOrder(issues, "issue2", "issue3")
+            assertNamesExactly(issues, "issue2", "issue3")
         }
     }
 
@@ -108,7 +108,7 @@ class YTDBEntityIterableTest : OTestMixin {
                 expectedSql = "SELECT FROM Issue WHERE opca = :opca0",
                 expectedParams = mapOf("opca0" to 300)
             )
-            assertNamesExactlyInOrder(issues, "issue1", "issue3")
+            assertNamesExactly(issues, "issue1", "issue3")
         }
     }
 
@@ -130,7 +130,7 @@ class YTDBEntityIterableTest : OTestMixin {
                 expectedSql = "SELECT FROM Issue WHERE (name = :name0 OR name = :name1)",
                 expectedParams = mapOf("name0" to "issue1", "name1" to "issue2")
             )
-            assertNamesExactlyInOrder(issues, "issue1", "issue2")
+            assertNamesExactly(issues, "issue1", "issue2")
         }
     }
 
@@ -153,7 +153,7 @@ class YTDBEntityIterableTest : OTestMixin {
                 expectedParams = mapOf("name0" to "issue1", "name1" to "issue1")
             )
             // Union operation can distinct result set if query is optimized to OR conditions
-            assertNamesExactlyInOrder(issues, "issue1")
+            assertNamesExactly(issues, "issue1")
         }
     }
 
@@ -177,7 +177,7 @@ class YTDBEntityIterableTest : OTestMixin {
                 expectedSql = "SELECT FROM Issue WHERE (name = :name0 AND priority = :priority1)",
                 expectedParams = mapOf("name0" to "issue2", "priority1" to "normal")
             )
-            assertNamesExactlyInOrder(issues, "issue2")
+            assertNamesExactly(issues, "issue2")
             assertThat(issues.first().getProperty("priority")).isEqualTo("normal")
         }
     }
@@ -237,7 +237,7 @@ class YTDBEntityIterableTest : OTestMixin {
                 expectedSql = "SELECT FROM (SELECT expand(in('OnBoard_link')) FROM [${test.board1.id.asOId()}]) WHERE @class='Issue'",
                 expectedParams = mapOf()
             )
-            assertNamesExactlyInOrder(issues, "issue1", "issue2")
+            assertNamesExactly(issues, "issue1", "issue2")
         }
     }
 
@@ -263,7 +263,7 @@ class YTDBEntityIterableTest : OTestMixin {
                 concat,
                 expectedSql = "SELECT expand(unionall(\$a0, \$b0)) LET \$a0=(SELECT FROM (SELECT expand(in('OnBoard_link')) FROM [${test.board1.id.asOId()}]) WHERE @class='Issue'), \$b0=(SELECT FROM (SELECT expand(in('OnBoard_link')) FROM [${test.board2.id.asOId()}]) WHERE @class='Issue')",
             )
-            assertNamesExactlyInOrder(concat, "issue1", "issue2", "issue1")
+            assertNamesExactly(concat, "issue1", "issue2", "issue1")
         }
     }
 
@@ -292,7 +292,7 @@ class YTDBEntityIterableTest : OTestMixin {
                 expectedSql = "SELECT DISTINCT * FROM (SELECT expand(unionall(\$a0, \$b0).asSet()) LET \$a0=(SELECT FROM (SELECT expand(in('OnBoard_link')) FROM [${test.board1.id.asOId()}]) WHERE @class='Issue'), \$b0=(SELECT FROM (SELECT expand(in('OnBoard_link')) FROM [${test.board2.id.asOId()}]) WHERE @class='Issue'))"
             )
             assertThat(issuesDistinct).hasSize(3)
-            assertNamesExactlyInOrder(issuesDistinct, "issue1", "issue2", "issue3")
+            assertNamesExactly(issuesDistinct, "issue1", "issue2", "issue3")
         }
     }
 
@@ -388,12 +388,12 @@ class YTDBEntityIterableTest : OTestMixin {
 
         // When
         withStoreTx { tx ->
-            val issues = tx.getAll(Issues.CLASS).skip(1) as YTDBSkipEntityIterable
+            val issues = tx.sort(Issues.CLASS, "name", true).skip(1) as YTDBEntityIterable
 
             // Then
             tx.checkSql(
                 issues,
-                expectedSql = "SELECT FROM Issue SKIP 1"
+                expectedSql = "SELECT FROM Issue ORDER BY name ASC SKIP 1"
             )
             assertNamesExactlyInOrder(issues, "issue2", "issue3")
         }
@@ -406,12 +406,12 @@ class YTDBEntityIterableTest : OTestMixin {
 
         // When
         withStoreTx { tx ->
-            val issues = tx.getAll(Issues.CLASS).take(2) as YTDBTakeEntityIterable
+            val issues = tx.sort(Issues.CLASS, "name", true).take(2) as YTDBTakeEntityIterable
 
             // Then
             tx.checkSql(
                 issues,
-                expectedSql = "SELECT FROM Issue LIMIT 2"
+                expectedSql = "SELECT FROM Issue ORDER BY name ASC LIMIT 2"
             )
             assertNamesExactlyInOrder(issues, "issue1", "issue2")
         }
@@ -424,12 +424,12 @@ class YTDBEntityIterableTest : OTestMixin {
 
         // When
         withStoreTx { tx ->
-            val issues = tx.getAll(Issues.CLASS).skip(1).take(2) as YTDBTakeEntityIterable
+            val issues = tx.sort(Issues.CLASS, "name", true).skip(1).take(2) as YTDBTakeEntityIterable
 
             // Then
             tx.checkSql(
                 issues,
-                expectedSql = "SELECT FROM Issue SKIP 1 LIMIT 2"
+                expectedSql = "SELECT FROM Issue ORDER BY name ASC SKIP 1 LIMIT 2"
             )
             assertNamesExactlyInOrder(issues, "issue2", "issue3")
         }
@@ -592,7 +592,7 @@ class YTDBEntityIterableTest : OTestMixin {
         youTrackDb.provider.acquireSession().use { session ->
             val subIssue = session.getOrCreateVertexClass("ChildIssue")
             val issueClass = session.getOrCreateVertexClass(Issues.CLASS)
-            subIssue.setSuperClasses(session, listOf(issueClass))
+            subIssue.addSuperClass(issueClass)
         }
         (1..10).forEach {
             youTrackDb.createIssue("issue$it")

@@ -59,7 +59,7 @@ fun main() {
     val orientDatabaseType = if (orientDatabaseTypeStr.isNullOrBlank() || orientDatabaseTypeStr.lowercase() == "memory") {
         DatabaseType.MEMORY
     } else {
-        DatabaseType.PLOCAL
+        DatabaseType.DISK
     }
     val orientDatabaseDirectory = if (orientDatabaseType == DatabaseType.MEMORY) {
         "memory"

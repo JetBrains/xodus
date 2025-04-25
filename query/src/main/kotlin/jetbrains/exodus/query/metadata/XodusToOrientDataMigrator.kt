@@ -171,15 +171,15 @@ internal class XodusToOrientDataMigrator(
                 log.info { "${entityTypes.size} entity types to copy" }
                 entityTypes.forEachIndexed { i, type ->
                     log.info { "$i $type is being copied" }
-                    val oClass = oSession.getClass(type) ?: oSession.createVertexClass(type)
+                    val oClass = oSession.schema.getClass(type) ?: oSession.schema.createVertexClass(type)
                     val classId = xodus.getEntityTypeId(type)
 
-                    oClass.setCustom(oSession, CLASS_ID_CUSTOM_PROPERTY_NAME, classId.toString())
+                    oClass.setCustom(CLASS_ID_CUSTOM_PROPERTY_NAME, classId.toString())
                     maxClassId = maxOf(maxClassId, classId)
 
                     // create localEntityId property if absent
                     if (oClass.getProperty(LOCAL_ENTITY_ID_PROPERTY_NAME) == null) {
-                        oClass.createProperty(oSession, LOCAL_ENTITY_ID_PROPERTY_NAME,PropertyType.LONG)
+                        oClass.createProperty(LOCAL_ENTITY_ID_PROPERTY_NAME,PropertyType.LONG)
                     }
                 }
                 entityClassesCount = entityTypes.size
@@ -286,8 +286,8 @@ internal class XodusToOrientDataMigrator(
         orientProvider.withSession { oSession ->
             edgeClassesToCreate.forEachIndexed { i, edgeClassName ->
                 log.info { "$i $edgeClassName ${edgeClassName.asEdgeClass} is being copied" }
-                oSession.getClass(edgeClassName.asEdgeClass)
-                    ?: oSession.createEdgeClass(edgeClassName.asEdgeClass)
+                oSession.schema.getClass(edgeClassName.asEdgeClass)
+                    ?: oSession.schema.createEdgeClass(edgeClassName.asEdgeClass)
             }
         }
         log.info { "${edgeClassesToCreate.size} edge classes have been created" }

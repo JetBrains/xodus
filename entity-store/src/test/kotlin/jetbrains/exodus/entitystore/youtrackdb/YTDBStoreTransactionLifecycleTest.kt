@@ -97,8 +97,8 @@ class YTDBStoreTransactionLifecycleTest : OTestMixin {
     fun `commit() and flush() finish the transaction if error happens`() {
         val session = youTrackDb.openSession()
         val oClass = session.getOrCreateVertexClass("trista")
-        oClass.createProperty(session, "name", PropertyType.STRING)
-        oClass.createIndex(session, "idx_name", SchemaClass.INDEX_TYPE.UNIQUE, "name")
+        oClass.createProperty("name", PropertyType.STRING)
+        oClass.createIndex("idx_name", SchemaClass.INDEX_TYPE.UNIQUE, "name")
         session.close()
 
 
@@ -106,12 +106,10 @@ class YTDBStoreTransactionLifecycleTest : OTestMixin {
             val tx = beginTransaction()
 
 
-            val trista1 = tx.databaseSession.newVertex("trista")
+            val trista1 = tx.databaseSession.activeTransaction.newVertex("trista")
             trista1.setProperty("name", "dvesti")
-            trista1.save()
-            val trista2 = tx.databaseSession.newVertex("trista")
+            val trista2 = tx.databaseSession.activeTransaction.newVertex("trista")
             trista2.setProperty("name", "dvesti")
-            trista2.save()
 
             when (actionName) {
                 "commit",

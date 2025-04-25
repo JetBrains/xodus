@@ -16,24 +16,12 @@
 package jetbrains.exodus.entitystore.youtrackdb
 
 import com.jetbrains.youtrack.db.api.DatabaseSession
-import com.jetbrains.youtrack.db.internal.core.db.DatabaseRecordThreadLocal
+import com.jetbrains.youtrack.db.api.transaction.Transaction
 import com.jetbrains.youtrack.db.internal.core.db.DatabaseSessionInternal
 
 interface YTDBDatabaseProvider {
     val databaseLocation: String
     fun acquireSession(): DatabaseSession
-
-    /**
-     * If there is a session on the current thread, create a new session, executes the action in it,
-     * and returns the previous session back to the current thread.
-     *
-     * Never use this method. If you use this method, make sure you 100% understand what happens,
-     * and do not hesitate to invite people to review your code.
-     */
-    fun <T> executeInASeparateSession(
-        currentSession: DatabaseSession,
-        action: (DatabaseSession) -> T
-    ): T
 
     /**
      * Database-wise read-only mode.
@@ -52,53 +40,10 @@ fun <R> YTDBDatabaseProvider.withSession(block: (DatabaseSession) -> R): R {
     }
 }
 
-fun <R> YTDBDatabaseProvider.withCurrentOrNewSession(
-    requireNoActiveTransaction: Boolean = false,
-    block: (DatabaseSession) -> R
-): R {
-    return if (hasActiveSession()) {
-        val activeSession = DatabaseRecordThreadLocal.instance().getIfDefined() as DatabaseSession
-        if (requireNoActiveTransaction) {
-            if (activeSession.isTxActive) {
-                val copy = (activeSession as DatabaseSessionInternal).copy()
-                copy.activateOnCurrentThread()
-                try {
-                    copy.use {
-                        block(copy)
-                    }
-                } finally {
-                    activeSession.activateOnCurrentThread()
-                }
-            } else {
-                block(activeSession)
-            }
-        } else {
-            block(activeSession)
-        }
-    } else {
-        withSession { newSession ->
-            block(newSession)
-        }
-    }
-}
-
 internal fun DatabaseSession.hasActiveTransaction(): Boolean {
-    return isActiveOnCurrentThread && activeTxCount() > 0
-}
-
-internal fun DatabaseSession.requireActiveTransaction() {
-    require(hasActiveTransaction()) { "No active transaction is found. Happy debugging, pal!" }
+    return (this as DatabaseSessionInternal).isActiveOnCurrentThread && activeTxCount() > 0
 }
 
 internal fun DatabaseSession.requireNoActiveTransaction() {
-    assert(isActiveOnCurrentThread && activeTxCount() == 0) { "Active transaction is detected. Changes in the schema must not happen in a transaction." }
-}
-
-internal fun requireNoActiveSession() {
-    check(!hasActiveSession()) { "Active session is detected on the current thread" }
-}
-
-internal fun hasActiveSession(): Boolean {
-    val db = DatabaseRecordThreadLocal.instance().getIfDefined()
-    return db != null
+    assert((this as DatabaseSessionInternal).isActiveOnCurrentThread && activeTxCount() == 0) { "Active transaction is detected. Changes in the schema must not happen in a transaction." }
 }

@@ -21,8 +21,6 @@ interface YTDBEntity : Entity {
 
     override fun getId(): YTDBEntityId
 
-    fun save(): YTDBEntity
-
     fun resetToNew()
 
     fun generateId()
