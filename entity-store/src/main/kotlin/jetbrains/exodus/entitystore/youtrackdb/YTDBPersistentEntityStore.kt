@@ -132,14 +132,9 @@ class YTDBPersistentEntityStore(
             tx.commit()
             return result
         } finally {
-//            try {
-                if (!tx.isFinished) {
-                    tx.abort()
-                }
-//            } catch (e: Throwable) {
-//                println("Error while calling abort on transaction $tx: ${e.message}")
-//                e.printStackTrace()
-//            }
+            if (!tx.isFinished) {
+                tx.abort()
+            }
         }
     }
 
