@@ -16,9 +16,10 @@
 package jetbrains.exodus.lucene2;
 
 import com.carrotsearch.randomizedtesting.annotations.ThreadLeakFilters;
-import jetbrains.exodus.env.Environment;
 import jetbrains.exodus.env.EnvironmentConfig;
+import jetbrains.exodus.env.EnvironmentImpl;
 import jetbrains.exodus.env.Environments;
+import jetbrains.exodus.log.SharedLogCache;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.tests.store.BaseDirectoryTestCase;
 import org.apache.lucene.tests.util.TestRuleLimitSysouts;
@@ -36,8 +37,19 @@ public class XodusDirectoryNotEncryptedTest extends BaseDirectoryTestCase {
         config.removeSetting(EnvironmentConfig.CIPHER_ID);
         config.removeSetting(EnvironmentConfig.CIPHER_KEY);
 
-        Environment environment = Environments.newInstance(path.toFile(), config);
+        EnvironmentImpl environment = (EnvironmentImpl) Environments.newInstance(path.toFile(), config);
 
-        return new XodusDirectory(environment);
+        var log = environment.getLog();
+        var logConfig = log.getConfig();
+
+
+//        return new XodusDirectory(environment);
+        return new XodusNonXodusDirectory(
+                Path.of(log.getLocation()),
+                ((SharedLogCache) log.cache),
+                log.getCachePageSize(),
+                logConfig.getCipherProvider(),
+                logConfig.getCipherKey()
+        );
     }
 }
