@@ -16,6 +16,8 @@
 package jetbrains.exodus.entitystore.youtrackdb
 
 import com.jetbrains.youtrack.db.api.DatabaseSession
+import com.jetbrains.youtrack.db.api.common.BasicDatabaseSession
+import com.jetbrains.youtrack.db.api.common.BasicDatabaseSession.STATUS
 import com.jetbrains.youtrack.db.api.exception.ModificationOperationProhibitedException
 import com.jetbrains.youtrack.db.api.exception.RecordNotFoundException
 import com.jetbrains.youtrack.db.api.query.ResultSet
@@ -107,7 +109,7 @@ class YTDBStoreTransactionImpl(
     }
 
     override fun requireActiveTransaction(): FrontendTransaction {
-        check(session.status == DatabaseSession.STATUS.OPEN) {
+        check(session.status == STATUS.OPEN) {
             "The transaction is finished, the internal session state: ${session.status}"
         }
         check((session as DatabaseSessionInternal).isActiveOnCurrentThread) {
@@ -131,12 +133,12 @@ class YTDBStoreTransactionImpl(
     }
 
     override fun activateOnCurrentThread() {
-        check(session.status == DatabaseSession.STATUS.OPEN) { "The transaction is finished, the internal session state: ${session.status}" }
+        check(session.status == STATUS.OPEN) { "The transaction is finished, the internal session state: ${session.status}" }
         onActivated(session, this)
     }
 
     fun begin() {
-        check(session.status == DatabaseSession.STATUS.OPEN) { "The session status is ${session.status}. But ${DatabaseSession.STATUS.OPEN} is required." }
+        check(session.status == STATUS.OPEN) { "The session status is ${session.status}. But ${STATUS.OPEN} is required." }
         check((session as DatabaseSessionInternal).isActiveOnCurrentThread) { "The session is not active on the current thread" }
         check(session.activeTxCount() == 0) { "The session must not have a transaction" }
         try {
@@ -203,7 +205,7 @@ class YTDBStoreTransactionImpl(
     }
 
     private fun cleanUpTxIfNeeded() {
-        if (session.status == DatabaseSession.STATUS.OPEN && session.activeTxCount() == 0) {
+        if (session.status == STATUS.OPEN && session.activeTxCount() == 0) {
             resultSets.forEach(ResultSet::close)
             resultSets.clear()
             onFinished(session, this)

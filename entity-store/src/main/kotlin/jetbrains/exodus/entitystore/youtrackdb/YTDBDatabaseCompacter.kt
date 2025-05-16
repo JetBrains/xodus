@@ -17,6 +17,7 @@ package jetbrains.exodus.entitystore.youtrackdb
 
 import com.jetbrains.youtrack.db.api.YouTrackDB
 import com.jetbrains.youtrack.db.internal.core.command.CommandOutputListener
+import com.jetbrains.youtrack.db.internal.core.db.DatabaseSessionEmbedded
 import com.jetbrains.youtrack.db.internal.core.db.DatabaseSessionInternal
 import com.jetbrains.youtrack.db.internal.core.db.tool.DatabaseExport
 import com.jetbrains.youtrack.db.internal.core.db.tool.DatabaseImport
@@ -38,7 +39,7 @@ class YTDBDatabaseCompacter(
 
         dbProvider.withSession { session ->
             val exporter = DatabaseExport(
-                session as DatabaseSessionInternal,
+                session as DatabaseSessionEmbedded,
                 backupFile.outputStream(),
                 listener
             )
@@ -54,7 +55,7 @@ class YTDBDatabaseCompacter(
         dbProvider.withSession { session ->
             logger.info("Importing database from dump")
             val importer = DatabaseImport(
-                session as DatabaseSessionInternal,
+                session as DatabaseSessionEmbedded,
                 backupFile.inputStream(),
                 listener
             )

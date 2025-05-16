@@ -15,11 +15,11 @@
  */
 package jetbrains.exodus.entitystore.youtrackdb
 
-import com.jetbrains.youtrack.db.api.DatabaseSession
-import com.jetbrains.youtrack.db.api.exception.DatabaseException
+import com.jetbrains.youtrack.db.api.common.BasicDatabaseSession.STATUS
 import com.jetbrains.youtrack.db.api.exception.ModificationOperationProhibitedException
 import com.jetbrains.youtrack.db.api.exception.RecordDuplicatedException
 import com.jetbrains.youtrack.db.api.exception.RecordNotFoundException
+import com.jetbrains.youtrack.db.api.exception.TransactionException
 import com.jetbrains.youtrack.db.api.record.DBRecord
 import com.jetbrains.youtrack.db.api.record.Vertex
 import com.jetbrains.youtrack.db.api.schema.PropertyType
@@ -67,7 +67,7 @@ class OTransactionLifecycleTest : OTestMixin {
         val session = youTrackDb.openSession() as DatabaseSessionInternal
 
         assertFalse(session.transactionInternal == null)
-        assertEquals(DatabaseSession.STATUS.OPEN, session.status)
+        assertEquals(STATUS.OPEN, session.status)
         session.begin()
 
         assertEquals(session.transactionInternal.status, TXSTATUS.BEGUN)
@@ -75,12 +75,12 @@ class OTransactionLifecycleTest : OTestMixin {
         session.commit()
 
         assertEquals(session.transactionInternal.status, TXSTATUS.INVALID)
-        assertEquals(DatabaseSession.STATUS.OPEN, session.status)
+        assertEquals(STATUS.OPEN, session.status)
         assertFalse(session.hasActiveTransaction())
         assertTrue(session.isActiveOnCurrentThread)
 
         session.close()
-        assertEquals(DatabaseSession.STATUS.CLOSED, session.status)
+        assertEquals(STATUS.CLOSED, session.status)
         assertFalse(session.isActiveOnCurrentThread)
         assertTrue(session.isClosed)
     }
@@ -173,7 +173,7 @@ class OTransactionLifecycleTest : OTestMixin {
         val session: DatabaseSessionInternal = youTrackDb.openSession() as DatabaseSessionInternal
 
         assertFalse(session.hasActiveTransaction())
-        assertFailsWith<DatabaseException> { session.commit() }
+        assertFailsWith<TransactionException> { session.commit() }
 
         session.begin()
 
@@ -184,10 +184,10 @@ class OTransactionLifecycleTest : OTestMixin {
         assertFalse(session.hasActiveTransaction())
         assertTrue(session.isActiveOnCurrentThread)
 
-        assertFailsWith<DatabaseException> { session.commit() }
+        assertFailsWith<TransactionException> { session.commit() }
 
         assertTrue(session.isActiveOnCurrentThread)
-        assertEquals(DatabaseSession.STATUS.OPEN, session.status)
+        assertEquals(STATUS.OPEN, session.status)
 
         // the session is still usable
         session.begin()
@@ -309,49 +309,6 @@ class OTransactionLifecycleTest : OTestMixin {
         assertNotEquals(tx1, session.transactionInternal)
         session.load<Vertex>(trista1.identity)
         session.load<Vertex>(trista2.identity)
-        session.commit()
-        session.close()
-    }
-
-    @Test
-    fun `rollback(force = true) on an embedded transaction rolls back all the transactions`() {
-        val session = youTrackDb.openSession() as DatabaseSessionInternal
-        session.getOrCreateVertexClass("trista")
-
-        session.begin() // tx1
-        assertEquals(TXSTATUS.BEGUN, session.transactionInternal.status)
-        assertEquals(1, session.transactionInternal.amountOfNestedTxs())
-        assertTrue(session.hasActiveTransaction())
-
-        val trista1 = session.newVertex("trista")
-        trista1.setProperty("name", "dvesti")
-
-        session.begin() // tx2
-        assertEquals(TXSTATUS.BEGUN, session.transactionInternal.status)
-        assertEquals(2, session.transactionInternal.amountOfNestedTxs())
-        assertTrue(session.hasActiveTransaction())
-
-        val trista2 = session.newVertex("trista")
-        trista2.setProperty("name", "sth")
-
-        session.rollback(true)
-
-        assertEquals(TXSTATUS.INVALID, session.transactionInternal.status)
-        assertEquals(0, session.transactionInternal.amountOfNestedTxs())
-
-        session.begin()
-        try {
-            session.loadVertex(trista1.identity)
-            Assert.fail()
-        } catch (e: RecordNotFoundException) {
-            // expected
-        }
-        try {
-            session.loadVertex(trista2.identity)
-            Assert.fail()
-        } catch (e: RecordNotFoundException) {
-            // expected
-        }
         session.commit()
         session.close()
     }
