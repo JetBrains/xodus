@@ -16,7 +16,6 @@
 package jetbrains.exodus.entitystore.youtrackdb
 
 import com.jetbrains.youtrack.db.api.DatabaseSession
-import com.jetbrains.youtrack.db.api.query.ResultSet
 import com.jetbrains.youtrack.db.api.record.Vertex
 import com.jetbrains.youtrack.db.api.schema.SchemaClass
 import com.jetbrains.youtrack.db.internal.core.db.DatabaseSessionInternal
@@ -188,16 +187,15 @@ class YTDBSchemaBuddyImpl(
         val schema = session.schema
         val oClass = schema.getClassByCollectionId(oClassId) ?: return RIDEntityId.EMPTY_ID
 
-        val resultSet: ResultSet = session.activeTransaction.query(
-            "SELECT FROM ${oClass.name} WHERE $LOCAL_ENTITY_ID_PROPERTY_NAME = ?",
-            localEntityId
-        )
-        val oid = if (resultSet.hasNext()) {
-            val result = resultSet.next()
-            result.asVertexOrNull()?.identity ?: return RIDEntityId.EMPTY_ID
-        } else {
-            return RIDEntityId.EMPTY_ID
-        }
+        val oid = session.activeTransaction
+            .query("SELECT FROM ${oClass.name} WHERE $LOCAL_ENTITY_ID_PROPERTY_NAME = ?", localEntityId)
+            .use { resultSet ->
+                if (resultSet.hasNext()) {
+                    resultSet.next().asVertexOrNull()?.identity ?: return RIDEntityId.EMPTY_ID
+                } else {
+                    return RIDEntityId.EMPTY_ID
+                }
+            }
 
         return RIDEntityId(classId, localEntityId, oid, oClass.name)
     }

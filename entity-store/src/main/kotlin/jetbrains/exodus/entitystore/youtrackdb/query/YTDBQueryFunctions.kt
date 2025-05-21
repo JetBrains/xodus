@@ -124,7 +124,9 @@ class YTDBCountSelect(
         builder.append(")")
     }
 
-    fun count(tx: YTDBStoreTransaction): Long = YTDBQueryExecution.execute(this, tx).next().getLong("count")!!
+    fun count(tx: YTDBStoreTransaction): Long =
+        YTDBQueryExecution.execute(this, tx)
+            .use { it.next().getLong("count") }!!
 }
 
 class YTDBFirstSelect(

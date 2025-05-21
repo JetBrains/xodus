@@ -515,9 +515,9 @@ open class YTDBVertexEntity(vertex: Vertex, private val store: YTDBEntityStore) 
     private fun YTDBStoreTransaction.findEdge(edgeClassName: String, targetId: RID): Edge? {
         val query =
             "SELECT FROM $edgeClassName WHERE outV() = :outId AND inV() = :inId"
-        val result = query(query, mapOf("outId" to vertex.identity, "inId" to targetId))
-        val foundEdge = result.edgeStream().findFirst()
-        return foundEdge.getOrNull()
+        return query(query, mapOf("outId" to vertex.identity, "inId" to targetId))
+            .use { it.edgeStream().findFirst() }
+            .getOrNull()
     }
 
     override fun compareTo(other: Entity) = id.compareTo(other.id)

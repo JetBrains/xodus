@@ -16,7 +16,6 @@
 package jetbrains.exodus.entitystore.youtrackdb
 
 import com.jetbrains.youtrack.db.api.DatabaseSession
-import com.jetbrains.youtrack.db.api.common.BasicDatabaseSession
 import com.jetbrains.youtrack.db.api.common.BasicDatabaseSession.STATUS
 import com.jetbrains.youtrack.db.api.exception.ModificationOperationProhibitedException
 import com.jetbrains.youtrack.db.api.exception.RecordNotFoundException
