@@ -25,16 +25,16 @@ import jetbrains.exodus.entitystore.youtrackdb.query.YTDBQueryTimeoutException
 import jetbrains.exodus.entitystore.youtrackdb.toEntityIterator
 
 
-class YTDBQueryEntityIterator(private val source: Iterator<Entity>) : EntityIterator {
+class YTDBQueryEntityIterator(private val source: Iterator<Entity>, private val disposeResources: () -> Unit) : EntityIterator {
 
     companion object {
 
-        val EMPTY = YTDBQueryEntityIterator(emptyList<Entity>().iterator())
+        val EMPTY = YTDBQueryEntityIterator(emptyList<Entity>().iterator()) {}
 
         fun executeAndCreate(query: YTDBQuery, txn: YTDBStoreTransaction): YTDBQueryEntityIterator {
             val resultSet = YTDBQueryExecution.execute(query, txn)
             val iterator = resultSet.toEntityIterator(txn.getOEntityStore())
-            return YTDBQueryEntityIterator(iterator)
+            return YTDBQueryEntityIterator(iterator) { resultSet.close() }
         }
     }
 
@@ -61,6 +61,7 @@ class YTDBQueryEntityIterator(private val source: Iterator<Entity>) : EntityIter
     }
 
     override fun dispose(): Boolean {
+        disposeResources()
         return true
     }
 
