@@ -66,7 +66,7 @@ class YTDBQueryEntityIterator(private val source: Iterator<Entity>, private val 
     }
 
     override fun shouldBeDisposed(): Boolean {
-        return false
+        return true
     }
 
     override fun remove() {
