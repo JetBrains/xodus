@@ -80,12 +80,16 @@ abstract class YTDBEntityIterableBase(tx: YTDBStoreTransaction) : YTDBEntityIter
         val entityId = entity.id
         var result = 0
         val it = iterator()
-        while (it.hasNext()) {
-            val nextId = it.nextId()
-            if (nextId != null && nextId == entityId) {
-                return result
+        try {
+            while (it.hasNext()) {
+                val nextId = it.nextId()
+                if (nextId != null && nextId == entityId) {
+                    return result
+                }
+                ++result
             }
-            ++result
+        } finally {
+            it.dispose()
         }
         return -1
     }
@@ -158,10 +162,10 @@ abstract class YTDBEntityIterableBase(tx: YTDBStoreTransaction) : YTDBEntityIter
     private fun querySingleEntity(query: YTDBQuery): Entity? {
         val currentTx = oStore.requireActiveTransaction()
         val iterator = YTDBQueryEntityIterator.executeAndCreate(query, currentTx)
-        return if (iterator.hasNext()) {
-            iterator.next()
-        } else {
-            null
+        try {
+            return if (iterator.hasNext()) iterator.next() else null
+        } finally {
+            iterator.dispose()
         }
     }
 
@@ -224,16 +228,27 @@ abstract class YTDBEntityIterableBase(tx: YTDBStoreTransaction) : YTDBEntityIter
 
     override fun contains(entity: Entity): Boolean {
         val currentTx = oStore.requireActiveTransaction()
-        return YTDBIntersectionEntityIterable(currentTx, this, YTDBMultipleEntitiesIterable(currentTx, listOf(entity))).iterator().hasNext()
+        val it = YTDBIntersectionEntityIterable(
+            currentTx,
+            this,
+            YTDBMultipleEntitiesIterable(currentTx, listOf(entity))
+        ).iterator()
+        try {
+            return it.hasNext()
+        } finally {
+            it.dispose()
+        }
     }
 
     override fun unwrap() = this
 
     override fun isEmpty(): Boolean {
         val iter = iterator()
-        val result = iter.hasNext()
-        iter.dispose()
-        return !result
+        try {
+            return iter.hasNext()
+        } finally {
+            iter.dispose()
+        }
     }
 
 }
