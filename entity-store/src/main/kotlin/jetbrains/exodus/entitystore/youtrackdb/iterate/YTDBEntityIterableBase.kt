@@ -245,7 +245,7 @@ abstract class YTDBEntityIterableBase(tx: YTDBStoreTransaction) : YTDBEntityIter
     override fun isEmpty(): Boolean {
         val iter = iterator()
         try {
-            return iter.hasNext()
+            return !iter.hasNext()
         } finally {
             iter.dispose()
         }
