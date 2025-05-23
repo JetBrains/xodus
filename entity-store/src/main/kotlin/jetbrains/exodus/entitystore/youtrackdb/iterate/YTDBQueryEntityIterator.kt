@@ -25,11 +25,15 @@ import jetbrains.exodus.entitystore.youtrackdb.query.YTDBQueryTimeoutException
 import jetbrains.exodus.entitystore.youtrackdb.toEntityIterator
 
 
-class YTDBQueryEntityIterator(private val source: Iterator<Entity>, private val disposeResources: () -> Unit) : EntityIterator {
+class YTDBQueryEntityIterator(
+    private val source: Iterator<Entity>,
+    private var closed: Boolean = false,
+    private val disposeResources: () -> Unit = {},
+) : EntityIterator {
 
     companion object {
 
-        val EMPTY = YTDBQueryEntityIterator(emptyList<Entity>().iterator()) {}
+        val EMPTY = YTDBQueryEntityIterator(emptyList<Entity>().iterator(), closed = true)
 
         fun executeAndCreate(query: YTDBQuery, txn: YTDBStoreTransaction): YTDBQueryEntityIterator {
             val resultSet = YTDBQueryExecution.execute(query, txn)
@@ -43,7 +47,9 @@ class YTDBQueryEntityIterator(private val source: Iterator<Entity>, private val 
     }
 
     override fun hasNext(): Boolean {
-        return YTDBQueryTimeoutException.withTimeoutWrap { source.hasNext() }
+        val hasNext = YTDBQueryTimeoutException.withTimeoutWrap { source.hasNext() }
+        if (!hasNext) dispose()
+        return hasNext
     }
 
     override fun skip(number: Int): Boolean {
@@ -61,12 +67,16 @@ class YTDBQueryEntityIterator(private val source: Iterator<Entity>, private val 
     }
 
     override fun dispose(): Boolean {
+        if (closed) {
+            return false
+        }
+        closed = true
         disposeResources()
         return true
     }
 
     override fun shouldBeDisposed(): Boolean {
-        return true
+        return !closed
     }
 
     override fun remove() {
