@@ -26,7 +26,8 @@ class YTDBSkipValue(
 ) : YTDBSkip {
 
     override fun sql(builder: SqlBuilder) {
-        builder.append(value)
+        val skipParam = builder.addParam("skip", value)
+        builder.append(":$skipParam")
     }
 
     override fun min(other: YTDBSkip): YTDBSkip {

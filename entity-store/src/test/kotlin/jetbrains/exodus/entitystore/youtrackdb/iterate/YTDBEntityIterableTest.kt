@@ -81,7 +81,8 @@ class YTDBEntityIterableTest : OTestMixin {
             // Then
             tx.checkSql(
                 issues,
-                expectedSql = "SELECT FROM Issue WHERE outE('InProject_link').size() == 0"
+                expectedSql = "SELECT FROM Issue WHERE outE(:edge0).size() == 0",
+                expectedParams = mapOf("edge0" to "InProject_link")
             )
 
             assertNamesExactly(issues, "issue2", "issue3")
@@ -234,8 +235,12 @@ class YTDBEntityIterableTest : OTestMixin {
             // Then
             tx.checkSql(
                 issues,
-                expectedSql = "SELECT FROM (SELECT expand(in('OnBoard_link')) FROM [${test.board1.id.asOId()}]) WHERE @class='Issue'",
-                expectedParams = mapOf()
+                expectedSql = "SELECT FROM (SELECT expand(in(:link0)) FROM :targetIds1) WHERE @class=:class2",
+                expectedParams = mapOf(
+                    "link0" to "OnBoard_link",
+                    "targetIds1" to listOf(test.board1.id.asOId()),
+                    "class2" to Issues.CLASS,
+                )
             )
             assertNamesExactly(issues, "issue1", "issue2")
         }
@@ -261,7 +266,15 @@ class YTDBEntityIterableTest : OTestMixin {
             // Then
             tx.checkSql(
                 concat,
-                expectedSql = "SELECT expand(unionall(\$a0, \$b0)) LET \$a0=(SELECT FROM (SELECT expand(in('OnBoard_link')) FROM [${test.board1.id.asOId()}]) WHERE @class='Issue'), \$b0=(SELECT FROM (SELECT expand(in('OnBoard_link')) FROM [${test.board2.id.asOId()}]) WHERE @class='Issue')",
+                expectedSql = "SELECT expand(unionall(\$a0, \$b0)) LET \$a0=(SELECT FROM (SELECT expand(in(:link1)) FROM :targetIds2) WHERE @class=:class3), \$b0=(SELECT FROM (SELECT expand(in(:link4)) FROM :targetIds5) WHERE @class=:class6)",
+                expectedParams = mapOf(
+                    "link1" to "OnBoard_link",
+                    "targetIds2" to listOf(test.board1.id.asOId()),
+                    "class3" to Issues.CLASS,
+                    "link4" to "OnBoard_link",
+                    "targetIds5" to listOf(test.board2.id.asOId()),
+                    "class6" to Issues.CLASS,
+                )
             )
             assertNamesExactly(concat, "issue1", "issue2", "issue1")
         }
@@ -289,7 +302,15 @@ class YTDBEntityIterableTest : OTestMixin {
             // Then
             tx.checkSql(
                 issuesDistinct,
-                expectedSql = "SELECT DISTINCT * FROM (SELECT expand(unionall(\$a0, \$b0).asSet()) LET \$a0=(SELECT FROM (SELECT expand(in('OnBoard_link')) FROM [${test.board1.id.asOId()}]) WHERE @class='Issue'), \$b0=(SELECT FROM (SELECT expand(in('OnBoard_link')) FROM [${test.board2.id.asOId()}]) WHERE @class='Issue'))"
+                expectedSql = "SELECT DISTINCT * FROM (SELECT expand(unionall(\$a0, \$b0).asSet()) LET \$a0=(SELECT FROM (SELECT expand(in(:link1)) FROM :targetIds2) WHERE @class=:class3), \$b0=(SELECT FROM (SELECT expand(in(:link4)) FROM :targetIds5) WHERE @class=:class6))",
+                expectedParams = mapOf(
+                    "link1" to "OnBoard_link",
+                    "targetIds2" to listOf(test.board1.id.asOId()),
+                    "class3" to Issues.CLASS,
+                    "link4" to "OnBoard_link",
+                    "targetIds5" to listOf(test.board2.id.asOId()),
+                    "class6" to Issues.CLASS,
+                )
             )
             assertThat(issuesDistinct).hasSize(3)
             assertNamesExactly(issuesDistinct, "issue1", "issue2", "issue3")
@@ -374,7 +395,15 @@ class YTDBEntityIterableTest : OTestMixin {
             // Then
             tx.checkSql(
                 issues,
-                expectedSql = "SELECT expand(difference(\$a0, \$b0)) LET \$a0=(SELECT FROM (SELECT expand(in('OnBoard_link')) FROM [${test.board1.id.asOId()}]) WHERE @class='Issue'), \$b0=(SELECT FROM (SELECT expand(in('OnBoard_link')) FROM [${test.board2.id.asOId()}]) WHERE @class='Issue')",
+                expectedSql = "SELECT expand(difference(\$a0, \$b0)) LET \$a0=(SELECT FROM (SELECT expand(in(:link1)) FROM :targetIds2) WHERE @class=:class3), \$b0=(SELECT FROM (SELECT expand(in(:link4)) FROM :targetIds5) WHERE @class=:class6)",
+                expectedParams = mapOf(
+                    "link1" to "OnBoard_link",
+                    "targetIds2" to listOf(test.board1.id.asOId()),
+                    "class3" to Issues.CLASS,
+                    "link4" to "OnBoard_link",
+                    "targetIds5" to listOf(test.board2.id.asOId()),
+                    "class6" to Issues.CLASS,
+                ),
             )
             assertNamesExactly(issues, "issue2", "issue3")
         }
@@ -393,7 +422,8 @@ class YTDBEntityIterableTest : OTestMixin {
             // Then
             tx.checkSql(
                 issues,
-                expectedSql = "SELECT FROM Issue ORDER BY name ASC SKIP 1"
+                expectedSql = "SELECT FROM Issue ORDER BY name ASC SKIP :skip0",
+                expectedParams = mapOf("skip0" to 1)
             )
             assertNamesExactlyInOrder(issues, "issue2", "issue3")
         }
@@ -411,7 +441,8 @@ class YTDBEntityIterableTest : OTestMixin {
             // Then
             tx.checkSql(
                 issues,
-                expectedSql = "SELECT FROM Issue ORDER BY name ASC LIMIT 2"
+                expectedSql = "SELECT FROM Issue ORDER BY name ASC LIMIT :limit0",
+                expectedParams = mapOf("limit0" to 2)
             )
             assertNamesExactlyInOrder(issues, "issue1", "issue2")
         }
@@ -429,7 +460,8 @@ class YTDBEntityIterableTest : OTestMixin {
             // Then
             tx.checkSql(
                 issues,
-                expectedSql = "SELECT FROM Issue ORDER BY name ASC SKIP 1 LIMIT 2"
+                expectedSql = "SELECT FROM Issue ORDER BY name ASC SKIP :skip0 LIMIT :limit1",
+                expectedParams = mapOf("skip0" to 1, "limit1" to 2)
             )
             assertNamesExactlyInOrder(issues, "issue2", "issue3")
         }
@@ -478,8 +510,12 @@ class YTDBEntityIterableTest : OTestMixin {
             // Then
             tx.checkSql(
                 issuesOnBoards,
-                expectedSql = "SELECT expand(intersect(\$a0, \$b0)) LET \$a0=(SELECT FROM Issue), \$b0=(SELECT expand(in('OnBoard_link')) FROM (SELECT FROM Board WHERE (name = :name1 OR name = :name2)))",
-                expectedParams = mapOf("name1" to "board1", "name2" to "board2")
+                expectedSql = "SELECT expand(intersect(\$a0, \$b0)) LET \$a0=(SELECT FROM Issue), \$b0=(SELECT expand(in(:link1)) FROM (SELECT FROM Board WHERE (name = :name2 OR name = :name3)))",
+                expectedParams = mapOf(
+                    "link1" to "OnBoard_link",
+                    "name2" to "board1",
+                    "name3" to "board2"
+                )
             )
             assertNamesExactly(issuesOnBoards, "issue1", "issue2")
         }

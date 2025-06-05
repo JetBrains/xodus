@@ -25,7 +25,8 @@ class YTDBLimitValue(
 ) : YTDBLimit {
 
     override fun sql(builder: SqlBuilder) {
-        builder.append(value)
+        val limitParam = builder.addParam("limit", value)
+        builder.append(":$limitParam")
     }
 
     override fun min(other: YTDBLimit): YTDBLimit {
