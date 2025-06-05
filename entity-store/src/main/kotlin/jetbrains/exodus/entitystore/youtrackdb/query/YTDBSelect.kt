@@ -107,7 +107,8 @@ class YTDBLinkInFromSubQuerySelect(
 ) : YTDBSelectBase(order, skip, limit) {
 
     override fun selectSql(builder: SqlBuilder) {
-        builder.append("SELECT expand(in('").append(linkName).append("')) FROM (")
+        val link = builder.addParam("link", linkName)
+        builder.append("SELECT expand(in(:$link)) FROM (")
         subQuery.sql(builder)
         builder.append(")")
     }
@@ -122,11 +123,10 @@ class YTDBLinkInFromIdsSelect(
 ) : YTDBSelectBase(order, skip, limit) {
 
     override fun selectSql(builder: SqlBuilder) {
-        builder.append("SELECT expand(in('").append(linkName).append("')) FROM ")
-            .append(targetIdsSql)
+        val linkParam = builder.addParam("link", linkName)
+        val targetIdsParam = builder.addParam("targetIds", targetIds)
+        builder.append("SELECT expand(in(:$linkParam)) FROM :$targetIdsParam")
     }
-
-    private val targetIdsSql get() = "[${targetIds.map(RID::toString).joinToString(", ")}]"
 }
 
 
@@ -140,15 +140,14 @@ class YTDBLinkOfTypeInFromIdsSelect(
 ) : YTDBSelectBase(order, skip, limit) {
 
     override fun selectSql(builder: SqlBuilder) {
+        val linkParam = builder.addParam("link", linkName)
+        val targetIdsParam = builder.addParam("targetIds", targetIds)
+        val classParam = builder.addParam("class", targetEntityType)
         builder
-            .append("SELECT FROM (")
-            .append("SELECT expand(in('").append(linkName).append("')) FROM ")
-            .append(targetIdsSql)
-            .append(") WHERE @class='").append(targetEntityType).append("'")
-
+            .append("SELECT FROM")
+            .append(" (SELECT expand(in(:$linkParam)) FROM :$targetIdsParam)")
+            .append(" WHERE @class=:$classParam")
     }
-
-    private val targetIdsSql get() = "[${targetIds.map(RID::toString).joinToString(", ")}]"
 }
 
 class YTDBLinkOutFromIdSelect(
@@ -160,14 +159,11 @@ class YTDBLinkOutFromIdSelect(
 ) : YTDBSelectBase(order, skip, limit) {
 
     override fun selectSql(builder: SqlBuilder) {
-        builder.append("SELECT expand(out('").append(linkName).append("')) FROM ")
-            .append(targetIdsSql)
+        val linkParam = builder.addParam("link", linkName)
+        val targetIdsParam = builder.addParam("targetIds", targetIds)
+        builder.append("SELECT expand(out(:$linkParam)) FROM :$targetIdsParam")
     }
-
-    private val targetIdsSql get() = "[${targetIds.map(RID::toString).joinToString(", ")}]"
 }
-
-
 
 class YTDBLinkOutFromSubQuerySelect(
     val linkName: String,
@@ -178,7 +174,8 @@ class YTDBLinkOutFromSubQuerySelect(
 ) : YTDBSelectBase(order, skip, limit) {
 
     override fun selectSql(builder: SqlBuilder) {
-        builder.append("SELECT expand(out('").append(linkName).append("')) FROM (")
+        val linkParam = builder.addParam("link", linkName)
+        builder.append("SELECT expand(out(:$linkParam)) FROM (")
         subQuery.sql(builder)
         builder.append(")")
     }
@@ -331,10 +328,8 @@ class YTDBRecordIdSelect(
 ) : YTDBSelectBase(order) {
 
     override fun selectSql(builder: SqlBuilder) {
-        builder.append("SELECT FROM ")
-            .append("[")
-            .append(recordIds.joinToString(", ") { it.toString() })
-            .append("]")
+        val ridsParam = builder.addParam("rids", recordIds)
+        builder.append("SELECT FROM :$ridsParam")
     }
 }
 

@@ -1,6 +1,6 @@
 dependencies {
     api(project(":xodus-openAPI"))
-    api("io.youtrackdb:youtrackdb-core:1.0.0-20250602.061756-38")
+    api("io.youtrackdb:youtrackdb-core:1.0.0-20250605.144611-39")
 
     implementation(project(":xodus-utils"))
     implementation(project(":xodus-environment"))
