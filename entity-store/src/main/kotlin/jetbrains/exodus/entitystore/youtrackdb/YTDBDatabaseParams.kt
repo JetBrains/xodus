@@ -143,7 +143,8 @@ class YTDBDatabaseParams private constructor(
 }
 
 data class YTDBServerParams(
-    val rootPassword: String,
+    val serverUser: String,
+    val serverUserPassword: String,
     val httpEnabled: Boolean = false,
     val httpPortRange: Pair<Int, Int> = Pair(2480, 2490),
     val binaryEnabled: Boolean = false,

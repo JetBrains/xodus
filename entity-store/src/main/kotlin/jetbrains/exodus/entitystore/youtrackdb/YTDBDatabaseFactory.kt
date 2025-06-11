@@ -28,6 +28,7 @@ import com.jetbrains.youtrack.db.internal.tools.config.ServerUserConfiguration
 import jetbrains.exodus.entitystore.youtrackdb.YTDBDatabaseParams
 import jetbrains.exodus.entitystore.youtrackdb.YTDBDatabaseProvider
 import jetbrains.exodus.entitystore.youtrackdb.YTDBDatabaseProviderImpl
+import org.apache.commons.lang.RandomStringUtils
 
 object YouTrackDBFactory {
 
@@ -52,7 +53,15 @@ object YTDBDatabaseProviderFactory {
             } else {
 
                 val serverConfig = ServerConfiguration()
-                serverConfig.users = arrayOf(ServerUserConfiguration("root", params.serverParams.rootPassword, "*"))
+                val randomRootPassword = RandomStringUtils.randomAscii(16)
+                serverConfig.users = arrayOf(
+                    ServerUserConfiguration("root", randomRootPassword, "*"),
+                    ServerUserConfiguration(
+                        params.serverParams.serverUser,
+                        params.serverParams.serverUserPassword,
+                        "*"
+                    )
+                )
                 serverConfig.network = ServerNetworkConfiguration().apply {
                     protocols = mutableListOf()
                     listeners = mutableListOf()
