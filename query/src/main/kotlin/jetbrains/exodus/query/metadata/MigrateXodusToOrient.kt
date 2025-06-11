@@ -113,7 +113,6 @@ fun main() {
         ),
         orient = MigrateToOrientConfig(
             databaseProvider = dbProvider,
-            db = db,
             orientConfig = params,
             true
         ),

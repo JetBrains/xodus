@@ -32,6 +32,7 @@ class YTDBDatabaseParams private constructor(
     val encryptionKey: String?,
     val closeDatabaseInDbProvider: Boolean,
     val closeAfterDelayTimeout: Int,
+    val serverParams: YTDBServerParams? = null,
     val configBuilder: YouTrackDBConfigBuilder.() -> Unit = {}
 ) {
 
@@ -62,6 +63,7 @@ class YTDBDatabaseParams private constructor(
         private var closeAfterDelayTimeout: Int = 10
         private var encryptionKey: String? = null
         private var closeDatabaseInDbProvider = true
+        private var serverParams: YTDBServerParams? = null
         private var configBuilder: YouTrackDBConfigBuilder.() -> Unit = {}
 
         fun withDatabasePath(databaseUrl: String) = apply {
@@ -113,6 +115,10 @@ class YTDBDatabaseParams private constructor(
             this.configBuilder = tweakConfig
         }
 
+        fun withServerParams(serverParams: YTDBServerParams) = apply {
+            this.serverParams = serverParams
+        }
+
         fun build(): YTDBDatabaseParams {
             return YTDBDatabaseParams(
                 databasePath,
@@ -123,6 +129,7 @@ class YTDBDatabaseParams private constructor(
                 encryptionKey,
                 closeDatabaseInDbProvider,
                 closeAfterDelayTimeout,
+                serverParams,
                 configBuilder
             )
         }
@@ -134,5 +141,15 @@ class YTDBDatabaseParams private constructor(
         }
     }
 }
+
+data class YTDBServerParams(
+    val rootPassword: String,
+    val httpEnabled: Boolean = false,
+    val httpPortRange: Pair<Int, Int> = Pair(2480, 2490),
+    val binaryEnabled: Boolean = false,
+    val binaryPortRange: Pair<Int, Int> = Pair(2424, 2430),
+    val logConsoleLevel: String = "info",
+    val logFileLevel: String = "fine",
+)
 
 
