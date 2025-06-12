@@ -17,7 +17,7 @@ package jetbrains.exodus.entitystore.youtrackdb
 
 import com.jetbrains.youtrack.db.api.DatabaseSession
 import com.jetbrains.youtrack.db.api.YouTrackDB
-import com.jetbrains.youtrack.db.internal.core.db.DatabaseSessionInternal
+import com.jetbrains.youtrack.db.internal.server.YouTrackDBServer
 import java.io.File
 
 //username and password are considered to be same for all databases
@@ -25,6 +25,7 @@ import java.io.File
 class YTDBDatabaseProviderImpl(
     private val params: YTDBDatabaseParams,
     private val database: YouTrackDB,
+    private val server: YouTrackDBServer?
 ) : YTDBDatabaseProvider {
 
     override var isOpen: Boolean = false
@@ -90,10 +91,14 @@ class YTDBDatabaseProviderImpl(
 
     override fun close() {
         isOpen = false
-        // OxygenDB cannot close the database if it is read-only (frozen)
+        // YouTrackDB cannot close the database if it is read-only (frozen)
         readOnly = false
         if (params.closeDatabaseInDbProvider) {
-            database.close()
+            if (server != null) {
+                server.shutdown()
+            } else {
+                database.close()
+            }
         }
     }
 }

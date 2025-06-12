@@ -1,6 +1,10 @@
+val ytdbVersion = "1.0.0-20250605.144611-39"
+val ktorVersion = "3.1.3"
+
 dependencies {
     api(project(":xodus-openAPI"))
-    api("io.youtrackdb:youtrackdb-core:1.0.0-20250605.144611-39")
+    api("io.youtrackdb:youtrackdb-core:$ytdbVersion")
+    api("io.youtrackdb:youtrackdb-server:$ytdbVersion")
 
     implementation(project(":xodus-utils"))
     implementation(project(":xodus-environment"))
@@ -12,6 +16,10 @@ dependencies {
     testImplementation(libs.mockk)
     testImplementation(libs.truth)
     testImplementation(kotlin("test"))
+    testImplementation("io.ktor:ktor-client-core:$ktorVersion")
+    testImplementation("io.ktor:ktor-client-java:$ktorVersion")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.8.1")
+
 }
 
 val testArtifacts: Configuration by configurations.creating

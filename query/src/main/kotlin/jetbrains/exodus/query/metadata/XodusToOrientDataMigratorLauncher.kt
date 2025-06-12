@@ -15,7 +15,6 @@
  */
 package jetbrains.exodus.query.metadata
 
-import com.jetbrains.youtrack.db.api.YouTrackDB
 import jetbrains.exodus.entitystore.PersistentEntityStores
 import jetbrains.exodus.entitystore.youtrackdb.*
 import jetbrains.exodus.env.Environments
@@ -36,13 +35,11 @@ val VERTEX_CLASSES_TO_SKIP_MIGRATION = 10
  * Configuration for migrating to OrientDB from another system.
  *
  * @param databaseProvider Provides database connections.
- * @param db Instance of the OrientDB to which data is being migrated.
  * @param orientConfig Configuration settings specific to the OrientDB database.
  * @param closeOnFinish Flag indicating whether to close the database upon completion of migration.
  */
 data class MigrateToOrientConfig(
     val databaseProvider: YTDBDatabaseProvider,
-    val db: YouTrackDB,
     val orientConfig: YTDBDatabaseParams,
     val closeOnFinish: Boolean = false
 )
@@ -237,7 +234,7 @@ class XodusToOrientDataMigratorLauncher(
             xEntityStore.close()
             cleanUpXodusDB(xodus.dropOldDatabaseAfterMigration)
             if (orient.closeOnFinish) {
-                orient.db.close()
+                orient.databaseProvider.close()
             }
         }
     }

@@ -50,7 +50,6 @@ class MigrateYourDatabaseTest {
         val provider = YTDBDatabaseProviderFactory.createProvider(params, db)
         val launcher = XodusToOrientDataMigratorLauncher(
             orient = MigrateToOrientConfig(
-                db = db,
                 databaseProvider = provider,
                 orientConfig = params,
                 closeOnFinish = true
