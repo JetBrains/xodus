@@ -20,11 +20,12 @@ import jetbrains.exodus.entitystore.EntityRemovedInDatabaseException
 import jetbrains.exodus.entitystore.PersistentEntityId
 import jetbrains.exodus.entitystore.youtrackdb.YTDBVertexEntity.Companion.linkTargetEntityIdPropertyName
 import jetbrains.exodus.entitystore.youtrackdb.testutil.*
+import jetbrains.exodus.entitystore.youtrackdb.testutil.Issues.Links.IN_PROJECT
+import org.junit.Assert
 import org.junit.Rule
 import org.junit.Test
 import java.io.ByteArrayInputStream
 import java.util.*
-import kotlin.random.Random
 import kotlin.test.*
 
 class YTDBEntityTest : OTestMixin {
@@ -59,6 +60,19 @@ class YTDBEntityTest : OTestMixin {
             tx.getEntity(e2.id)
             assertFailsWith<EntityRemovedInDatabaseException> { tx.getEntity(e1.id) }
             assertEquals(1, tx.getAll(Issues.CLASS).size())
+        }
+    }
+
+    @Test
+    fun `link names should return actual link names`(){
+        val issue = withStoreTx { tx ->
+            val issue = tx.newEntity(Issues.CLASS) as YTDBEntity
+            val project = tx.newEntity(Projects.CLASS) as YTDBEntity
+            tx.addIssueToProject(issue, project)
+            issue
+        }
+        withStoreTx {
+            Assert.assertEquals(arrayListOf(IN_PROJECT), issue.linkNames)
         }
     }
 
