@@ -509,7 +509,7 @@ open class YTDBVertexEntity(vertex: Vertex, private val store: YTDBEntityStore) 
         return ArrayList(
             vertex.getEdgeNames(Direction.OUT)
                 .filter { it.endsWith(EDGE_CLASS_SUFFIX) }
-                .map { it.substringBefore(EDGE_CLASS_SUFFIX) })
+                .map { it.substringAfter(Vertex.DIRECTION_OUT_PREFIX).substringBefore(EDGE_CLASS_SUFFIX) })
     }
 
     private fun YTDBStoreTransaction.findEdge(edgeClassName: String, targetId: RID): Edge? {
