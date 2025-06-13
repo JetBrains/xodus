@@ -139,9 +139,9 @@ internal fun DatabaseSession.checkIndex(
     val index = (entity as SchemaClassInternal).indexesInternal.first { it.name == indexName }
     assertEquals(unique, index.isUnique)
 
-    assertEquals(fieldNames.size, index.definition.fields.size)
+    assertEquals(fieldNames.size, index.definition.properties.size)
     for (fieldName in fieldNames) {
-        assertTrue(index.definition.fields.contains(fieldName))
+        assertTrue(index.definition.properties.contains(fieldName))
     }
 }
 
