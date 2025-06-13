@@ -68,7 +68,7 @@ class YTDBServerTest {
             .withPassword(password)
             .withUserName(username)
             .withDatabaseName(dbName)
-            .withServerParams(
+            .withServer(
                 YTDBServerParams(
                     serverConnectUser = serverConnectUser,
                     serverConnectPassword = serverConnectPassword,
@@ -121,7 +121,7 @@ class YTDBServerTest {
 
         val dbWithServer = YTDBDatabaseProviderFactory.createProvider(
             params
-                .withServerParams(
+                .withServer(
                     YTDBServerParams(
                         serverConnectUser = serverConnectUser,
                         serverConnectPassword = serverConnectPassword,

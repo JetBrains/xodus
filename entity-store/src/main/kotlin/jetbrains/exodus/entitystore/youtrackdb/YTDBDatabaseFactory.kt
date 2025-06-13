@@ -70,7 +70,7 @@ object YTDBDatabaseProviderFactory {
                             )
                         )
                         listeners.add(ServerNetworkListenerConfiguration().apply {
-                            ipAddress = "127.0.0.1"
+                            ipAddress = it.httpBindAddress
                             portRange = "${it.httpPortRange.first}-${it.httpPortRange.second}"
                             protocol = "http"
                         })
@@ -84,7 +84,7 @@ object YTDBDatabaseProviderFactory {
                             )
                         )
                         listeners.add(ServerNetworkListenerConfiguration().apply {
-                            ipAddress = "127.0.0.1"
+                            ipAddress = it.binaryBindAddress
                             portRange = "${it.binaryPortRange.first}-${it.binaryPortRange.second}"
                             protocol = "binary"
                         })
