@@ -18,22 +18,22 @@ package jetbrains.exodus.entitystore.youtrackdb.testutil
 import jetbrains.exodus.entitystore.youtrackdb.YTDBStoreTransaction
 import jetbrains.exodus.entitystore.youtrackdb.YTDBVertexEntity
 
-class OTaskTrackerTestCase(val orientDB: InMemoryYouTrackDB) {
+class OTaskTrackerTestCase(val youtrackDB: InMemoryYouTrackDB) {
 
     val project1: YTDBVertexEntity
     val project2: YTDBVertexEntity
     val project3: YTDBVertexEntity
 
-    val issue1: YTDBVertexEntity = orientDB.createIssue("issue1")
-    val issue2: YTDBVertexEntity = orientDB.createIssue("issue2")
-    val issue3: YTDBVertexEntity = orientDB.createIssue("issue3")
+    val issue1: YTDBVertexEntity = youtrackDB.createIssue("issue1", tags = setOf("bug", "in_progress", "critical"))
+    val issue2: YTDBVertexEntity = youtrackDB.createIssue("issue2")
+    val issue3: YTDBVertexEntity = youtrackDB.createIssue("issue3", tags = setOf("feature", "in_progress", "normal"))
 
     val board1: YTDBVertexEntity
     val board2: YTDBVertexEntity
     val board3: YTDBVertexEntity
 
     init {
-        val tx = orientDB.store.beginTransaction() as YTDBStoreTransaction
+        val tx = youtrackDB.store.beginTransaction() as YTDBStoreTransaction
         project1 = tx.createProjectImpl("project1")
         project2 = tx.createProjectImpl("project2")
         project3 = tx.createProjectImpl("project3")
@@ -45,7 +45,7 @@ class OTaskTrackerTestCase(val orientDB: InMemoryYouTrackDB) {
 
     fun createManyIssues(count: Int) {
         for (i in 1..count) {
-            orientDB.createIssue("issue$i")
+            youtrackDB.createIssue("issue$i")
         }
     }
 }

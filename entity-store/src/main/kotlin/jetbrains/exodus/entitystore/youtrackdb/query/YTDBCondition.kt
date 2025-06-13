@@ -31,6 +31,9 @@ class YTDBEqualCondition(
     }
 }
 
+/**
+ * String "contains"
+ */
 class YTDBContainsCondition(
     val field: String,
     val value: String,
@@ -44,6 +47,20 @@ class YTDBContainsCondition(
             builder.addParam(field, value)
         }
         builder.append(field).let { builder -> if (ignoreCase) builder.append(".toLowerCase()") else builder }.append(" containsText :$param")
+    }
+}
+
+/**
+ * Collection "contains"
+ */
+class YTDBCollectionContainsCondition(
+    val field: String,
+    val value: Object,
+) : YTDBCondition {
+
+    override fun sql(builder: SqlBuilder) {
+        val param = builder.addParam(field, value)
+        builder.append(field).append(" contains :$param")
     }
 }
 
