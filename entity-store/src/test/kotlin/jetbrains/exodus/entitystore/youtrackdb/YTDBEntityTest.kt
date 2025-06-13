@@ -25,6 +25,7 @@ import org.junit.Assert
 import org.junit.Rule
 import org.junit.Test
 import java.io.ByteArrayInputStream
+import kotlin.random.Random
 import java.util.*
 import kotlin.test.*
 
