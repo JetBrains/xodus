@@ -115,7 +115,7 @@ class YTDBDatabaseParams private constructor(
             this.configBuilder = tweakConfig
         }
 
-        fun withServerParams(serverParams: YTDBServerParams) = apply {
+        fun withServer(serverParams: YTDBServerParams) = apply {
             this.serverParams = serverParams
         }
 
@@ -143,14 +143,14 @@ class YTDBDatabaseParams private constructor(
 }
 
 data class YTDBServerParams(
-    val serverUser: String,
-    val serverUserPassword: String,
+    val serverConnectUser: String? = null,
+    val serverConnectPassword: String? = null,
     val httpEnabled: Boolean = false,
+    val httpBindAddress: String = "127.0.0.1",
     val httpPortRange: Pair<Int, Int> = Pair(2480, 2490),
     val binaryEnabled: Boolean = false,
     val binaryPortRange: Pair<Int, Int> = Pair(2424, 2430),
+    val binaryBindAddress: String = "127.0.0.1",
     val logConsoleLevel: String = "info",
     val logFileLevel: String = "fine",
 )
-
-

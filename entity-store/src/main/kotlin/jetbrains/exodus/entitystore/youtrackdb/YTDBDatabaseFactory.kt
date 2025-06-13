@@ -50,58 +50,50 @@ object YTDBDatabaseProviderFactory {
         val (youTrackDb, server) =
             if (params.serverParams == null) {
                 Pair(YouTrackDBFactory.createEmbedded(params), null)
-            } else {
+            } else params.serverParams.let {
 
                 val serverConfig = ServerConfiguration()
-                val randomRootPassword = RandomStringUtils.randomAscii(16)
-                serverConfig.users = arrayOf(
-                    ServerUserConfiguration("root", randomRootPassword, "*"),
-                    ServerUserConfiguration(
-                        params.serverParams.serverUser,
-                        params.serverParams.serverUserPassword,
-                        "*"
-                    )
-                )
+
+                val rootUser = ServerUserConfiguration("root", RandomStringUtils.randomAscii(16), "*")
+                val connectUser =
+                    it.serverConnectUser?.let { user -> ServerUserConfiguration(user, it.serverConnectPassword, "*") }
+                serverConfig.users = if (connectUser == null) arrayOf(rootUser, connectUser) else arrayOf(rootUser)
                 serverConfig.network = ServerNetworkConfiguration().apply {
                     protocols = mutableListOf()
                     listeners = mutableListOf()
                 }
-                if (params.serverParams.httpEnabled) {
-                    val ports = params.serverParams.httpPortRange
+                if (it.httpEnabled) {
                     serverConfig.network.apply {
                         protocols.add(
                             ServerNetworkProtocolConfiguration(
-                                "http",
-                                NetworkProtocolHttpDb::class.qualifiedName
+                                "http", NetworkProtocolHttpDb::class.qualifiedName
                             )
                         )
                         listeners.add(ServerNetworkListenerConfiguration().apply {
-                            ipAddress = "127.0.0.1"
-                            portRange = "${ports.first}-${ports.second}"
+                            ipAddress = it.httpBindAddress
+                            portRange = "${it.httpPortRange.first}-${it.httpPortRange.second}"
                             protocol = "http"
                         })
                     }
                 }
-                if (params.serverParams.binaryEnabled) {
-                    val ports = params.serverParams.binaryPortRange
+                if (it.binaryEnabled) {
                     serverConfig.network.apply {
                         protocols.add(
                             ServerNetworkProtocolConfiguration(
-                                "binary",
-                                NetworkProtocolBinary::class.qualifiedName
+                                "binary", NetworkProtocolBinary::class.qualifiedName
                             )
                         )
                         listeners.add(ServerNetworkListenerConfiguration().apply {
-                            ipAddress = "127.0.0.1"
-                            portRange = "${ports.first}-${ports.second}"
+                            ipAddress = it.binaryBindAddress
+                            portRange = "${it.binaryPortRange.first}-${it.binaryPortRange.second}"
                             protocol = "binary"
                         })
                     }
                 }
 
                 serverConfig.properties = arrayOf(
-                    ServerEntryConfiguration("log.console.level", params.serverParams.logConsoleLevel),
-                    ServerEntryConfiguration("log.file.level", params.serverParams.logFileLevel),
+                    ServerEntryConfiguration("log.console.level", it.logConsoleLevel),
+                    ServerEntryConfiguration("log.file.level", it.logFileLevel),
                     ServerEntryConfiguration("server.database.path", params.databasePath),
                 )
 

@@ -42,8 +42,8 @@ class YTDBServerTest {
 
     val username = "admin"
     val password = "admin_password"
-    val serverUser = "server_user"
-    val serverUserPassword = "server_password"
+    val serverConnectUser = "server_user"
+    val serverConnectPassword = "server_password"
     val dbName = "testDB"
     lateinit var httpClient: HttpClient
 
@@ -68,10 +68,10 @@ class YTDBServerTest {
             .withPassword(password)
             .withUserName(username)
             .withDatabaseName(dbName)
-            .withServerParams(
+            .withServer(
                 YTDBServerParams(
-                    serverUser = serverUser,
-                    serverUserPassword = serverUserPassword,
+                    serverConnectUser = serverConnectUser,
+                    serverConnectPassword = serverConnectPassword,
                     httpEnabled = true,
                     binaryEnabled = true,
                 )
@@ -121,10 +121,10 @@ class YTDBServerTest {
 
         val dbWithServer = YTDBDatabaseProviderFactory.createProvider(
             params
-                .withServerParams(
+                .withServer(
                     YTDBServerParams(
-                        serverUser = serverUser,
-                        serverUserPassword = serverUserPassword,
+                        serverConnectUser = serverConnectUser,
+                        serverConnectPassword = serverConnectPassword,
                         httpEnabled = true,
                         binaryEnabled = true
                     )
@@ -163,7 +163,7 @@ class YTDBServerTest {
 
     private fun remoteSession(): RemoteDatabaseSession {
         return YourTracks
-            .remote("remote:localhost", serverUser, serverUserPassword, YouTrackDBConfig.defaultConfig())
+            .remote("remote:localhost", serverConnectUser, serverConnectPassword, YouTrackDBConfig.defaultConfig())
             .open(dbName, username, password)
     }
 
