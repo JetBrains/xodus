@@ -20,6 +20,7 @@ import com.jetbrains.youtrack.db.api.record.Direction
 import com.jetbrains.youtrack.db.api.record.Vertex
 import com.jetbrains.youtrack.db.api.schema.PropertyType
 import jetbrains.exodus.entitystore.Entity
+import jetbrains.exodus.entitystore.youtrackdb.YTDBComparableSet
 import jetbrains.exodus.entitystore.youtrackdb.YTDBEntity
 import jetbrains.exodus.entitystore.youtrackdb.YTDBStoreTransaction
 import jetbrains.exodus.entitystore.youtrackdb.YTDBVertexEntity
@@ -27,6 +28,7 @@ import jetbrains.exodus.entitystore.youtrackdb.testutil.Issues.CLASS
 import jetbrains.exodus.entitystore.youtrackdb.testutil.Issues.Links.IN_PROJECT
 import jetbrains.exodus.entitystore.youtrackdb.testutil.Issues.Links.ON_BOARD
 import jetbrains.exodus.entitystore.youtrackdb.testutil.Issues.Props.PRIORITY
+import jetbrains.exodus.entitystore.youtrackdb.testutil.Issues.Props.TAGS
 import jetbrains.exodus.entitystore.youtrackdb.testutil.Projects.Links.HAS_ISSUE
 
 object Issues {
@@ -34,6 +36,7 @@ object Issues {
 
     object Props {
         const val PRIORITY = "priority"
+        const val TAGS = "tags"
     }
 
     object Links {
@@ -58,10 +61,12 @@ object Boards {
     }
 }
 
-fun InMemoryYouTrackDB.createIssue(name: String, priority: String? = null): YTDBVertexEntity {
-    return withStoreTx { tx ->
-        tx.createIssueImpl(name, priority)
-    }
+fun InMemoryYouTrackDB.createIssue(
+    name: String,
+    priority: String? = null,
+    tags: Set<String>? = null
+): YTDBVertexEntity = withStoreTx { tx ->
+    tx.createIssueImpl(name, priority, tags?.toMutableSet())
 }
 
 fun YTDBEntity.name(): Comparable<*> {
@@ -80,11 +85,13 @@ private fun Entity.setName(name: String) {
 
 internal fun YTDBStoreTransaction.createIssueImpl(
     name: String,
-    priority: String? = null
+    priority: String? = null,
+    tags: MutableSet<String>? = null,
 ): YTDBVertexEntity {
     val issue = newEntity(CLASS) as YTDBVertexEntity
     issue.setName(name)
     priority?.let { issue.setProperty(PRIORITY, it) }
+    tags?.let { issue.setProperty(TAGS, YTDBComparableSet(it)) }
     return issue
 }
 

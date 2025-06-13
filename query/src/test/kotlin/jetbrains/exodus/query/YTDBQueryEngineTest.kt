@@ -121,7 +121,7 @@ class YTDBQueryEngineTest(
     }
 
     @Test
-    fun `should query property contains`() {
+    fun `should query property contains (string)`() {
         // Given
         val test = givenTestCase()
         val engine = givenOQueryEngine()
@@ -140,6 +140,22 @@ class YTDBQueryEngineTest(
             //this may be subject to change if we want to support exact case search
             assertThat(issuesIgnoreNotIgnoreCase).isEmpty()
             assertThat(empty).isEmpty()
+        }
+    }
+
+    @Test
+    fun `should query property contains (collection)`() {
+        val test = givenTestCase()
+        val engine = givenOQueryEngine()
+
+        withStoreTx {
+            val bugs = engine.query(iterableGetter(engine, it), "Issue", PropertyCollectionContains("tags", "bug"))
+            val inProgress = engine.query(iterableGetter(engine, it), "Issue", PropertyCollectionContains("tags", "in_progress"))
+            val abandoned = engine.query(iterableGetter(engine, it), "Issue", PropertyCollectionContains("tags", "abandoned"))
+
+            assertNamesExactly(bugs, "issue1")
+            assertNamesExactly(inProgress, "issue1", "issue3")
+            assertThat(abandoned).isEmpty()
         }
     }
 
