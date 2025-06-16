@@ -27,8 +27,8 @@ class YTDBDatabaseParams private constructor(
     val databasePath: String,
     val databaseName: String,
     val databaseType: DatabaseType,
-    val userName: String,
-    val password: String,
+    val appUser: YTDBUser,
+    val additionalUsers: List<YTDBUser> = emptyList(),
     val encryptionKey: String?,
     val closeDatabaseInDbProvider: Boolean,
     val closeAfterDelayTimeout: Int,
@@ -58,8 +58,8 @@ class YTDBDatabaseParams private constructor(
         private var databasePath: String = ""
         private var databaseName: String = ""
         private var databaseType: DatabaseType = DatabaseType.MEMORY
-        private var userName: String = "admin"
-        private var password: String = "admin"
+        private var appUser: YTDBUser = YTDBUser(name = "admin", password = "admin", role = "admin")
+        private var additionalUsers: MutableList<YTDBUser> = mutableListOf()
         private var closeAfterDelayTimeout: Int = 10
         private var encryptionKey: String? = null
         private var closeDatabaseInDbProvider = true
@@ -78,12 +78,24 @@ class YTDBDatabaseParams private constructor(
             this.databaseType = databaseType
         }
 
-        fun withUserName(userName: String) = apply {
-            this.userName = userName
+        fun withAppUser(name: String, password: String) = apply {
+            this.appUser = YTDBUser(name = name, password = password, role = "admin")
         }
 
-        fun withPassword(password: String) = apply {
-            this.password = password
+        fun withAdditionalUsers(users: List<YTDBUser>) = apply {
+            this.additionalUsers = users.toMutableList()
+        }
+
+        fun addAdminUser(name: String, password: String) = apply {
+            this.additionalUsers.add(YTDBUser(name, password, role = "admin"))
+        }
+
+        fun addWriterUser(name: String, password: String) = apply {
+            this.additionalUsers.add(YTDBUser(name, password, role = "writer"))
+        }
+
+        fun addReaderUser(name: String, password: String) = apply {
+            this.additionalUsers.add(YTDBUser(name, password, role = "reader"))
         }
 
         fun withCloseDatabaseInDbProvider(closeDatabaseInDbProvider: Boolean) = apply {
@@ -124,8 +136,8 @@ class YTDBDatabaseParams private constructor(
                 databasePath,
                 databaseName,
                 databaseType,
-                userName,
-                password,
+                appUser,
+                additionalUsers.toList(),
                 encryptionKey,
                 closeDatabaseInDbProvider,
                 closeAfterDelayTimeout,
@@ -139,6 +151,19 @@ class YTDBDatabaseParams private constructor(
                 (this shr (i * 8) and 0xFF).toByte()
             }
         }
+    }
+}
+
+data class YTDBUser(
+    val name: String,
+    val password: String,
+    val role: String
+) {
+    init {
+        require(name.isNotBlank()) { "User name must not be blank" }
+        require(password.isNotBlank()) { "User password must not be blank" }
+        require(name.matches(Regex("^[a-zA-Z0-9]*$"))) { "User name must contain only alphanumeric characters" }
+        require(role == "admin" || role == "writer" || role == "reader") { "User role must be one of: admin, writer, reader" }
     }
 }
 

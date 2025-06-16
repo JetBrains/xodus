@@ -16,7 +16,6 @@
 package jetbrains.exodus.entitystore.youtrackdb
 
 import com.jetbrains.youtrack.db.api.DatabaseSession
-import com.jetbrains.youtrack.db.api.transaction.Transaction
 import com.jetbrains.youtrack.db.internal.core.db.DatabaseSessionInternal
 
 interface YTDBDatabaseProvider {
@@ -34,11 +33,8 @@ interface YTDBDatabaseProvider {
     fun close()
 }
 
-fun <R> YTDBDatabaseProvider.withSession(block: (DatabaseSession) -> R): R {
-    acquireSession().use { session ->
-        return block(session)
-    }
-}
+fun <R> YTDBDatabaseProvider.withSession(block: (DatabaseSession) -> R): R =
+    acquireSession().use { block(it) }
 
 internal fun DatabaseSession.hasActiveTransaction(): Boolean {
     return (this as DatabaseSessionInternal).isActiveOnCurrentThread && activeTxCount() > 0

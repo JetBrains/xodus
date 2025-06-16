@@ -26,9 +26,9 @@ class YTDBDatabaseProviderTest: OTestMixin {
 
     @Rule
     @JvmField
-    val orientDbRule = InMemoryYouTrackDB()
+    val youtrackDbRule = InMemoryYouTrackDB()
 
-    override val youTrackDb = orientDbRule
+    override val youTrackDb = youtrackDbRule
 
     @Test
     fun `read-only mode works`() {
@@ -53,5 +53,4 @@ class YTDBDatabaseProviderTest: OTestMixin {
         // close() releases the read-only mode before closing the database (otherwise it throws exceptions)
         youTrackDb.provider.close()
     }
-
 }

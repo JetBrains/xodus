@@ -40,8 +40,7 @@ class MigrateYourDatabaseTest {
     fun `migrate data from Xodus to OrientDB`() {
         val params = YTDBDatabaseParams.builder()
             .withDatabaseName("testDB")
-            .withPassword("password")
-            .withUserName("admin")
+            .withAppUser("admin", "password")
             .withDatabasePath("")
             .withDatabaseType(DatabaseType.MEMORY)
             .build()

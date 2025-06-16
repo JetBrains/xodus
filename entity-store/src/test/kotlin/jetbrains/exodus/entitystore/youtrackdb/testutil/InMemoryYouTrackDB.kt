@@ -48,8 +48,7 @@ class InMemoryYouTrackDB(
         val params = YTDBDatabaseParams.builder()
             .withDatabaseType(DatabaseType.MEMORY)
             .withDatabasePath(Files.createTempDirectory("youTrackDB_test").absolutePathString())
-            .withPassword(password)
-            .withUserName(username)
+            .withAppUser(username, password)
             .withDatabaseName(dbName)
             .build()
 

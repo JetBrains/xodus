@@ -65,8 +65,7 @@ class YTDBServerTest {
         val params = YTDBDatabaseParams.builder()
             .withDatabaseType(DatabaseType.DISK)
             .withDatabasePath(dbPath)
-            .withPassword(password)
-            .withUserName(username)
+            .withAppUser(username, password)
             .withDatabaseName(dbName)
             .withServer(
                 YTDBServerParams(
@@ -104,8 +103,7 @@ class YTDBServerTest {
         val params = YTDBDatabaseParams.builder()
             .withDatabaseType(DatabaseType.DISK)
             .withDatabasePath(dbPath)
-            .withPassword(password)
-            .withUserName(username)
+            .withAppUser(username, password)
             .withDatabaseName(dbName)
 
         val dbNoServer = YTDBDatabaseProviderFactory.createProvider(params.build())
