@@ -1,0 +1,56 @@
+package jetbrains.exodus.entitystore.youtrackdb.gremlin
+
+import com.jetbrains.youtrack.db.api.gremlin.YTDBVertex
+import com.jetbrains.youtrack.db.internal.core.gremlin.YTDBVertexInternal
+import jetbrains.exodus.entitystore.Entity
+import jetbrains.exodus.entitystore.EntityId
+import jetbrains.exodus.entitystore.EntityIterator
+import jetbrains.exodus.entitystore.youtrackdb.YTDBEntityStore
+import jetbrains.exodus.entitystore.youtrackdb.YTDBVertexEntity
+
+class GremlinEntityIterator(
+    private val gremlinVertices: Iterator<YTDBVertex>,
+    private val store: YTDBEntityStore,
+    private var closed: Boolean = false,
+    private val disposeResources: () -> Unit = {},
+) : EntityIterator {
+    override fun skip(number: Int): Boolean {
+        repeat(number) {
+            if (!hasNext()) {
+                return false
+            }
+            next()
+        }
+        return true
+    }
+
+    override fun nextId(): EntityId = next().id
+
+    override fun dispose(): Boolean {
+        if (closed) {
+            return false
+        }
+        closed = true
+        disposeResources()
+        return true
+    }
+
+    override fun shouldBeDisposed(): Boolean = !closed
+
+    override fun remove() = throw UnsupportedOperationException()
+
+    override fun hasNext(): Boolean {
+        val hasNext = gremlinVertices.hasNext()
+
+        if (!hasNext) dispose()
+
+        return hasNext
+    };
+
+    // todo: special TimeoutException handling?
+    override fun next(): Entity = YTDBVertexEntity(
+        (gremlinVertices.next() as YTDBVertexInternal).rawEntity,
+        store
+    )
+
+}

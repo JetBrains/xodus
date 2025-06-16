@@ -16,6 +16,7 @@
 package jetbrains.exodus.entitystore.youtrackdb
 
 import com.jetbrains.youtrack.db.api.DatabaseSession
+import com.jetbrains.youtrack.db.api.gremlin.YTDBVertex
 import com.jetbrains.youtrack.db.api.query.ResultSet
 import com.jetbrains.youtrack.db.api.record.DBRecord
 import com.jetbrains.youtrack.db.api.record.Vertex
@@ -24,6 +25,7 @@ import com.jetbrains.youtrack.db.internal.core.metadata.sequence.DBSequence
 import com.jetbrains.youtrack.db.internal.core.tx.FrontendTransaction
 import jetbrains.exodus.entitystore.PersistentEntityId
 import jetbrains.exodus.entitystore.StoreTransaction
+import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal
 
 interface YTDBStoreTransaction : StoreTransaction {
     val databaseSession: DatabaseSession
@@ -53,6 +55,8 @@ interface YTDBStoreTransaction : StoreTransaction {
     fun bindToSession(entity: YTDBVertexEntity): YTDBVertexEntity
 
     fun query(sql: String, params: Map<String, Any>): ResultSet
+
+    fun traversal(): GraphTraversal<YTDBVertex, YTDBVertex>
 
     fun getOEntityId(entityId: PersistentEntityId): YTDBEntityId
 

@@ -19,6 +19,7 @@ import com.jetbrains.youtrack.db.api.DatabaseSession
 import com.jetbrains.youtrack.db.api.common.BasicDatabaseSession.STATUS
 import com.jetbrains.youtrack.db.api.exception.ModificationOperationProhibitedException
 import com.jetbrains.youtrack.db.api.exception.RecordNotFoundException
+import com.jetbrains.youtrack.db.api.gremlin.YTDBVertex
 import com.jetbrains.youtrack.db.api.query.ResultSet
 import com.jetbrains.youtrack.db.api.record.DBRecord
 import com.jetbrains.youtrack.db.api.record.Vertex
@@ -34,6 +35,7 @@ import jetbrains.exodus.entitystore.youtrackdb.iterate.link.*
 import jetbrains.exodus.entitystore.youtrackdb.iterate.property.*
 import jetbrains.exodus.entitystore.youtrackdb.query.YTDBQueryCancellingPolicy
 import jetbrains.exodus.env.ReadonlyTransactionException
+import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal
 
 internal typealias TransactionEventHandler = (DatabaseSession, YTDBStoreTransaction) -> Unit
 
@@ -78,6 +80,11 @@ class YTDBStoreTransactionImpl(
 
     override fun query(sql: String, params: Map<String, Any>): ResultSet {
         return requireActiveTransaction().query(sql, params)
+    }
+
+    override fun traversal(): GraphTraversal<YTDBVertex, YTDBVertex> {
+        @Suppress("UNCHECKED_CAST")
+        return requireActiveTransaction().traversal().V() as GraphTraversal<YTDBVertex, YTDBVertex>
     }
 
     override fun getStore(): EntityStore {
