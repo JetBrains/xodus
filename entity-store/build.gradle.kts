@@ -4,7 +4,9 @@ val ktorVersion = "3.1.3"
 dependencies {
     api(project(":xodus-openAPI"))
     api("io.youtrackdb:youtrackdb-core:$ytdbVersion")
-    api("io.youtrackdb:youtrackdb-server:$ytdbVersion")
+    api("io.youtrackdb:youtrackdb-server:$ytdbVersion") {
+        exclude("org.slf4j", "slf4j-jdk14")
+    }
 
     implementation(project(":xodus-utils"))
     implementation(project(":xodus-environment"))
