@@ -36,8 +36,8 @@ object YouTrackDBFactory {
         val config = params.youTrackDBConfig
         return YourTracks.embedded(params.databasePath, config).apply {
             (this as? YouTrackDBImpl)?.let {
-                it.serverPassword = params.password
-                it.serverUser = params.userName
+                it.serverPassword = params.appUser.name
+                it.serverUser = params.appUser.password
             }
         }
     }

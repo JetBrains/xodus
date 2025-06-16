@@ -18,7 +18,6 @@ package jetbrains.exodus.entitystore.youtrackdb
 import com.jetbrains.youtrack.db.api.YouTrackDB
 import com.jetbrains.youtrack.db.internal.core.command.CommandOutputListener
 import com.jetbrains.youtrack.db.internal.core.db.DatabaseSessionEmbedded
-import com.jetbrains.youtrack.db.internal.core.db.DatabaseSessionInternal
 import com.jetbrains.youtrack.db.internal.core.db.tool.DatabaseExport
 import com.jetbrains.youtrack.db.internal.core.db.tool.DatabaseImport
 import mu.KLogging
@@ -50,7 +49,13 @@ class YTDBDatabaseCompacter(
         logger.info("Dropping existing database...")
         db.drop(params.databaseName)
 
-        db.create(params.databaseName, params.databaseType, params.userName, params.password, "admin")
+        db.create(
+            params.databaseName,
+            params.databaseType,
+            params.appUser.name,
+            params.appUser.password,
+            "admin"
+        )
 
         dbProvider.withSession { session ->
             logger.info("Importing database from dump")

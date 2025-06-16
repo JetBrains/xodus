@@ -43,8 +43,7 @@ class MigrateXodusToOrientDbSmokeTest {
         val dbName = "testDB"
 
         val params = YTDBDatabaseParams.builder()
-            .withPassword(password)
-            .withUserName(username)
+            .withAppUser(username, password)
             .withDatabaseType(DatabaseType.MEMORY)
             .withDatabasePath("")
             .withDatabaseName("MEMORY")

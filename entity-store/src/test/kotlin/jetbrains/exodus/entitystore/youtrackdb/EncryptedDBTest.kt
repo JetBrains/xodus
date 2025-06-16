@@ -51,8 +51,7 @@ class EncryptedDBTest(val number: Int) {
 
         return YTDBDatabaseParams.builder()
             .withDatabasePath(databasePath)
-            .withPassword(password)
-            .withUserName(username)
+            .withAppUser(username, password)
             .withDatabaseType(DatabaseType.DISK)
             .withDatabaseName(dbName)
             .withCloseDatabaseInDbProvider(true)

@@ -94,8 +94,7 @@ fun main() {
 
     val params = YTDBDatabaseParams.builder()
         .withDatabasePath(orientDatabaseDirectory)
-        .withPassword(orientPassword)
-        .withUserName(orientUsername)
+        .withAppUser(orientUsername, orientPassword)
         .withDatabaseType(orientDatabaseType)
         .withDatabaseName(orientDatabaseName)
         .build()

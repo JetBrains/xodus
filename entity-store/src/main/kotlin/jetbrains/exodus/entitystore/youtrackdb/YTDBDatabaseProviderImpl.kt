@@ -17,8 +17,11 @@ package jetbrains.exodus.entitystore.youtrackdb
 
 import com.jetbrains.youtrack.db.api.DatabaseSession
 import com.jetbrains.youtrack.db.api.YouTrackDB
+import com.jetbrains.youtrack.db.internal.core.metadata.security.SecurityUserImpl
 import com.jetbrains.youtrack.db.internal.server.YouTrackDBServer
+import mu.KLogging
 import java.io.File
+import kotlin.streams.asSequence
 
 //username and password are considered to be same for all databases
 //todo this params also should be collected in some config entity
@@ -31,20 +34,48 @@ class YTDBDatabaseProviderImpl(
     override var isOpen: Boolean = false
         private set
 
+    companion object : KLogging()
+
     init {
-        require(params.userName.matches(Regex("^[a-zA-Z0-9]*$")))
+        val userNames = listOf(params.appUser.name) + params.additionalUsers.map { it.name }
+
+        require(userNames.toSet().size == userNames.size) { "User names must be unique" }
 
         database.createIfNotExists(
             params.databaseName,
             params.databaseType,
-            params.userName,
-            params.password,
+            params.appUser.name,
+            params.appUser.password,
             "admin"
         )
 
         // ToDo: migrate to some config entity instead of System props
         if (System.getProperty("exodus.env.compactOnOpen", "false").toBoolean()) {
             compact()
+        }
+
+        if (params.additionalUsers.any()) {
+            acquireSessionImpl().use { session ->
+                session.transaction { tx ->
+                    val existingNames = tx.query("SELECT name FROM " + SecurityUserImpl.CLASS_NAME)
+                        .stream()
+                        .map { it.getString("name") }
+                        .asSequence()
+                        .toSet()
+
+                    params.additionalUsers
+                        .asSequence()
+                        .filterNot { existingNames.contains(it.name) }
+                        .forEach { userDef ->
+                            logger.info { "Creating user ${userDef.name} with role ${userDef.role}" }
+
+                            tx.command(
+                                "CREATE USER ${userDef.name} IDENTIFIED BY :password ROLE ${userDef.role}",
+                                mapOf("password" to userDef.password)
+                            )
+                        }
+                }
+            }
         }
 
         isOpen = true
@@ -83,8 +114,8 @@ class YTDBDatabaseProviderImpl(
     private fun acquireSessionImpl(): DatabaseSession {
         return database.cachedPool(
             params.databaseName,
-            params.userName,
-            params.password,
+            params.appUser.name,
+            params.appUser.password,
             params.youTrackDBConfig
         ).acquire()
     }
