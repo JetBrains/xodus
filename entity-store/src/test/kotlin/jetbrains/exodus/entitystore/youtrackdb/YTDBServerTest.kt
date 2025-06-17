@@ -19,6 +19,7 @@ import YTDBDatabaseProviderFactory
 import com.google.common.truth.Truth.assertThat
 import com.jetbrains.youtrack.db.api.DatabaseType
 import com.jetbrains.youtrack.db.api.YourTracks
+import com.jetbrains.youtrack.db.api.config.GlobalConfiguration
 import com.jetbrains.youtrack.db.api.config.YouTrackDBConfig
 import com.jetbrains.youtrack.db.api.exception.DatabaseException
 import com.jetbrains.youtrack.db.api.remote.RemoteDatabaseSession
@@ -104,7 +105,18 @@ class YTDBServerTest {
             .withDatabaseType(DatabaseType.DISK)
             .withDatabasePath(dbPath)
             .withAppUser(username, password)
+            .withEncryptionKey("abcdefghijklmnopqrstuvwxyz012345")
             .withDatabaseName(dbName)
+            .withConfigBuilder {
+                addGlobalConfigurationParameter(
+                    GlobalConfiguration.STATEMENT_CACHE_SIZE,
+                    1000
+                )
+                addGlobalConfigurationParameter(
+                    GlobalConfiguration.ENVIRONMENT_DUMP_CFG_AT_STARTUP,
+                    true
+                )
+            }
 
         val dbNoServer = YTDBDatabaseProviderFactory.createProvider(params.build())
         dbNoServer.acquireSession().use { session ->
