@@ -18,9 +18,7 @@ package jetbrains.exodus.query;
 
 import jetbrains.exodus.entitystore.Entity;
 import jetbrains.exodus.entitystore.youtrackdb.gremlin.GremlinEntityIterableImpl;
-import jetbrains.exodus.entitystore.youtrackdb.gremlin.GremlinQueryPropertyEqual;
-import jetbrains.exodus.entitystore.youtrackdb.iterate.property.YTDBPropertyEqualIterable;
-import jetbrains.exodus.entitystore.youtrackdb.iterate.property.YTDBPropertyIsNullIterable;
+import jetbrains.exodus.entitystore.youtrackdb.gremlin.GremlinQuery;
 import jetbrains.exodus.query.metadata.ModelMetaData;
 import org.jetbrains.annotations.Nullable;
 
@@ -52,7 +50,7 @@ public class PropertyEqual_G extends NodeBase {
         }
         return new GremlinEntityIterableImpl(
                 queryEngine.getOStore().requireActiveTransaction(),
-                new GremlinQueryPropertyEqual(name, value)
+                new GremlinQuery.PropEqual(name, value)
         );
     }
 

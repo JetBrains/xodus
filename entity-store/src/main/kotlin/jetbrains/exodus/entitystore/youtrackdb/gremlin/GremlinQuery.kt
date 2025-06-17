@@ -16,17 +16,38 @@ interface GremlinQuery {
         }
     }
 
-//    fun execute(session: DatabaseSession): List<Map<String, Any>> {
-//        val a = session.asGraph()
-//            .traversal().V()
-//            .hasLabel("Abc")
-//            .has("name", "xyz")
-//            .out()
-//            .out()
-//            .has("name", "abc")
-//            .filter(`__`.out("aaa").count().`is`(gt(2)))
-//            .filter(`__`.out("aaa").count().`is`(gt(2)))
-//
-//        return emptyList()
-//    }
+    class Dedup : GremlinQuery {
+        override fun traverse(g: GraphTraversal<*, YTDBVertex>): GraphTraversal<*, YTDBVertex> = g.dedup()
+    }
+
+    class Label(val entityType: String) : GremlinQuery {
+        override fun traverse(g: GraphTraversal<*, YTDBVertex>): GraphTraversal<*, YTDBVertex> =
+            g.hasLabel(entityType)
+    }
+
+    class Limit(val limit: Long) : GremlinQuery {
+        override fun traverse(g: GraphTraversal<*, YTDBVertex>): GraphTraversal<*, YTDBVertex> =
+            g.limit(limit)
+    }
+
+    class Skip(val skip: Long) : GremlinQuery {
+        override fun traverse(g: GraphTraversal<*, YTDBVertex>): GraphTraversal<*, YTDBVertex> =
+            g.skip(skip)
+    }
+
+    class Tail() : GremlinQuery {
+        override fun traverse(g: GraphTraversal<*, YTDBVertex>): GraphTraversal<*, YTDBVertex> =
+            g.tail()
+    }
+
+    class PropEqual(private val property: String, private val value: Object) : GremlinQuery {
+        override fun traverse(g: GraphTraversal<*, YTDBVertex>): GraphTraversal<*, YTDBVertex> =
+            g.has(property, value)
+    }
+
+    class Reverse : GremlinQuery {
+        override fun traverse(g: GraphTraversal<*, YTDBVertex>): GraphTraversal<*, YTDBVertex> =
+            g.reverse()
+    }
 }
+

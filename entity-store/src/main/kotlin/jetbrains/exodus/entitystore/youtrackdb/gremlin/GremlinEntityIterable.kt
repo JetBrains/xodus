@@ -3,15 +3,12 @@ package jetbrains.exodus.entitystore.youtrackdb.gremlin
 import com.jetbrains.youtrack.db.api.gremlin.YTDBVertex
 import jetbrains.exodus.entitystore.Entity
 import jetbrains.exodus.entitystore.EntityIterable
-import jetbrains.exodus.entitystore.EntityIterator
 import jetbrains.exodus.entitystore.StoreTransaction
 import jetbrains.exodus.entitystore.youtrackdb.YTDBEntityStore
 import jetbrains.exodus.entitystore.youtrackdb.YTDBStoreTransaction
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal
-import org.apache.tinkerpop.gremlin.structure.Vertex
 
 interface GremlinEntityIterable : EntityIterable {
-
 }
 
 class GremlinEntityIterableImpl(
@@ -28,21 +25,17 @@ class GremlinEntityIterableImpl(
     private fun modify(query: GremlinQuery): GremlinEntityIterableImpl =
         GremlinEntityIterableImpl(tx, this.query.andThen(query))
 
-    private fun iterator(traversal: GraphTraversal<*, YTDBVertex>): EntityIterator {
-
-        val gremlinVertices = traversal.iterator()
-
-        return GremlinEntityIterator(
-            gremlinVertices,
+    private fun iterator(traversal: GraphTraversal<*, YTDBVertex>): GremlinEntityIterator =
+        GremlinEntityIterator(
+            traversal.iterator(),
             oStore,
             disposeResources = { traversal.close() }
         )
-    }
 
     private fun traversal(): GraphTraversal<*, YTDBVertex> =
         query.traverse(oStore.requireActiveTransaction().traversal())
 
-    override fun iterator(): EntityIterator = iterator(traversal())
+    override fun iterator(): GremlinEntityIterator = iterator(traversal())
 
     override fun getTransaction(): StoreTransaction = oStore.requireActiveTransaction()
 
@@ -111,13 +104,11 @@ class GremlinEntityIterableImpl(
         TODO("Not yet implemented")
     }
 
-    override fun skip(number: Int): EntityIterable = modify(GremlinQuerySkip(number.toLong()))
+    override fun skip(number: Int): EntityIterable = modify(GremlinQuery.Skip(number.toLong()))
 
-    override fun take(number: Int): EntityIterable = modify(GremlinQueryLimit(number.toLong()))
+    override fun take(number: Int): EntityIterable = modify(GremlinQuery.Limit(number.toLong()))
 
-    override fun distinct(): EntityIterable {
-        TODO("Not yet implemented")
-    }
+    override fun distinct(): EntityIterable = modify(GremlinQuery.Dedup())
 
     override fun selectDistinct(linkName: String): EntityIterable {
         TODO("Not yet implemented")
@@ -127,25 +118,21 @@ class GremlinEntityIterableImpl(
         TODO("Not yet implemented")
     }
 
-    override fun getFirst(): Entity? {
-        TODO("Not yet implemented")
-    }
+    override fun getFirst(): Entity? =
+        iterator(traversal().limit(1)).use {
+            if (it.hasNext()) it.next() else null
+        }
 
-    override fun getLast(): Entity? {
-        TODO("Not yet implemented")
-    }
+    override fun getLast(): Entity? =
+        iterator(traversal().tail()).use {
+            if (it.hasNext()) return it.next() else null
+        }
 
-    override fun reverse(): EntityIterable {
-        TODO("Not yet implemented")
-    }
+    override fun reverse(): EntityIterable = modify(GremlinQuery.Reverse())
 
-    override fun isSortResult(): Boolean {
-        TODO("Not yet implemented")
-    }
+    override fun isSortResult(): Boolean = false
 
-    override fun asSortResult(): EntityIterable {
-        TODO("Not yet implemented")
-    }
+    override fun asSortResult(): EntityIterable = this
 
     override fun unwrap(): EntityIterable {
         TODO("Not yet implemented")

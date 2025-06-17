@@ -19,7 +19,7 @@ package jetbrains.exodus.query;
 import jetbrains.exodus.core.dataStructures.NanoSet;
 import jetbrains.exodus.entitystore.Entity;
 import jetbrains.exodus.entitystore.youtrackdb.gremlin.GremlinEntityIterableImpl;
-import jetbrains.exodus.entitystore.youtrackdb.gremlin.GremlinQueryLabel;
+import jetbrains.exodus.entitystore.youtrackdb.gremlin.GremlinQuery;
 import jetbrains.exodus.query.metadata.ModelMetaData;
 
 public class GetAll_G extends NodeBase {
@@ -28,7 +28,7 @@ public class GetAll_G extends NodeBase {
     public Iterable<Entity> instantiate(String entityType, QueryEngine queryEngine, ModelMetaData metaData, InstantiateContext context) {
         return new GremlinEntityIterableImpl(
                 queryEngine.getOStore().requireActiveTransaction(),
-                new GremlinQueryLabel(entityType)
+                new GremlinQuery.Label(entityType)
         );
     }
 

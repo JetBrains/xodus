@@ -7,13 +7,22 @@ import jetbrains.exodus.entitystore.EntityId
 import jetbrains.exodus.entitystore.EntityIterator
 import jetbrains.exodus.entitystore.youtrackdb.YTDBEntityStore
 import jetbrains.exodus.entitystore.youtrackdb.YTDBVertexEntity
+import java.lang.AutoCloseable
 
 class GremlinEntityIterator(
     private val gremlinVertices: Iterator<YTDBVertex>,
     private val store: YTDBEntityStore,
     private var closed: Boolean = false,
     private val disposeResources: () -> Unit = {},
-) : EntityIterator {
+) : EntityIterator, AutoCloseable {
+
+    companion object {
+        fun vertexToEntity(vertex: YTDBVertex, store: YTDBEntityStore) = YTDBVertexEntity(
+            (vertex as YTDBVertexInternal).rawEntity,
+            store
+        )
+    }
+
     override fun skip(number: Int): Boolean {
         repeat(number) {
             if (!hasNext()) {
@@ -48,9 +57,9 @@ class GremlinEntityIterator(
     };
 
     // todo: special TimeoutException handling?
-    override fun next(): Entity = YTDBVertexEntity(
-        (gremlinVertices.next() as YTDBVertexInternal).rawEntity,
-        store
-    )
+    override fun next(): Entity = vertexToEntity(gremlinVertices.next(), store)
 
+    override fun close() {
+        dispose()
+    }
 }
