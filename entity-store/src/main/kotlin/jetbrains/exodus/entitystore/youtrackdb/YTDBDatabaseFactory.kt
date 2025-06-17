@@ -15,16 +15,12 @@
  */
 import com.jetbrains.youtrack.db.api.YouTrackDB
 import com.jetbrains.youtrack.db.api.YourTracks
+import com.jetbrains.youtrack.db.internal.core.db.YouTrackDBConfigImpl
 import com.jetbrains.youtrack.db.internal.core.db.YouTrackDBImpl
 import com.jetbrains.youtrack.db.internal.server.YouTrackDBServer
 import com.jetbrains.youtrack.db.internal.server.network.protocol.binary.NetworkProtocolBinary
 import com.jetbrains.youtrack.db.internal.server.network.protocol.http.NetworkProtocolHttpDb
-import com.jetbrains.youtrack.db.internal.tools.config.ServerConfiguration
-import com.jetbrains.youtrack.db.internal.tools.config.ServerEntryConfiguration
-import com.jetbrains.youtrack.db.internal.tools.config.ServerNetworkConfiguration
-import com.jetbrains.youtrack.db.internal.tools.config.ServerNetworkListenerConfiguration
-import com.jetbrains.youtrack.db.internal.tools.config.ServerNetworkProtocolConfiguration
-import com.jetbrains.youtrack.db.internal.tools.config.ServerUserConfiguration
+import com.jetbrains.youtrack.db.internal.tools.config.*
 import jetbrains.exodus.entitystore.youtrackdb.YTDBDatabaseParams
 import jetbrains.exodus.entitystore.youtrackdb.YTDBDatabaseProvider
 import jetbrains.exodus.entitystore.youtrackdb.YTDBDatabaseProviderImpl
@@ -91,11 +87,19 @@ object YTDBDatabaseProviderFactory {
                     }
                 }
 
+                val contextConfig = (params.youTrackDBConfig as YouTrackDBConfigImpl)
                 serverConfig.properties = arrayOf(
                     ServerEntryConfiguration("log.console.level", it.logConsoleLevel),
                     ServerEntryConfiguration("log.file.level", it.logFileLevel),
                     ServerEntryConfiguration("server.database.path", params.databasePath),
                 )
+
+                serverConfig.properties = serverConfig.properties +
+                        contextConfig.configuration.contextKeys.map { confKey ->
+                            val confValue: Any? =
+                                contextConfig.configuration.getValue(confKey, null)
+                            ServerEntryConfiguration(confKey, confValue?.toString())
+                        }
 
                 val server = YouTrackDBServer(false)
                 server.startup(serverConfig)
