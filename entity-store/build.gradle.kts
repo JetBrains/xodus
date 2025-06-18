@@ -1,4 +1,4 @@
-val ytdbVersion = "1.0.0-20250613.080637-40"
+val ytdbVersion = "1.0.0-20250618.083524-41"
 val ktorVersion = "3.1.3"
 
 dependencies {
@@ -21,7 +21,6 @@ dependencies {
     testImplementation("io.ktor:ktor-client-core:$ktorVersion")
     testImplementation("io.ktor:ktor-client-java:$ktorVersion")
     testImplementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.8.1")
-
 }
 
 val testArtifacts: Configuration by configurations.creating

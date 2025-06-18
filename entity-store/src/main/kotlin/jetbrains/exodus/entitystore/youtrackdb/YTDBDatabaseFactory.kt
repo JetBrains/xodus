@@ -15,6 +15,7 @@
  */
 import com.jetbrains.youtrack.db.api.YouTrackDB
 import com.jetbrains.youtrack.db.api.YourTracks
+import com.jetbrains.youtrack.db.api.config.GlobalConfiguration
 import com.jetbrains.youtrack.db.internal.core.db.YouTrackDBConfigImpl
 import com.jetbrains.youtrack.db.internal.core.db.YouTrackDBImpl
 import com.jetbrains.youtrack.db.internal.server.YouTrackDBServer
@@ -92,6 +93,7 @@ object YTDBDatabaseProviderFactory {
                     ServerEntryConfiguration("log.console.level", it.logConsoleLevel),
                     ServerEntryConfiguration("log.file.level", it.logFileLevel),
                     ServerEntryConfiguration("server.database.path", params.databasePath),
+                    ServerEntryConfiguration(GlobalConfiguration.DB_SYSTEM_DATABASE_ENABLED.key, "false"),
                 )
 
                 serverConfig.properties = serverConfig.properties +
