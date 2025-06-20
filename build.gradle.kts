@@ -146,8 +146,8 @@ subprojects {
 
     tasks.test {
         systemProperty("exodus.tests.buildDirectory", project.layout.buildDirectory.asFile.get())
-        minHeapSize = "1g"
-        maxHeapSize = "1g"
+        minHeapSize = "2g"
+        maxHeapSize = "2g"
         jvmArgs = listOf(
             "-ea",
             "-XX:+HeapDumpOnOutOfMemoryError"

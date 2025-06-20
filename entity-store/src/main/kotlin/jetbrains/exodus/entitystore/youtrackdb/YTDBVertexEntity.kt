@@ -130,7 +130,13 @@ open class YTDBVertexEntity(vertex: Vertex, private val store: YTDBEntityStore) 
 
     override fun resetToNew() {
         val className = vertexRecord.schemaClassName
+        val localEntityId = vertexRecord.getLong(LOCAL_ENTITY_ID_PROPERTY_NAME)
+
         vertexRecord = (store.databaseSession as DatabaseSessionInternal).newVertex(className)
+
+        if (localEntityId != null) {
+            vertexRecord.setLong(LOCAL_ENTITY_ID_PROPERTY_NAME, localEntityId)
+        }
     }
 
     override fun generateId() {
