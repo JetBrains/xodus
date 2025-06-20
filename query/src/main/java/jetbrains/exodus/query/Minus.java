@@ -21,7 +21,7 @@ import jetbrains.exodus.query.metadata.ModelMetaData;
 
 public class Minus extends BinaryOperator {
     public Minus(final NodeBase left, final NodeBase right) {
-        super(left, right);
+        super(left, right, false);
     }
 
     @Override

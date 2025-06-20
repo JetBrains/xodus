@@ -4,11 +4,20 @@ import com.jetbrains.youtrack.db.api.gremlin.YTDBVertex
 import jetbrains.exodus.entitystore.Entity
 import jetbrains.exodus.entitystore.EntityIterable
 import jetbrains.exodus.entitystore.StoreTransaction
+import jetbrains.exodus.entitystore.youtrackdb.YTDBEntityId
 import jetbrains.exodus.entitystore.youtrackdb.YTDBEntityStore
 import jetbrains.exodus.entitystore.youtrackdb.YTDBStoreTransaction
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal
 
 interface GremlinEntityIterable : EntityIterable {
+
+    companion object {
+        @JvmStatic
+        fun create(entityType: String, tx: YTDBStoreTransaction, query: GremlinQuery) =
+            GremlinEntityIterableImpl(tx, GremlinQuery.HasLabel(entityType).andThen(query));
+    }
+
+    fun selectMany(linkName: String): EntityIterable
 }
 
 class GremlinEntityIterableImpl(
@@ -80,9 +89,9 @@ class GremlinEntityIterableImpl(
         return -1
     }
 
-    override fun contains(entity: Entity): Boolean {
-        TODO("Not yet implemented")
-    }
+    override fun contains(entity: Entity): Boolean = traversal()
+        .hasId((entity.id as YTDBEntityId).asOId())
+        .use { it.hasNext() }
 
     override fun intersect(right: EntityIterable): EntityIterable {
         TODO("Not yet implemented")
@@ -108,15 +117,15 @@ class GremlinEntityIterableImpl(
 
     override fun take(number: Int): EntityIterable = modify(GremlinQuery.Limit(number.toLong()))
 
-    override fun distinct(): EntityIterable = modify(GremlinQuery.Dedup())
+    override fun distinct(): EntityIterable = modify(GremlinQuery.Dedup)
 
-    override fun selectDistinct(linkName: String): EntityIterable {
-        TODO("Not yet implemented")
-    }
+    override fun selectDistinct(linkName: String): EntityIterable = selectManyDistinct(linkName)
 
-    override fun selectManyDistinct(linkName: String): EntityIterable {
-        TODO("Not yet implemented")
-    }
+    override fun selectMany(linkName: String): EntityIterable =
+        modify(GremlinQuery.Link(linkName))
+
+    override fun selectManyDistinct(linkName: String): EntityIterable =
+        selectMany(linkName).distinct()
 
     override fun getFirst(): Entity? =
         iterator(traversal().limit(1)).use {
@@ -128,15 +137,13 @@ class GremlinEntityIterableImpl(
             if (it.hasNext()) return it.next() else null
         }
 
-    override fun reverse(): EntityIterable = modify(GremlinQuery.Reverse())
+    override fun reverse(): EntityIterable = modify(GremlinQuery.Reverse)
 
     override fun isSortResult(): Boolean = false
 
     override fun asSortResult(): EntityIterable = this
 
-    override fun unwrap(): EntityIterable {
-        TODO("Not yet implemented")
-    }
+    override fun unwrap(): EntityIterable = this
 
     override fun findLinks(
         entities: EntityIterable,

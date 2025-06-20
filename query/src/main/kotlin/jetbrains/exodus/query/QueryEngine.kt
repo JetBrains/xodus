@@ -44,7 +44,7 @@ open class QueryEngine(val modelMetaData: ModelMetaData?, val persistentStore: P
             _sortEngine = value.notNull.apply { queryEngine = this@QueryEngine }
         }
 
-    open fun queryGetAll(entityType: String): EntityIterable = query(null, entityType, NodeFactory.all())
+    open fun queryGetAll(entityType: String): EntityIterable = query(null, entityType, NodeFactory.all_old())
 
     open fun query(entityType: String, tree: NodeBase): EntityIterable = query(null, entityType, tree)
 

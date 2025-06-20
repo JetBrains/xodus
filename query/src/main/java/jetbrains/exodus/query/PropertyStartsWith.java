@@ -47,7 +47,7 @@ public class PropertyStartsWith extends NodeBase {
     public void optimize(Sorts sorts, OptimizationPlan rules) {
         if (starts == null || starts.length() == 0) {
             final NodeBase parent = getParent();
-            parent.replaceChild(this, NodeFactory.all());
+            parent.replaceChild(this, NodeFactory.all_old());
         }
     }
 

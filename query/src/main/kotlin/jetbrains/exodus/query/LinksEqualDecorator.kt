@@ -41,12 +41,12 @@ class LinksEqualDecorator(val linkName: String, var decorated: NodeBase, val lin
         if (decorated is LinkEqual) {
             val linkEqual = decorated as LinkEqual
             if (linkEqual.toId == null) {
-                decorated = Minus(NodeFactory.all(), LinkNotNull(linkEqual.name))
+                decorated = Minus(NodeFactory.all_old(), LinkNotNull(linkEqual.name))
             }
         } else if (decorated is PropertyEqual) {
             val propEqual = decorated as PropertyEqual
             if (propEqual.value == null) {
-                decorated = Minus(NodeFactory.all(), PropertyNotNull(propEqual.name))
+                decorated = Minus(NodeFactory.all_old(), PropertyNotNull(propEqual.name))
             }
         }
     }

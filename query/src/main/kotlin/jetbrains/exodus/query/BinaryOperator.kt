@@ -20,7 +20,11 @@ import org.slf4j.LoggerFactory
 import java.lang.Integer.max
 
 @Suppress("LeakingThis")
-abstract class BinaryOperator internal constructor(private var left: NodeBase, private var right: NodeBase) : NodeBase() {
+abstract class BinaryOperator internal constructor(
+    private var left: NodeBase,
+    private var right: NodeBase,
+    val commutative: Boolean = false
+) : NodeBase() {
 
     private var children: MutableList<NodeBase>? = null
     protected var depth: Int = 0
@@ -88,6 +92,15 @@ abstract class BinaryOperator internal constructor(private var left: NodeBase, p
     override fun getHandle(sb: StringBuilder): StringBuilder {
         super.getHandle(sb).append('{')
         return right.getHandle(left.getHandle(sb).append(',')).append('}')
+    }
+
+    fun flipChildren() {
+        if (!commutative) {
+            throw ExodusException("Can't flip non-commutative operator: $simpleName")
+        }
+        val _left = getLeft()
+        setLeft(getRight())
+        setRight(_left)
     }
 
     companion object {

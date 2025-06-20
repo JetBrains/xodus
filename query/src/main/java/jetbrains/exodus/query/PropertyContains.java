@@ -48,7 +48,7 @@ public class PropertyContains extends NodeBase {
     public void optimize(Sorts sorts, OptimizationPlan rules) {
         if (contains == null || contains.length() == 0) {
             final NodeBase parent = getParent();
-            parent.replaceChild(this, NodeFactory.all());
+            parent.replaceChild(this, NodeFactory.all_old());
         }
     }
 

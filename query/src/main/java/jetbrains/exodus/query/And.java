@@ -31,12 +31,12 @@ import java.util.LinkedHashSet;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
-public class And extends CommutativeOperator {
+public class And extends BinaryOperator {
 
     private static final boolean traceFindLinks = Boolean.getBoolean("jetbrains.exodus.query.traceFindLinks");
 
     public And(final NodeBase left, final NodeBase right) {
-        super(left, right);
+        super(left, right, true);
     }
 
     @Override

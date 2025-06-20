@@ -129,7 +129,7 @@ class YTDBQueryEngineTest(
 
         // When
         withStoreTx { tx ->
-            val issues = engine.query(iterableGetter(engine, tx), "Issue", PropertyContains("case", "YOU", true))
+            val issues = engine.query(iterableGetter(engine, tx), "Issue", PropertyContains("case", "YOU", false))
             val issuesIgnoreCase = engine.query(iterableGetter(engine, tx), "Issue", PropertyContains("case", "yOu", true))
             val issuesIgnoreNotIgnoreCase = engine.query(iterableGetter(engine, tx), "Issue", PropertyContains("case", "yOu", false))
             val empty = engine.query(iterableGetter(engine, tx), "Issue", PropertyContains("case", "not", true))

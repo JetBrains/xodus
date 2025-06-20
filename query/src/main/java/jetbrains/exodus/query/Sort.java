@@ -28,7 +28,7 @@ public abstract class Sort extends UnaryNode {
     private final boolean ascending;
 
     protected Sort(final NodeBase child, boolean ascending) {
-        super(child == null ? NodeFactory.all() : child);
+        super(child == null ? NodeFactory.all_old() : child);
         this.ascending = ascending;
     }
 

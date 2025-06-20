@@ -22,24 +22,40 @@ import jetbrains.exodus.entitystore.youtrackdb.gremlin.GremlinEntityIterableImpl
 import jetbrains.exodus.entitystore.youtrackdb.gremlin.GremlinQuery;
 import jetbrains.exodus.query.metadata.ModelMetaData;
 
-public class GetAll_G extends NodeBase {
+import javax.annotation.Nonnull;
+import java.util.Objects;
+
+public class GremlinLeaf extends NodeBase implements GremlinNode {
+
+    private final GremlinQuery query;
+
+    public GremlinLeaf(GremlinQuery query) {
+        this.query = query;
+    }
+
+    @Override
+    @Nonnull
+    public GremlinQuery getQuery() {
+        return query;
+    }
 
     @Override
     public Iterable<Entity> instantiate(String entityType, QueryEngine queryEngine, ModelMetaData metaData, InstantiateContext context) {
         return new GremlinEntityIterableImpl(
                 queryEngine.getOStore().requireActiveTransaction(),
-                new GremlinQuery.Label(entityType)
+                query.andThen(new GremlinQuery.HasLabel(entityType))
+//                new GremlinQuery.HasLabel(entityType).and(query)
         );
     }
 
     @Override
     public NodeBase getClone() {
-        return NodeFactory.all();
+        return new GremlinLeaf(query);
     }
 
     @Override
-    public NodeBase replaceChild(NodeBase child, NodeBase newChild) {
-        throw new UnsupportedOperationException();
+    public String getSimpleName() {
+        return query.getShortName();
     }
 
     @Override
@@ -48,24 +64,40 @@ public class GetAll_G extends NodeBase {
     }
 
     @Override
+    public void optimize(Sorts sorts, OptimizationPlan rules) {
+        final var simplified = query.simplify();
+        if (simplified != null) {
+            getParent().replaceChild(this, new GremlinLeaf(simplified));
+        }
+    }
+
+    @Override
     public Iterable<NodeBase> getDescendants() {
         return new NanoSet<>(this);
     }
 
     @Override
-    public String getSimpleName() {
-        return "all";
+    public StringBuilder getHandle(StringBuilder s) {
+        // todo: think of this. if this needed at all
+        return query.describe(s);
     }
 
     @Override
-    public boolean equals(Object obj) {
-        if (obj == this) {
-            return true;
-        }
-        if (obj == null) {
-            return false;
-        }
-        checkWildcard(obj);
-        return obj instanceof GetAll_G;
+    public String toString() {
+        return query.describe(new StringBuilder()).toString();
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        // todo: checkWildcard
+        if (o == null || getClass() != o.getClass()) return false;
+        if (!super.equals(o)) return false;
+        GremlinLeaf that = (GremlinLeaf) o;
+        return Objects.equals(query, that.query);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hashCode(query);
     }
 }

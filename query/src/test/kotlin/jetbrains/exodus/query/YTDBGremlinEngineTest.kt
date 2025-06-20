@@ -15,8 +15,20 @@
  */
 package jetbrains.exodus.query
 
+import com.google.common.truth.Truth.assertThat
+import io.mockk.every
+import io.mockk.mockk
+import jetbrains.exodus.entitystore.youtrackdb.YTDBVertexEntity
+import jetbrains.exodus.entitystore.youtrackdb.gremlin.GremlinEntityIterable
 import jetbrains.exodus.entitystore.youtrackdb.testutil.*
+import jetbrains.exodus.query.metadata.EntityMetaData
 import jetbrains.exodus.query.metadata.ModelMetaData
+import jetbrains.exodus.query.metadata.PropertyMetaData
+import jetbrains.exodus.query.metadata.PropertyType
+import junit.framework.TestCase.assertEquals
+import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 
@@ -64,7 +76,7 @@ class YTDBGremlinEngineTest(
 
         // When
         withStoreTx {
-            val issues = engine.query("Issue", GetAll_G())
+            val issues = engine.query("Issue", NodeFactory.all())
 
             // Then
             assertNamesExactly(issues, "issue1", "issue2", "issue3")
@@ -79,107 +91,127 @@ class YTDBGremlinEngineTest(
 
         // When
         withStoreTx { tx ->
-            val result = engine.query("Issue", PropertyEqual_G("name", "issue2")).toList()
+            val result = engine.query("Issue", NodeFactory.propEqual("name", "issue2"))
 
             // Then
             assertNamesExactly(result, "issue2")
         }
     }
 
-    //
-//    @Test
-//    fun `should query property null`() {
-//        // Given
-//        val test = givenTestCase()
-//        val engine = givenOQueryEngine()
-//        withStoreTx { test.issue1.setProperty("none", "n1") }
-//
-//        // When
-//        withStoreTx { tx ->
-//            val node = PropertyEqual("none", null)
-//            val result = engine.query(iterableGetter(engine, tx), "Issue", node).toList()
-//
-//            // Then
-//            assertNamesExactly(result, "issue2", "issue3")
-//        }
-//    }
-//
-//    @Test
-//    fun `should query property contains (string)`() {
-//        // Given
-//        val test = givenTestCase()
-//        val engine = givenOQueryEngine()
-//        withStoreTx { test.issue2.setProperty("case", "Find me if YOU can") }
-//
-//        // When
-//        withStoreTx { tx ->
-//            val issues = engine.query(iterableGetter(engine, tx), "Issue", PropertyContains("case", "YOU", true))
-//            val issuesIgnoreCase = engine.query(iterableGetter(engine, tx), "Issue", PropertyContains("case", "yOu", true))
-//            val issuesIgnoreNotIgnoreCase = engine.query(iterableGetter(engine, tx), "Issue", PropertyContains("case", "yOu", false))
-//            val empty = engine.query(iterableGetter(engine, tx), "Issue", PropertyContains("case", "not", true))
-//
-//            // Then
-//            assertNamesExactly(issues, "issue2")
-//            assertNamesExactly(issuesIgnoreCase, "issue2")
-//            //this may be subject to change if we want to support exact case search
-//            assertThat(issuesIgnoreNotIgnoreCase).isEmpty()
-//            assertThat(empty).isEmpty()
-//        }
-//    }
-//
-//    @Test
-//    fun `should query property contains (collection)`() {
-//        val test = givenTestCase()
-//        val engine = givenOQueryEngine()
-//
-//        withStoreTx {
-//            val bugs = engine.query(iterableGetter(engine, it), "Issue", PropertyCollectionContains("tags", "bug"))
-//            val inProgress = engine.query(iterableGetter(engine, it), "Issue", PropertyCollectionContains("tags", "in_progress"))
-//            val abandoned = engine.query(iterableGetter(engine, it), "Issue", PropertyCollectionContains("tags", "abandoned"))
-//
-//            assertNamesExactly(bugs, "issue1")
-//            assertNamesExactly(inProgress, "issue1", "issue3")
-//            assertThat(abandoned).isEmpty()
-//        }
-//    }
-//
-//    @Test
-//    fun `should query property starts with`() {
-//        // Given
-//        val test = givenTestCase()
-//        val engine = givenOQueryEngine()
-//        withStoreTx { test.issue2.setProperty("case", "Find me if YOU can") }
-//
-//        // When
-//        withStoreTx { tx ->
-//            val issues = engine.query(iterableGetter(engine, tx), "Issue", PropertyStartsWith("case", "Find"))
-//            val issuesOtherCase = engine.query(iterableGetter(engine, tx), "Issue", PropertyStartsWith("case", "find"))
-//            val empty = engine.query(iterableGetter(engine, tx), "Issue", PropertyStartsWith("case", "you"))
-//
-//            // Then
-//            assertNamesExactly(issues, "issue2")
-//            assertNamesExactly(issuesOtherCase, "issue2")
-//            assertThat(empty).isEmpty()
-//        }
-//    }
-//
-//    @Test
-//    fun `should query when property exists`() {
-//        // Given
-//        val test = givenTestCase()
-//        val engine = givenOQueryEngine()
-//        withStoreTx { test.issue2.setProperty("prop", "test") }
-//
-//        // When
-//        withStoreTx { tx ->
-//            val issues = engine.query(iterableGetter(engine, tx), "Issue", PropertyNotNull("prop"))
-//            val empty = engine.query(iterableGetter(engine, tx), "Issue", PropertyNotNull("no_prop"))
-//
-//            // Then
-//            assertNamesExactly(issues, "issue2")
-//            assertThat(empty).isEmpty()
-//        }
-//    }
+    @Test
+    fun `should query contains`() {
+        // Given
+        val testCase = givenTestCase()
+        val engine = givenOQueryEngine()
+
+        withStoreTx { tx ->
+            assertTrue(engine.query("Issue", NodeFactory.all()).contains(testCase.issue1))
+            assertTrue(engine.query("Issue", NodeFactory.all()).contains(testCase.issue2))
+            assertTrue(engine.query("Issue", NodeFactory.all()).contains(testCase.issue3))
+
+            val onlyIssue1 = engine.query("Issue", NodeFactory.propEqual("name", "issue1"))
+            assertTrue(onlyIssue1.contains(testCase.issue1))
+            assertFalse(onlyIssue1.contains(testCase.issue2))
+            assertFalse(onlyIssue1.contains(testCase.issue3))
+        }
+    }
+
+
+    @Test
+    fun `should query property null`() {
+        // Given
+        val test = givenTestCase()
+        val engine = givenOQueryEngine()
+        withStoreTx {
+            test.issue1.setProperty("none", "n1")
+        }
+
+        // When
+        withStoreTx { tx ->
+            val result = engine.query("Issue", NodeFactory.propEqual("none", null)).toList()
+
+            // Then
+            assertNamesExactly(result, "issue2", "issue3")
+        }
+    }
+
+    @Test
+    fun `should query property contains (string)`() {
+        // Given
+        val test = givenTestCase()
+        val engine = givenOQueryEngine()
+        withStoreTx { test.issue2.setProperty("case", "Find me if YOU can") }
+
+        // When
+        withStoreTx { tx ->
+            val issues = engine.query("Issue", NodeFactory.hasSubstring("case", "YOU", false))
+            val issuesIgnoreCase =
+                engine.query("Issue", NodeFactory.hasSubstring("case", "yOu", true))
+            val issuesIgnoreNotIgnoreCase = engine.query("Issue", NodeFactory.hasSubstring("case", "yOu", false))
+            val empty = engine.query("Issue", NodeFactory.hasSubstring("case", "not", true))
+
+            // Then
+            assertNamesExactly(issues, "issue2")
+            assertNamesExactly(issuesIgnoreCase, "issue2")
+            //this may be subject to change if we want to support exact case search
+            assertThat(issuesIgnoreNotIgnoreCase).isEmpty()
+            assertThat(empty).isEmpty()
+        }
+    }
+
+    @Test
+    fun `should query property contains (collection)`() {
+        givenTestCase()
+        val engine = givenOQueryEngine()
+
+        withStoreTx { tx ->
+            val bugs = engine.query("Issue", NodeFactory.hasElement("tags", "bug"))
+            val inProgress = engine.query("Issue", NodeFactory.hasElement("tags", "in_progress"))
+            val abandoned = engine.query("Issue", NodeFactory.hasElement("tags", "abandoned"))
+
+            assertNamesExactly(bugs, "issue1")
+            assertNamesExactly(inProgress, "issue1", "issue3")
+            assertThat(abandoned).isEmpty()
+        }
+    }
+
+    @Test
+    fun `should query property starts with`() {
+        // Given
+        val test = givenTestCase()
+        val engine = givenOQueryEngine()
+        withStoreTx { test.issue2.setProperty("case", "Find me if YOU can") }
+
+        // When
+        withStoreTx { tx ->
+            val issues = engine.query("Issue", NodeFactory.hasPrefix("case", "Find"))
+            val issuesOtherCase = engine.query("Issue", NodeFactory.hasPrefix("case", "find"))
+            val empty = engine.query("Issue", NodeFactory.hasPrefix("case", "you"))
+
+            // Then
+            assertNamesExactly(issues, "issue2")
+            assertNamesExactly(issuesOtherCase, "issue2")
+            assertThat(empty).isEmpty()
+        }
+    }
+
+    @Test
+    fun `should query when property exists`() {
+        // Given
+        val test = givenTestCase()
+        val engine = givenOQueryEngine()
+        withStoreTx { test.issue2.setProperty("prop", "test") }
+
+        // When
+        withStoreTx { tx ->
+            val issues = engine.query("Issue", NodeFactory.propNotNull("prop"))
+            val empty = engine.query("Issue", NodeFactory.propNotNull("no_prop"))
+
+            // Then
+            assertNamesExactly(issues, "issue2")
+            assertThat(empty).isEmpty()
+        }
+    }
 //
 //    @Ignore
 //    @Test
@@ -213,55 +245,54 @@ class YTDBGremlinEngineTest(
 //        }
 //    }
 //
-//
-//    @Test
-//    fun `should query with or`() {
-//        // Given
-//        val test = givenTestCase()
-//        val engine = givenOQueryEngine()
-//
-//        // When
-//        withStoreTx { tx ->
-//            val equal1 = PropertyEqual("name", test.issue1.name())
-//            val equal2 = PropertyEqual("name", test.issue2.name())
-//            val issues = engine.query(iterableGetter(engine, tx), Issues.CLASS, Or(equal1, equal2))
-//
-//            // Then
-//            assertNamesExactly(issues, "issue1", "issue2")
-//        }
-//    }
-//
-//
-//
-//
-//    @Test
-//    fun `hasBlob should search for entity with blob`() {
-//        val test = givenTestCase()
-//        val metadata = givenModelMetadata {
-//            val issueMetaData = mockk<EntityMetaData>(relaxed = true)
-//            every { getEntityMetaData(Issues.CLASS) }.returns(issueMetaData)
-//
-//            val blobMetaData = mockk<PropertyMetaData>(relaxed = true)
-//            every { issueMetaData.getPropertyMetaData("myBlob") }.returns(blobMetaData)
-//            every { blobMetaData.type }.returns(PropertyType.BLOB)
-//        }
-//        val engine = givenOQueryEngine(metadata)
-//
-//        withStoreTx {
-//            //correct blob (can be found)
-//            test.issue1.setBlob("myBlob", "Hello".toByteArray().inputStream())
-//            //blob with content of size 0 (can be found)
-//            test.issue2.setBlob("myBlob", ByteArray(0).inputStream())
-//        }
-//
-//        withStoreTx { tx ->
-//            val issues =
-//                engine.query(iterableGetter(engine, tx), Issues.CLASS, PropertyNotNull("myBlob")).sortedBy { it.getProperty("name") }
-//            assertEquals(2, issues.size)
-//            assertEquals(test.issue1, issues.firstOrNull())
-//            assertEquals(test.issue2, issues.lastOrNull())
-//        }
-//    }
+
+    @Test
+    fun `should query with or`() {
+        // Given
+        val test = givenTestCase()
+        val engine = givenOQueryEngine()
+
+        // When
+        withStoreTx { tx ->
+            val equal1 = NodeFactory.propEqual("name", test.issue1.name())
+            val equal2 = NodeFactory.propEqual("name", test.issue2.name())
+            val issues = engine.query(Issues.CLASS, NodeFactory.or(equal1, equal2))
+
+            // Then
+            assertNamesExactly(issues, "issue1", "issue2")
+        }
+    }
+
+    @Test
+    fun `hasBlob should search for entity with blob`() {
+        val test = givenTestCase()
+        val metadata = givenModelMetadata {
+            val issueMetaData = mockk<EntityMetaData>(relaxed = true)
+            every { getEntityMetaData(Issues.CLASS) }.returns(issueMetaData)
+
+            val blobMetaData = mockk<PropertyMetaData>(relaxed = true)
+            every { issueMetaData.getPropertyMetaData("myBlob") }.returns(blobMetaData)
+            every { blobMetaData.type }.returns(PropertyType.BLOB)
+        }
+        val engine = givenOQueryEngine(metadata)
+
+        withStoreTx {
+            //correct blob (can be found)
+            test.issue1.setBlob("myBlob", "Hello".toByteArray().inputStream())
+            //blob with content of size 0 (can be found)
+            test.issue2.setBlob("myBlob", ByteArray(0).inputStream())
+        }
+
+        withStoreTx { tx ->
+            val issues =
+                engine.query(Issues.CLASS, NodeFactory.propNotNull("myBlob"))
+                    .toList()
+//                    .sortedBy { it.getProperty("name") // todo
+            assertEquals(2, issues.size)
+            assertEquals(test.issue1, issues.firstOrNull())
+            assertEquals(test.issue2, issues.lastOrNull())
+        }
+    }
 //
 //    @Test
 //    fun `should concat 2 queries and sum size`() {
@@ -294,32 +325,77 @@ class YTDBGremlinEngineTest(
 //        }
 //    }
 //
-//
-//    @Test
-//    fun `should query distinct`() {
-//        // Given
-//        val test = givenTestCase()
-//        withStoreTx { tx ->
-//            tx.addIssueToBoard(test.issue1, test.board1)
-//            tx.addIssueToBoard(test.issue1, test.board2)
-//            tx.addIssueToBoard(test.issue2, test.board1)
-//            tx.addIssueToBoard(test.issue3, test.board1)
-//        }
-//        val engine = givenOQueryEngine()
-//
-//        // When
-//        withStoreTx { tx ->
-//            val issues = engine.query(
-//                iterableGetter(engine, tx),
-//                Issues.CLASS,
-//                Or(LinkEqual(Issues.Links.ON_BOARD, test.board1), LinkEqual(Issues.Links.ON_BOARD, test.board2))
-//            )
-//
-//            val issuesDistinct = issues.distinct()
-//            assertNamesExactly(issuesDistinct, "issue1", "issue2", "issue3")
-//        }
-//    }
-//
+
+    @Test
+    fun `should query by link`() {
+        // Given
+        val test = givenTestCase()
+        withStoreTx { tx ->
+            tx.addIssueToBoard(test.issue1, test.board1)
+            tx.addIssueToBoard(test.issue1, test.board2)
+            tx.addIssueToBoard(test.issue2, test.board1)
+            tx.addIssueToBoard(test.issue3, test.board1)
+        }
+        val engine = givenOQueryEngine()
+
+        // When
+        withStoreTx { tx ->
+
+            val issuesFromBoard1 = engine.query(
+                Issues.CLASS,
+                NodeFactory.hasLinkFrom(Issues.Links.ON_BOARD, test.board1)
+            )
+
+            val issuesFromBoard2 = engine.query(
+                Issues.CLASS,
+                NodeFactory.hasLinkFrom(Issues.Links.ON_BOARD, test.board2)
+            )
+
+            assertNamesExactly(issuesFromBoard1, "issue1", "issue2", "issue3")
+            assertNamesExactly(issuesFromBoard2, "issue1")
+        }
+    }
+
+    @Test
+    fun `should query distinct`() {
+        // Given
+        val test = givenTestCase()
+        withStoreTx { tx ->
+            tx.addIssueToBoard(test.issue1, test.board1)
+            tx.addIssueToBoard(test.issue1, test.board2)
+            tx.addIssueToBoard(test.issue2, test.board1)
+            tx.addIssueToBoard(test.issue3, test.board1)
+        }
+        val engine = givenOQueryEngine()
+
+
+        // When
+        withStoreTx { tx ->
+
+            // todo: expected this query to return 3 issues. Somehow it returns 0.
+            // Querying __.V().hasId instead of __.start.hasId actually helps, but this breaks other test for "or" operator.
+            val aaa = tx.traversal()
+                .or(
+                    `__`.start<Any>()
+                        .hasId(test.board1.id.asOId())
+                        .`in`(YTDBVertexEntity.edgeClassName(Issues.Links.ON_BOARD))
+                )
+                .hasLabel(Issues.CLASS)
+                .toList()
+
+            val issues = engine.query(
+
+                Issues.CLASS,
+                NodeFactory.or(
+                    NodeFactory.hasLinkFrom(Issues.Links.ON_BOARD, test.board1),
+                    NodeFactory.hasLinkFrom(Issues.Links.ON_BOARD, test.board2)
+                )
+            )
+
+            val issuesDistinct = issues.distinct()
+            assertNamesExactly(issuesDistinct, "issue1", "issue2", "issue3")
+        }
+    }
 //
 //    @Test
 //    fun `should query with minus`() {
@@ -346,27 +422,30 @@ class YTDBGremlinEngineTest(
 //        }
 //    }
 //
-//    @Test
-//    fun `should query links with select many`() {
-//        // Given
-//        val test = givenTestCase()
-//        withStoreTx { tx ->
-//            tx.addIssueToBoard(test.issue1, test.board1)
-//            tx.addIssueToBoard(test.issue1, test.board2)
-//            tx.addIssueToBoard(test.issue2, test.board1)
-//            tx.addIssueToBoard(test.issue3, test.board1)
-//        }
-//        val engine = givenOQueryEngine()
-//
-//        // When
-//        withStoreTx {
-//            val issues = engine.queryGetAll(Issues.CLASS) as YTDBEntityIterableBase
-//            val boards = issues.selectMany(Issues.Links.ON_BOARD)
-//
-//            // Then
-//            assertNamesExactly(boards.sorted(), "board1", "board1", "board1", "board2")
-//        }
-//    }
+@Test
+fun `should query links with select many`() {
+    // Given
+    val test = givenTestCase()
+    withStoreTx { tx ->
+        tx.addIssueToBoard(test.issue1, test.board1)
+        tx.addIssueToBoard(test.issue1, test.board2)
+        tx.addIssueToBoard(test.issue2, test.board1)
+        tx.addIssueToBoard(test.issue3, test.board1)
+    }
+    val engine = givenOQueryEngine()
+
+    // When
+    withStoreTx { tx ->
+        val issues = engine.query(Issues.CLASS, NodeFactory.all()) as GremlinEntityIterable
+        val boards = issues.selectMany(Issues.Links.ON_BOARD)
+
+
+//            .V().hasLabel("Issue").toList()
+
+        // Then
+        assertNamesExactly(boards.sorted(), "board1", "board1", "board1", "board2")
+    }
+}
 //
 //    @Test
 //    fun issueGetterShouldNotBeEmpty() {
@@ -384,27 +463,27 @@ class YTDBGremlinEngineTest(
 //
 //    }
 //
-//    @Test
-//    fun `should query links with select many distinct`() {
-//        // Given
-//        val test = givenTestCase()
-//        withStoreTx { tx ->
-//            tx.addIssueToBoard(test.issue1, test.board1)
-//            tx.addIssueToBoard(test.issue1, test.board2)
-//            tx.addIssueToBoard(test.issue2, test.board1)
-//            tx.addIssueToBoard(test.issue3, test.board1)
-//        }
-//        val engine = givenOQueryEngine()
-//
-//        // When
-//        withStoreTx { tx ->
-//            val issues = iterableGetter(engine, tx) ?: engine.queryGetAll(Issues.CLASS)
-//            val boardsDistinct = engine.selectManyDistinct(issues, Issues.Links.ON_BOARD)
-//
-//            // Then
-//            assertNamesExactly(boardsDistinct, "board1", "board2")
-//        }
-//    }
+@Test
+fun `should query links with select many distinct`() {
+    // Given
+    val test = givenTestCase()
+    withStoreTx { tx ->
+        tx.addIssueToBoard(test.issue1, test.board1)
+        tx.addIssueToBoard(test.issue1, test.board2)
+        tx.addIssueToBoard(test.issue2, test.board1)
+        tx.addIssueToBoard(test.issue3, test.board1)
+    }
+    val engine = givenOQueryEngine()
+
+    // When
+    withStoreTx { tx ->
+        val issues = engine.query(Issues.CLASS, NodeFactory.all()) as GremlinEntityIterable
+        val boardsDistinct = engine.selectManyDistinct(issues, Issues.Links.ON_BOARD)
+
+        // Then
+        assertNamesExactly(boardsDistinct, "board1", "board2")
+    }
+}
 //
 //    @Test
 //    fun `should query different links with or`() {
@@ -686,11 +765,11 @@ class YTDBGremlinEngineTest(
 //        assertThat(result.map { it.getProperty("name") }).containsExactly(*names).inOrder()
 //    }
 //
-//    private fun givenModelMetadata(mockingBlock: ((ModelMetaData).() -> Unit)? = null): ModelMetaData {
-//        return mockk<ModelMetaData>(relaxed = true) {
-//            mockingBlock?.invoke(this)
-//        }
-//    }
+private fun givenModelMetadata(mockingBlock: ((ModelMetaData).() -> Unit)? = null): ModelMetaData {
+    return mockk<ModelMetaData>(relaxed = true) {
+        mockingBlock?.invoke(this)
+    }
+}
 //
 //    private fun ModelMetaData.withEntityMetaData(
 //        entityType: String,
