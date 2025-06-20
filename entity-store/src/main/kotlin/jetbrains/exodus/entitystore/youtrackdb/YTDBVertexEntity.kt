@@ -38,6 +38,7 @@ import jetbrains.exodus.entitystore.youtrackdb.iterate.link.YTDBLinksFromEntityI
 import jetbrains.exodus.entitystore.youtrackdb.iterate.link.YTDBVertexEntityIterable
 import jetbrains.exodus.util.LightByteArrayOutputStream
 import jetbrains.exodus.util.UTFUtil
+import jnr.ffi.types.nlink_t
 import mu.KLogging
 import java.io.ByteArrayInputStream
 import java.io.File
@@ -130,18 +131,17 @@ open class YTDBVertexEntity(vertex: Vertex, private val store: YTDBEntityStore) 
 
     override fun resetToNew() {
         val className = vertexRecord.schemaClassName
-        val localEntityId = vertexRecord.getLong(LOCAL_ENTITY_ID_PROPERTY_NAME)
-
         vertexRecord = (store.databaseSession as DatabaseSessionInternal).newVertex(className)
-
-        if (localEntityId != null) {
-            vertexRecord.setLong(LOCAL_ENTITY_ID_PROPERTY_NAME, localEntityId)
-        }
     }
 
-    override fun generateId() {
+    override fun generateId(localId: Long?) {
         val type = oEntityId.getTypeName()
-        store.requireActiveTransaction().generateEntityId(type, vertexRecord)
+        if (localId != null) {
+            vertexRecord.setLong(LOCAL_ENTITY_ID_PROPERTY_NAME, localId)
+        } else {
+            store.requireActiveTransaction().generateEntityId(type, vertexRecord)
+        }
+
         oEntityId = RIDEntityId.fromVertex(vertexRecord)
     }
 
