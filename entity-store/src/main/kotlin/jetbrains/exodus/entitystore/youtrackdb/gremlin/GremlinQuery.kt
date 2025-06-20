@@ -154,14 +154,14 @@ abstract class GremlinQuery(val shortName: String) {
         override fun describe(s: StringBuilder): StringBuilder = s.append(property).append(" hasElement ").append(value)
     }
 
-    data class HasLinkTo(val linkName: String, val rid: RID) : GremlinQuery("hlt") {
+    data class HasLinkFrom(val linkName: String, val rid: RID) : GremlinQuery("hlt") {
         override fun traverse(g: YT): YT = g
             .hasId(rid)
             .`in`(YTDBVertexEntity.edgeClassName(linkName))
             .asYT()
 
         override fun describe(s: StringBuilder): StringBuilder =
-            s.append("hasLinkTo(").append(linkName).append(", ").append(rid).append(")")
+            s.append("hasLinkFrom(").append(linkName).append(", ").append(rid).append(")")
     }
 
     @Suppress("UNCHECKED_CAST")

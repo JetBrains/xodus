@@ -52,7 +52,7 @@ object NodeFactory {
         GremlinLeaf(HasElement(property, value))
 
     fun hasLinkFrom(linkName: String, entity: Entity) =
-        GremlinLeaf(HasLinkTo(linkName, (entity.id as YTDBEntityId).asOId()))
+        GremlinLeaf(HasLinkFrom(linkName, (entity.id as YTDBEntityId).asOId()))
 
     fun or(left: NodeBase, right: NodeBase): GremlinBinaryNode =
         GremlinBinaryNode(
