@@ -51,8 +51,8 @@ object NodeFactory {
     fun hasElement(property: String, value: Any): GremlinLeaf =
         GremlinLeaf(HasElement(property, value))
 
-    fun hasLinkFrom(linkName: String, entity: Entity) =
-        GremlinLeaf(HasLinkFrom(linkName, (entity.id as YTDBEntityId).asOId()))
+    fun hasLinkTo(linkName: String, entity: Entity) =
+        GremlinLeaf(HasLinkTo(linkName, (entity.id as YTDBEntityId).asOId()))
 
     fun or(left: NodeBase, right: NodeBase): GremlinBinaryNode =
         GremlinBinaryNode(
@@ -61,11 +61,10 @@ object NodeFactory {
             ::Or, Iterable<Entity>::union
         )
 
-    // TODO: and implemented via AndThen, which is not commutative!
     fun and(left: NodeBase, right: NodeBase): GremlinBinaryNode =
         GremlinBinaryNode(
             left, right, true, "and",
-            ::AndThen, ::intersectTwoIts
+            ::And, ::intersectTwoIts
         )
 
 

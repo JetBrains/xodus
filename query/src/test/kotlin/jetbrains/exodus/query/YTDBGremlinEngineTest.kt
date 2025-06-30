@@ -254,9 +254,12 @@ class YTDBGremlinEngineTest(
 
         // When
         withStoreTx { tx ->
-            val equal1 = NodeFactory.propEqual("name", test.issue1.name())
-            val equal2 = NodeFactory.propEqual("name", test.issue2.name())
-            val issues = engine.query(Issues.CLASS, NodeFactory.or(equal1, equal2))
+            val issues = engine.query(
+                Issues.CLASS, NodeFactory.or(
+                    NodeFactory.propEqual("name", test.issue1.name()),
+                    NodeFactory.propEqual("name", test.issue2.name())
+                )
+            )
 
             // Then
             assertNamesExactly(issues, "issue1", "issue2")
@@ -343,12 +346,12 @@ class YTDBGremlinEngineTest(
 
             val issuesFromBoard1 = engine.query(
                 Issues.CLASS,
-                NodeFactory.hasLinkFrom(Issues.Links.ON_BOARD, test.board1)
+                NodeFactory.hasLinkTo(Issues.Links.ON_BOARD, test.board1)
             )
 
             val issuesFromBoard2 = engine.query(
                 Issues.CLASS,
-                NodeFactory.hasLinkFrom(Issues.Links.ON_BOARD, test.board2)
+                NodeFactory.hasLinkTo(Issues.Links.ON_BOARD, test.board2)
             )
 
             assertNamesExactly(issuesFromBoard1, "issue1", "issue2", "issue3")
@@ -372,23 +375,12 @@ class YTDBGremlinEngineTest(
         // When
         withStoreTx { tx ->
 
-            // todo: expected this query to return 3 issues. Somehow it returns 0.
-            // Querying __.V().hasId instead of __.start.hasId actually helps, but this breaks other test for "or" operator.
-            val aaa = tx.traversal()
-                .or(
-                    `__`.start<Any>()
-                        .hasId(test.board1.id.asOId())
-                        .`in`(YTDBVertexEntity.edgeClassName(Issues.Links.ON_BOARD))
-                )
-                .hasLabel(Issues.CLASS)
-                .toList()
-
             val issues = engine.query(
 
                 Issues.CLASS,
                 NodeFactory.or(
-                    NodeFactory.hasLinkFrom(Issues.Links.ON_BOARD, test.board1),
-                    NodeFactory.hasLinkFrom(Issues.Links.ON_BOARD, test.board2)
+                    NodeFactory.hasLinkTo(Issues.Links.ON_BOARD, test.board1),
+                    NodeFactory.hasLinkTo(Issues.Links.ON_BOARD, test.board2)
                 )
             )
 
@@ -439,14 +431,11 @@ fun `should query links with select many`() {
         val issues = engine.query(Issues.CLASS, NodeFactory.all()) as GremlinEntityIterable
         val boards = issues.selectMany(Issues.Links.ON_BOARD)
 
-
-//            .V().hasLabel("Issue").toList()
-
         // Then
         assertNamesExactly(boards.sorted(), "board1", "board1", "board1", "board2")
     }
 }
-//
+
 //    @Test
 //    fun issueGetterShouldNotBeEmpty() {
 //        // Given
@@ -484,30 +473,45 @@ fun `should query links with select many distinct`() {
         assertNamesExactly(boardsDistinct, "board1", "board2")
     }
 }
-//
-//    @Test
-//    fun `should query different links with or`() {
-//        // Given
-//        val test = givenTestCase()
-//        withStoreTx { tx ->
-//            tx.addIssueToProject(test.issue1, test.project1)
+
+    @Test
+    fun `should query different links with or`() {
+        // Given
+        val test = givenTestCase()
+        withStoreTx { tx ->
+            tx.addIssueToProject(test.issue1, test.project1)
 //            tx.addIssueToBoard(test.issue2, test.board2)
 //            tx.addIssueToBoard(test.issue3, test.board3)
-//        }
-//        val engine = givenOQueryEngine()
-//
-//        // When
-//        withStoreTx { tx ->
-//            // Find all issues that are either in project1 or board2
-//            val issuesOnBoard1 = LinkEqual(Issues.Links.IN_PROJECT, test.project1)
-//            val issuesOnBoard2 = LinkEqual(Issues.Links.ON_BOARD, test.board2)
-//            val issues =
-//                engine.query(iterableGetter(engine, tx), Issues.CLASS, Or(issuesOnBoard1, issuesOnBoard2))
-//
-//            // Then
-//            assertNamesExactly(issues, "issue1", "issue2")
-//        }
-//    }
+        }
+        val engine = givenOQueryEngine()
+
+        // When
+        withStoreTx { tx ->
+
+            val issues2 = tx.vertexTraversal()
+                .hasLabel(Issues.CLASS)
+                .or(
+                    `__`.V<Any>().hasId(test.project1.id.asOId())
+                        .`in`(YTDBVertexEntity.edgeClassName(Issues.Links.IN_PROJECT))
+                        .dedup(),
+//                    `__`.V<Any>().hasId(test.board2.id.asOId()).`in`(YTDBVertexEntity.edgeClassName(Issues.Links.ON_BOARD))
+                )
+                .toList()
+
+            // Find all issues that are either in project1 or board2
+            val issues =
+                engine.query(
+                    Issues.CLASS,
+                    NodeFactory.or(
+                        NodeFactory.hasLinkTo(Issues.Links.IN_PROJECT, test.project1),
+                        NodeFactory.hasLinkTo(Issues.Links.ON_BOARD, test.board2)
+                    )
+                )
+
+            // Then
+            assertNamesExactly(issues, "issue1", "issue2")
+        }
+    }
 //
 //
 //    @Test

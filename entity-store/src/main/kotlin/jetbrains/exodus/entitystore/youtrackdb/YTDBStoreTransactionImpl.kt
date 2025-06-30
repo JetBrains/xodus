@@ -82,7 +82,7 @@ class YTDBStoreTransactionImpl(
         return requireActiveTransaction().query(sql, params)
     }
 
-    override fun traversal(): GraphTraversal<YTDBVertex, YTDBVertex> {
+    override fun vertexTraversal(): GraphTraversal<YTDBVertex, YTDBVertex> {
         @Suppress("UNCHECKED_CAST")
         return requireActiveTransaction().traversal().V() as GraphTraversal<YTDBVertex, YTDBVertex>
     }

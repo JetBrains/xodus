@@ -331,7 +331,7 @@ class YTDBQueryEngineTest(
                 Or(LinkEqual(Issues.Links.ON_BOARD, test.board1), LinkEqual(Issues.Links.ON_BOARD, test.board2))
             )
 
-            val issuesDistinct = issues.distinct()
+            val issuesDistinct = issues
             assertNamesExactly(issuesDistinct, "issue1", "issue2", "issue3")
         }
     }

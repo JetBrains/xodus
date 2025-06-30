@@ -27,14 +27,14 @@ abstract class GremlinQuery(val shortName: String) {
         else if (query is All) this
         else AndThen(this, query)
 
-    data class AndThen(val left: GremlinQuery, val right: GremlinQuery) : GremlinBinaryOp("and") {
+    data class AndThen(val left: GremlinQuery, val right: GremlinQuery) : GremlinBinaryOp("andThen") {
         override fun traverse(g: YT): YT {
             val h = left.traverse(g)
             val i = right.traverse(h)
             return i
         }
 
-        override fun describe(s: StringBuilder) = right.describe(left.describe(s).append(" AND "))
+        override fun describe(s: StringBuilder) = right.describe(left.describe(s).append(", THEN "))
         override fun simplify(): GremlinQuery? =
             when {
                 left is All -> right
@@ -54,6 +54,22 @@ abstract class GremlinQuery(val shortName: String) {
         override fun simplify(): GremlinQuery? =
             if (left is All || right is All) All
             else null
+    }
+
+    data class And(val left: GremlinQuery, val right: GremlinQuery) : GremlinBinaryOp("and") {
+        override fun traverse(g: YT): YT =
+            g.and(
+                left.traverse(`__`.start<Any>().asYT()),
+                right.traverse(`__`.start<Any>().asYT())
+            )
+
+        override fun describe(s: StringBuilder): StringBuilder = right.describe(left.describe(s).append(" AND "))
+        override fun simplify(): GremlinQuery? =
+            when {
+                left is All -> right
+                right is All -> left
+                else -> null
+            }
     }
 
     data object All : GremlinQuery("all") {
@@ -154,10 +170,12 @@ abstract class GremlinQuery(val shortName: String) {
         override fun describe(s: StringBuilder): StringBuilder = s.append(property).append(" hasElement ").append(value)
     }
 
-    data class HasLinkFrom(val linkName: String, val rid: RID) : GremlinQuery("hlt") {
+    data class HasLinkTo(val linkName: String, val rid: RID) : GremlinQuery("hlt") {
         override fun traverse(g: YT): YT = g
+            .V()
             .hasId(rid)
             .`in`(YTDBVertexEntity.edgeClassName(linkName))
+            .dedup()
             .asYT()
 
         override fun describe(s: StringBuilder): StringBuilder =

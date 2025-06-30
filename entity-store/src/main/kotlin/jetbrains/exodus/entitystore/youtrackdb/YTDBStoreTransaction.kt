@@ -56,7 +56,7 @@ interface YTDBStoreTransaction : StoreTransaction {
 
     fun query(sql: String, params: Map<String, Any>): ResultSet
 
-    fun traversal(): GraphTraversal<YTDBVertex, YTDBVertex>
+    fun vertexTraversal(): GraphTraversal<YTDBVertex, YTDBVertex>
 
     fun getOEntityId(entityId: PersistentEntityId): YTDBEntityId
 
