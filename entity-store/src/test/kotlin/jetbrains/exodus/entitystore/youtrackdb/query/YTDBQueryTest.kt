@@ -88,6 +88,35 @@ class YTDBQueryTest {
             )
     }
 
+    @Test
+    fun `should select count (simple)`() {
+        val simpleSelect = YTDBClassSelect("Person", YTDBEqualCondition("name", "John"))
+        val countSelect = simpleSelect.count()
+        val query = buildSql(countSelect)
+
+        assertThat(query.sql)
+            .isEqualTo("SELECT COUNT(*) AS count FROM Person WHERE name = :name0")
+        assertThat(query.params)
+            .containsExactly("name0", "John")
+    }
+
+    @Test
+    fun `should select count (nested)`() {
+        val select1 = YTDBClassSelect("Person", YTDBEqualCondition("name", "John"))
+        val select2 = YTDBClassSelect("Person", YTDBEqualCondition("name", "George"))
+        val intersectSelect = YTDBIntersectSelect(select1, select2)
+        val countSelect = intersectSelect.count()
+        val query = buildSql(countSelect)
+
+        assertThat(query.sql)
+            .isEqualTo("SELECT COUNT(*) AS count FROM (SELECT expand(intersect(\$a0, \$b0)) LET \$a0=(SELECT FROM Person WHERE name = :name1), \$b0=(SELECT FROM Person WHERE name = :name2))")
+        assertThat(query.params)
+            .containsExactly(
+                "name1", "John",
+                "name2", "George"
+            )
+    }
+
     private fun buildSql(YTDBSql: YTDBSql): SqlQuery {
         val builder = SqlBuilder()
         YTDBSql.sql(builder)
