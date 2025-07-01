@@ -34,6 +34,28 @@ class SqlBuilder {
         return this
     }
 
+    fun param(name: String, value: Any): SqlBuilder =
+        append(":").append(addParam(name, value))
+
+    fun appendSql(sql: YTDBSql): SqlBuilder {
+        sql.sql(this)
+        return this
+    }
+
+    fun where(condition: YTDBCondition?): SqlBuilder {
+        condition?.let {
+            append(" WHERE ").appendSql(it)
+        }
+        return this
+    }
+
+    fun ensureWhitespace(): SqlBuilder {
+        stringBuilder.lastOrNull()?.let {
+            if (!it.isWhitespace()) stringBuilder.append(' ')
+        }
+        return this
+    }
+
     fun addParam(name: String, value: Any): String {
         val indexedName = "$name${nextVarIndex()}"
         params[indexedName] = value

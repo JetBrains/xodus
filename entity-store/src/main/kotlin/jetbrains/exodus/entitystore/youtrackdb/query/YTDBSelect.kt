@@ -33,9 +33,28 @@ interface OSizable {
 
     fun withSkip(skip: Int): YTDBSelect
     fun withLimit(limit: Int): YTDBSelect
+
+    fun hasPagination(): Boolean = skip != null || limit != null
 }
 
-sealed interface YTDBSelect : YTDBQuery, OSortable, OSizable
+sealed interface YTDBSelect : YTDBQuery, OSortable, OSizable {
+
+    fun nest(select: String, canCount: Boolean = false) = YTDBSelectNested(
+        nested = this,
+        canCount = canCount,
+        projection = { append(select) }
+    )
+
+    fun selectInLinks(linkName: String) =
+        if (this is YTDBClassSelect && !hasPagination())
+            select("expand(in('$linkName'))", ignoreOrder = true, canCount = false)
+        else nest("expand(in('$linkName'))")
+
+    fun selectOutLinks(linkName: String) =
+        if (this is YTDBClassSelect && !hasPagination())
+            select("expand(out('$linkName'))", ignoreOrder = true, canCount = false)
+        else nest("expand(out('$linkName'))")
+}
 
 abstract class YTDBSelectStub(
     override var order: YTDBOrder? = null,
@@ -60,21 +79,69 @@ abstract class YTDBSelectStub(
 }
 
 abstract class YTDBSelectBase(
-    override var order: YTDBOrder? = null,
-    override var skip: YTDBSkip? = null,
-    override var limit: YTDBLimit? = null
+    order: YTDBOrder? = null,
+    skip: YTDBSkip? = null,
+    limit: YTDBLimit? = null,
+    val canCount: Boolean = false,
+    val list: SqlBuilder.() -> SqlBuilder,
+    val body: SqlBuilder.() -> SqlBuilder,
 ) : YTDBSelectStub(order, skip, limit) {
 
-    override fun sql(builder: SqlBuilder) {
-        selectSql(builder)
+    fun select(
+        projection: String,
+        canCount: Boolean? = null,
+        ignoreOrder: Boolean = false,
+        ignorePagination: Boolean = false,
+    ) = YTDBSelectProjection(
+        delegate = this,
+        order = if (ignoreOrder) null else order,
+        skip = if (ignorePagination) null else skip,
+        limit = if (ignorePagination) null else limit,
+        canCount = canCount ?: this.canCount,
+        projection = { append(projection) }
+    )
+
+    final override fun sql(builder: SqlBuilder) {
+        builder.append("SELECT").ensureWhitespace()
+        list(builder).ensureWhitespace()
+        body(builder)
         order.orderBy(builder)
         skip.skip(builder)
         limit.limit(builder)
     }
-
-    abstract fun selectSql(builder: SqlBuilder)
 }
 
+class YTDBSelectNested(
+    nested: YTDBSelect,
+    order: YTDBOrder? = null,
+    skip: YTDBSkip? = null,
+    limit: YTDBLimit? = null,
+    canCount: Boolean = false,
+    projection: SqlBuilder.() -> SqlBuilder,
+) : YTDBSelectBase(
+    order = order,
+    skip = skip,
+    limit = limit,
+    canCount = canCount,
+    list = projection,
+    body = { append("FROM (").appendSql(nested).append(")") }
+)
+
+class YTDBSelectProjection(
+    delegate: YTDBSelectBase,
+    order: YTDBOrder? = null,
+    skip: YTDBSkip? = null,
+    limit: YTDBLimit? = null,
+    canCount: Boolean = false,
+    projection: SqlBuilder.() -> SqlBuilder,
+) : YTDBSelectBase(
+    order = order,
+    skip = skip,
+    limit = limit,
+    canCount = canCount,
+    list = projection,
+    body = { delegate.body(this) }
+)
 
 class YTDBClassSelect(
     val className: String,
@@ -82,99 +149,66 @@ class YTDBClassSelect(
     order: YTDBOrder? = null,
     skip: YTDBSkip? = null,
     limit: YTDBLimit? = null
-) : YTDBSelectBase(order, skip, limit), OConditional {
-
-    override fun sql(builder: SqlBuilder) {
-        selectSql(builder)
-        condition.where(builder)
-        order.orderBy(builder)
-        skip.skip(builder)
-        limit.limit(builder)
-    }
-
-    override fun selectSql(builder: SqlBuilder) {
-        builder.append("SELECT FROM ")
-        builder.append(className)
-    }
-}
-
-class YTDBLinkInFromSubQuerySelect(
-    val linkName: String,
-    val subQuery: YTDBSelect,
-    order: YTDBOrder? = null,
-    skip: YTDBSkip? = null,
-    limit: YTDBLimit? = null
-) : YTDBSelectBase(order, skip, limit) {
-
-    override fun selectSql(builder: SqlBuilder) {
-        builder.append("SELECT expand(in('$linkName')) FROM (")
-        subQuery.sql(builder)
-        builder.append(")")
-    }
-}
+) : YTDBSelectBase(
+    order = order,
+    skip = skip,
+    limit = limit,
+    canCount = true,
+    list = { this },
+    body = { append("FROM ").append(className).where(condition) }
+), OConditional
 
 class YTDBLinkInFromIdsSelect(
-    val linkName: String,
-    val targetIds: List<RID>,
+    linkName: String,
+    targetIds: List<RID>,
     order: YTDBOrder? = null,
     skip: YTDBSkip? = null,
     limit: YTDBLimit? = null
-) : YTDBSelectBase(order, skip, limit) {
-
-    override fun selectSql(builder: SqlBuilder) {
-        val targetIdsParam = builder.addParam("targetIds", targetIds)
-        builder.append("SELECT expand(in('$linkName')) FROM :$targetIdsParam")
-    }
-}
-
+) : YTDBSelectBase(
+    order = order,
+    skip = skip,
+    limit = limit,
+    canCount = true, // todo: check this
+    list = { append("expand(in('").append(linkName).append("'))") },
+    body = { append("FROM ").param("targetIds", targetIds) }
+)
 
 class YTDBLinkOfTypeInFromIdsSelect(
-    val linkName: String,
-    val targetIds: List<RID>,
-    val targetEntityType: String,
+    linkName: String,
+    targetIds: List<RID>,
+    targetEntityType: String,
     order: YTDBOrder? = null,
     skip: YTDBSkip? = null,
     limit: YTDBLimit? = null
-) : YTDBSelectBase(order, skip, limit) {
-
-    override fun selectSql(builder: SqlBuilder) {
-        val targetIdsParam = builder.addParam("targetIds", targetIds)
-        builder
-            .append("SELECT FROM")
-            .append(" (SELECT expand(in('$linkName')) FROM :$targetIdsParam)")
+) : YTDBSelectBase(
+    order = order,
+    skip = skip,
+    limit = limit,
+    canCount = true,
+    list = { this },
+    body = {
+        append("FROM")
+            .append(" (SELECT expand(in('").append(linkName).append("'))")
+            .append(" FROM ").param("targetIds", targetIds)
+            .append(")")
             .append(" WHERE @class='$targetEntityType'")
     }
-}
+) 
 
 class YTDBLinkOutFromIdSelect(
-    val linkName: String,
-    private val targetIds: List<RID>,
+    linkName: String,
+    targetIds: List<RID>,
     order: YTDBOrder? = null,
     skip: YTDBSkip? = null,
     limit: YTDBLimit? = null
-) : YTDBSelectBase(order, skip, limit) {
-
-    override fun selectSql(builder: SqlBuilder) {
-        val targetIdsParam = builder.addParam("targetIds", targetIds)
-        builder.append("SELECT expand(out('$linkName')) FROM :$targetIdsParam")
-    }
-}
-
-class YTDBLinkOutFromSubQuerySelect(
-    val linkName: String,
-    val subQuery: YTDBSelect,
-    order: YTDBOrder? = null,
-    skip: YTDBSkip? = null,
-    limit: YTDBLimit? = null
-) : YTDBSelectBase(order, skip, limit) {
-
-    override fun selectSql(builder: SqlBuilder) {
-        builder.append("SELECT expand(out('$linkName')) FROM (")
-        subQuery.sql(builder)
-        builder.append(")")
-    }
-}
-
+) : YTDBSelectBase(
+    order = order,
+    skip = skip,
+    limit = limit,
+    canCount = true, // todo: check this
+    list = { append("expand(out('").append(linkName).append("'))") },
+    body = { append("FROM ").param("targetIds", targetIds) }
+) 
 
 abstract class YTDBBinaryOperationSelect(
     val left: YTDBSelect,
@@ -185,11 +219,11 @@ abstract class YTDBBinaryOperationSelect(
 ) : YTDBSelectStub(order, skip, limit) {
 
     abstract fun applyOperatorNoOrder(builder: SqlBuilder, leftArgName: String, rightArgName: String)
-    open fun applyOperator(builder: SqlBuilder, leftArgName: String, rightArgName: String) = applyOperatorNoOrder(builder, leftArgName, rightArgName)
+    open fun applyOperator(builder: SqlBuilder, leftArgName: String, rightArgName: String) =
+        applyOperatorNoOrder(builder, leftArgName, rightArgName)
 
-    open fun selectExpression(builder: SqlBuilder, argument:String) : SqlBuilder{
-        return builder.append("SELECT expand($argument) ")
-    }
+    open fun selectExpression(builder: SqlBuilder, argument: String): SqlBuilder =
+        builder.append("SELECT expand($argument) ")
 
     override fun sql(builder: SqlBuilder) {
         if (order == null || order is EmptyOrder) {
@@ -289,19 +323,6 @@ class YTDBUnionSelect(
     }
 }
 
-class YTDBDistinctSelect(
-    val subQuery: YTDBSelect,
-    order: YTDBOrder? = null,
-    skip: YTDBSkip? = null,
-    limit: YTDBLimit? = null
-) : YTDBSelectBase(order, skip, limit) {
-
-    override fun selectSql(builder: SqlBuilder) {
-        builder.append("SELECT DISTINCT * FROM (")
-        subQuery.sql(builder)
-        builder.append(")")
-    }
-}
 
 class YTDBDifferenceSelect(
     left: YTDBSelect,
@@ -319,20 +340,13 @@ class YTDBDifferenceSelect(
 class YTDBRecordIdSelect(
     val recordIds: Collection<RID>,
     order: YTDBOrder? = null
-) : YTDBSelectBase(order) {
+) : YTDBSelectBase(
+    order = order,
+    canCount = true,
+    list = { this },
+    body = { append("FROM ").param("rids", recordIds) }
+) 
 
-    override fun selectSql(builder: SqlBuilder) {
-        val ridsParam = builder.addParam("rids", recordIds)
-        builder.append("SELECT FROM :$ridsParam")
-    }
-}
-
-fun YTDBCondition?.where(builder: SqlBuilder) {
-    this?.let {
-        builder.append(" WHERE ")
-        it.sql(builder)
-    } ?: builder.append("")
-}
 
 fun YTDBOrder?.orderBy(builder: SqlBuilder) {
     if (this != null && this != EmptyOrder) {

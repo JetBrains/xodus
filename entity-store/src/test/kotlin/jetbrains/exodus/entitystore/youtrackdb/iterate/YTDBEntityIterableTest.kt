@@ -496,7 +496,7 @@ class YTDBEntityIterableTest : OTestMixin {
             // Then
             tx.checkSql(
                 issuesOnBoards,
-                expectedSql = "SELECT expand(intersect(\$a0, \$b0)) LET \$a0=(SELECT FROM Issue), \$b0=(SELECT expand(in('OnBoard_link')) FROM (SELECT FROM Board WHERE (name = :name1 OR name = :name2)))",
+                expectedSql = "SELECT expand(intersect(\$a0, \$b0)) LET \$a0=(SELECT FROM Issue), \$b0=(SELECT expand(in('OnBoard_link')) FROM Board WHERE (name = :name1 OR name = :name2))",
                 expectedParams = mapOf(
                     "name1" to "board1",
                     "name2" to "board2"
@@ -627,6 +627,71 @@ class YTDBEntityIterableTest : OTestMixin {
             val notChildIssues = YTDBInstanceOfIterable(txn, "Issue", "ChildIssue", true)
             assertEquals(10, notChildIssues.toList().size)
             assertEquals(1, childIssues.toList().size)
+        }
+    }
+
+    @Test
+    fun `count should select the number of records`() {
+        givenTestCase()
+
+        withStoreTx { tx ->
+            val issue1 = tx.find(Issues.CLASS, "name", "issue1")
+            val issue2 = tx.find(Issues.CLASS, "name", "issue2")
+            val issue4 = tx.find(Issues.CLASS, "name", "issue4")
+
+            assertThat(issue1.size()).isEqualTo(1)
+            assertThat(issue2.count()).isEqualTo(1)
+            assertThat(issue4.count()).isEqualTo(0)
+
+            assertThat(issue1.union(issue2).union(issue4).count()).isEqualTo(2)
+        }
+    }
+
+    @Test
+    fun `count should select the number of records with distinct`() {
+        // Given
+        val test = givenTestCase()
+
+        withStoreTx { tx ->
+            tx.addIssueToBoard(test.issue1, test.board1)
+            tx.addIssueToBoard(test.issue2, test.board1)
+            tx.addIssueToBoard(test.issue1, test.board2)
+        }
+
+        withStoreTx { tx ->
+
+            val boards =
+                tx.find(Boards.CLASS, "name", test.board1.name())
+                    .union(
+                        tx.find(Boards.CLASS, "name", test.board2.name())
+                    )
+
+            val issues = boards.selectDistinct(Boards.Links.HAS_ISSUE)
+
+            assertThat(issues.toList().size).isEqualTo(2)
+            assertThat(issues.count()).isEqualTo(2)
+        }
+    }
+
+    @Test
+    fun `count should count links`() {
+        val test = givenTestCase()
+
+        withStoreTx { tx ->
+            tx.addIssueToBoard(test.issue1, test.board1)
+            tx.addIssueToBoard(test.issue2, test.board1)
+        }
+
+        withStoreTx { tx ->
+
+            val board1 =
+                tx.find(Boards.CLASS, "name", test.board1.name())
+
+            val issues = tx.findLinks(Issues.CLASS, board1, Issues.Links.ON_BOARD)
+
+            assertThat(issues.toList().count()).isEqualTo(2)
+            assertThat(issues.count()).isEqualTo(2)
+
         }
     }
 

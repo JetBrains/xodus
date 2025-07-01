@@ -20,7 +20,6 @@ import jetbrains.exodus.entitystore.youtrackdb.YTDBStoreTransaction
 import jetbrains.exodus.entitystore.youtrackdb.asEdgeClass
 import jetbrains.exodus.entitystore.youtrackdb.iterate.YTDBEntityIterableBase
 import jetbrains.exodus.entitystore.youtrackdb.query.YTDBIntersectSelect
-import jetbrains.exodus.entitystore.youtrackdb.query.YTDBLinkInFromSubQuerySelect
 import jetbrains.exodus.entitystore.youtrackdb.query.YTDBSelect
 
 class YTDBLinkIterableToEntityIterableFiltered(
@@ -31,7 +30,7 @@ class YTDBLinkIterableToEntityIterableFiltered(
 ) : YTDBEntityIterableBase(txn) {
 
     override fun query(): YTDBSelect {
-        val byLinkSelect = YTDBLinkInFromSubQuerySelect(linkName.asEdgeClass, linkIterable.query())
+        val byLinkSelect = linkIterable.query().selectInLinks(linkName.asEdgeClass)
         return YTDBIntersectSelect(source.query(), byLinkSelect)
     }
 }

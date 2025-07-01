@@ -15,8 +15,6 @@
  */
 package jetbrains.exodus.entitystore.youtrackdb.query
 
-import jetbrains.exodus.entitystore.youtrackdb.YTDBStoreTransaction
-
 object YTDBQueryFunctions {
 
     fun intersect(left: YTDBSelect, right: YTDBSelect): YTDBSelect {
@@ -84,8 +82,13 @@ object YTDBQueryFunctions {
     }
 
     fun distinct(source: YTDBSelect): YTDBSelect {
-        return YTDBDistinctSelect(source)
+        return source.nest(select = "DISTINCT *")
     }
+
+    fun count(source: YTDBSelect): YTDBSelect =
+        if (source is YTDBSelectBase && source.canCount)
+            source.select("COUNT(*) as count")
+        else source.nest("COUNT(*) as count")
 
     fun reverse(query: YTDBSelect): YTDBSelect {
         val order = query.order?.reverse() ?: return query
@@ -114,24 +117,7 @@ object YTDBQueryFunctions {
     }
 }
 
-class YTDBCountSelect(
-    val source: YTDBSelect,
-) : YTDBQuery {
-
-    override fun sql(builder: SqlBuilder) {
-        builder.append("SELECT count(*) as count FROM (")
-        source.sql(builder)
-        builder.append(")")
-    }
-
-    fun count(tx: YTDBStoreTransaction): Long =
-        YTDBQueryExecution.execute(this, tx)
-            .use { it.next().getLong("count") }!!
-}
-
-class YTDBFirstSelect(
-    val source: YTDBSelect,
-) : YTDBQuery {
+class YTDBFirstSelect(val source: YTDBSelect) : YTDBQuery {
 
     override fun sql(builder: SqlBuilder) {
         val index = builder.nextVarIndex()
@@ -142,9 +128,7 @@ class YTDBFirstSelect(
 }
 
 
-class YTDBLastSelect(
-    val source: YTDBSelect,
-) : YTDBQuery {
+class YTDBLastSelect(val source: YTDBSelect) : YTDBQuery {
 
     override fun sql(builder: SqlBuilder) {
         val index = builder.nextVarIndex()
