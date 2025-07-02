@@ -29,8 +29,38 @@ class SqlBuilder {
         return varCounter++
     }
 
+    fun outLinks(linkName: String, expand: Boolean = false): SqlBuilder =
+        appendLinks("out", linkName, expand)
+
+    fun inLinks(linkName: String, expand: Boolean = false): SqlBuilder =
+        appendLinks("in", linkName, expand)
+
+    private fun appendLinks(linkType: String, linkName: String, expand: Boolean): SqlBuilder {
+        if (expand) {
+            append("expand(")
+        }
+
+        append(linkType).append("('").append(linkName).append("')")
+
+        if (expand) {
+            append(")")
+        }
+
+        return this
+    }
+
     fun append(value: Any): SqlBuilder {
         stringBuilder.append(value)
+        return this
+    }
+
+    fun param(name: String, value: Any): SqlBuilder =
+        append(":").append(addParam(name, value))
+
+    fun nested(sql: YTDBSql): SqlBuilder {
+        stringBuilder.append("(")
+        sql.sql(this)
+        stringBuilder.append(")")
         return this
     }
 
