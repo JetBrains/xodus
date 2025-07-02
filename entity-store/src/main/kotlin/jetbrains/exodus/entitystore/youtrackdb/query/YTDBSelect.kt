@@ -17,6 +17,8 @@ package jetbrains.exodus.entitystore.youtrackdb.query
 
 import com.jetbrains.youtrack.db.api.record.RID
 
+typealias SqlStep = (SqlBuilder.() -> SqlBuilder)
+
 interface OSortable {
     val order: YTDBOrder?
 
@@ -34,7 +36,7 @@ interface OSizable {
 sealed interface YTDBSelect : YTDBQuery, OSortable, OSizable {
     fun count(): YTDBSelect =
         if (this is YTDBSelectBase && this.count != null)
-            YTDBSimpleCountSelect(this)
+            YTDBSimpleCountSelect(this, this.count)
         else YTDBNestedCountSelect(this)
 }
 
@@ -61,9 +63,9 @@ abstract class YTDBSelectStub(
 }
 
 abstract class YTDBSelectBase(
-    val list: (SqlBuilder.() -> SqlBuilder)?,
-    val count: (SqlBuilder.() -> SqlBuilder)? = null,
-    val from: SqlBuilder.() -> SqlBuilder,
+    val list: SqlStep?,
+    val count: SqlStep? = null,
+    val from: SqlStep,
     val condition: YTDBCondition? = null,
     override var order: YTDBOrder? = null,
     override var skip: YTDBSkip? = null,
@@ -86,8 +88,9 @@ abstract class YTDBSelectBase(
 
 class YTDBSimpleCountSelect(
     source: YTDBSelectBase,
+    countStep: SqlStep
 ) : YTDBSelectBase(
-    list = { source.count!!(this).append(" AS count") },
+    list = { countStep(this).append(" AS count") },
     from = source.from,
     condition = source.condition,
     order = null,
