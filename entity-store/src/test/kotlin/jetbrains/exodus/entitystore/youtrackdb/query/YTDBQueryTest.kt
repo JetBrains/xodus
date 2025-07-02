@@ -16,6 +16,7 @@
 package jetbrains.exodus.entitystore.youtrackdb.query
 
 import com.google.common.truth.Truth.assertThat
+import com.jetbrains.youtrack.db.internal.core.id.RecordId
 import org.junit.Test
 
 class YTDBQueryTest {
@@ -115,6 +116,26 @@ class YTDBQueryTest {
                 "name1", "John",
                 "name2", "George"
             )
+    }
+
+    @Test
+    fun `should query size() for links`() {
+        val select = YTDBLinkInFromIdsSelect(
+            "linkName",
+            listOf(RecordId(34, 4), RecordId(34, 5))
+        )
+
+        val count = select.count()
+        val query = buildSql(count)
+
+        assertThat(query.sql)
+            .isEqualTo("SELECT in('linkName').size() AS count FROM :targetIds0")
+
+        assertThat(query.params)
+            .containsExactly(
+                "targetIds0", listOf(RecordId(34, 4), RecordId(34, 5))
+            )
+
     }
 
     private fun buildSql(YTDBSql: YTDBSql): SqlQuery {
