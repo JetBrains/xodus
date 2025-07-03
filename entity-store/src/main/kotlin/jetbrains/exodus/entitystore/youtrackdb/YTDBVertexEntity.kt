@@ -71,6 +71,18 @@ open class YTDBVertexEntity(vertex: Vertex, private val store: YTDBEntityStore) 
             STRING_BLOB_HASH_PROPERTY_NAME_SUFFIX
         )
 
+        fun validPropertyNamesPredicate(propertyNames: Collection<String>): (String) -> Boolean {
+            val allPropertiesNames = propertyNames.toSet()
+            return { propName ->
+                //not ignored properties
+                !IGNORED_PROPERTY_NAMES.contains(propName)
+                        && !allPropertiesNames.contains(blobHashProperty(propName))
+                        && !allPropertiesNames.contains(blobSizeProperty(propName))
+                        && !IGNORED_SUFFIXES.any { suffix -> propName.endsWith(suffix) }
+            }
+        }
+
+
         fun localEntityIdSequenceName(className: String): String =
             "${className}_sequence_localEntityId"
 
@@ -214,15 +226,10 @@ open class YTDBVertexEntity(vertex: Vertex, private val store: YTDBEntityStore) 
 
     override fun getPropertyNames(): List<String> {
         requireActiveTx()
-        val allPropertiesNames = vertex.propertyNames
+        val allPropertiesNames = vertex.propertyNames.toSet()
+        val predicate = validPropertyNamesPredicate(allPropertiesNames)
         return allPropertiesNames
-            .filter { propName ->
-                //not ignored properties
-                !IGNORED_PROPERTY_NAMES.contains(propName)
-                        && !allPropertiesNames.contains(blobHashProperty(propName))
-                        && !allPropertiesNames.contains(blobSizeProperty(propName))
-                        && !IGNORED_SUFFIXES.any { suffix -> propName.endsWith(suffix) }
-            }
+            .filter(predicate)
             .toList()
     }
 
