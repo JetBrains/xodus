@@ -19,15 +19,17 @@ package jetbrains.exodus.query.metadata
 
 import com.jetbrains.youtrack.db.api.record.Vertex
 import com.jetbrains.youtrack.db.internal.core.db.DatabaseSessionInternal
-import com.jetbrains.youtrack.db.internal.core.record.impl.RecordBytes
 import jetbrains.exodus.bindings.ComparableSet
 import jetbrains.exodus.bindings.StringBinding
 import jetbrains.exodus.entitystore.PersistentEntityStore
 import jetbrains.exodus.entitystore.StoreTransaction
 import jetbrains.exodus.entitystore.XodusTestDB
-import jetbrains.exodus.entitystore.youtrackdb.*
+import jetbrains.exodus.entitystore.youtrackdb.YTDBVertexEntity
 import jetbrains.exodus.entitystore.youtrackdb.YTDBVertexEntity.Companion.CLASS_ID_SEQUENCE_NAME
 import jetbrains.exodus.entitystore.youtrackdb.YTDBVertexEntity.Companion.localEntityIdSequenceName
+import jetbrains.exodus.entitystore.youtrackdb.createVertexClassWithClassId
+import jetbrains.exodus.entitystore.youtrackdb.requireClassId
+import jetbrains.exodus.entitystore.youtrackdb.requireLocalEntityId
 import jetbrains.exodus.entitystore.youtrackdb.testutil.InMemoryYouTrackDB
 import jetbrains.exodus.util.ByteArraySizedInputStream
 import jetbrains.exodus.util.LightOutputStream
