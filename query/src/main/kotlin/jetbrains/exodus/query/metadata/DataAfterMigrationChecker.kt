@@ -126,7 +126,8 @@ internal class DataAfterMigrationChecker(
                         findEntitiesDuration += findEntityDuration
 
                         checkPropertiesDuration += measureTime {
-                            for (propName in e1.propertyNames) {
+                            val names = e1.propertyNames
+                            for (propName in names.filter(YTDBVertexEntity.validPropertyNamesPredicate(names))) {
                                 val v1 = e1.getProperty(propName)
                                 val v2 = e2.getProperty(propName)
                                 withEntityFieldExceptionLogging(e1, propName,"property") {
