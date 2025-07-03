@@ -18,7 +18,7 @@ package jetbrains.exodus.query
 import com.google.common.truth.Truth.assertThat
 import io.mockk.every
 import io.mockk.mockk
-import jetbrains.exodus.entitystore.youtrackdb.YTDBVertexEntity
+import jetbrains.exodus.entitystore.Entity
 import jetbrains.exodus.entitystore.youtrackdb.gremlin.GremlinEntityIterable
 import jetbrains.exodus.entitystore.youtrackdb.testutil.*
 import jetbrains.exodus.query.metadata.EntityMetaData
@@ -26,7 +26,6 @@ import jetbrains.exodus.query.metadata.ModelMetaData
 import jetbrains.exodus.query.metadata.PropertyMetaData
 import jetbrains.exodus.query.metadata.PropertyType
 import junit.framework.TestCase.assertEquals
-import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -212,7 +211,7 @@ class YTDBGremlinEngineTest(
             assertThat(empty).isEmpty()
         }
     }
-//
+
 //    @Ignore
 //    @Test
 //    fun `should query when property exists sorted by value`() {
@@ -290,7 +289,7 @@ class YTDBGremlinEngineTest(
             val issues =
                 engine.query(Issues.CLASS, NodeFactory.propNotNull("myBlob"))
                     .toList()
-//                    .sortedBy { it.getProperty("name") // todo
+                    .sortedBy { it.getProperty("name") }
             assertEquals(2, issues.size)
             assertEquals(test.issue1, issues.firstOrNull())
             assertEquals(test.issue2, issues.lastOrNull())
@@ -388,53 +387,55 @@ class YTDBGremlinEngineTest(
             assertNamesExactly(issuesDistinct, "issue1", "issue2", "issue3")
         }
     }
-//
-//    @Test
-//    fun `should query with minus`() {
-//        // Given
-//        val test = givenTestCase()
-//        withStoreTx { tx ->
-//            tx.addIssueToBoard(test.issue1, test.board1)
-//            tx.addIssueToBoard(test.issue1, test.board2)
-//            tx.addIssueToBoard(test.issue2, test.board1)
-//            tx.addIssueToBoard(test.issue3, test.board1)
-//        }
-//        val engine = givenOQueryEngine()
-//
-//        // When
-//        withStoreTx { tx ->
-//            val issues = engine.query(
-//                iterableGetter(engine, tx),
-//                Issues.CLASS,
-//                Minus(LinkEqual(Issues.Links.ON_BOARD, test.board1), LinkEqual(Issues.Links.ON_BOARD, test.board2))
-//            )
-//
-//            // Then
-//            assertNamesExactly(issues, "issue2", "issue3")
-//        }
-//    }
-//
-@Test
-fun `should query links with select many`() {
-    // Given
-    val test = givenTestCase()
-    withStoreTx { tx ->
-        tx.addIssueToBoard(test.issue1, test.board1)
-        tx.addIssueToBoard(test.issue1, test.board2)
-        tx.addIssueToBoard(test.issue2, test.board1)
-        tx.addIssueToBoard(test.issue3, test.board1)
-    }
-    val engine = givenOQueryEngine()
 
-    // When
-    withStoreTx { tx ->
-        val issues = engine.query(Issues.CLASS, NodeFactory.all()) as GremlinEntityIterable
-        val boards = issues.selectMany(Issues.Links.ON_BOARD)
+    @Test
+    fun `should query with minus (and not)`() {
+        // Given
+        val test = givenTestCase()
+        withStoreTx { tx ->
+            tx.addIssueToBoard(test.issue1, test.board1)
+            tx.addIssueToBoard(test.issue1, test.board2)
+            tx.addIssueToBoard(test.issue2, test.board1)
+            tx.addIssueToBoard(test.issue3, test.board1)
+        }
+        val engine = givenOQueryEngine()
 
-        // Then
-        assertNamesExactly(boards.sorted(), "board1", "board1", "board1", "board2")
+        // When
+        withStoreTx { tx ->
+            val issues = engine.query(
+                Issues.CLASS,
+                NodeFactory.and(
+                    NodeFactory.hasLinkTo(Issues.Links.ON_BOARD, test.board1),
+                    NodeFactory.not(NodeFactory.hasLinkTo(Issues.Links.ON_BOARD, test.board2))
+                )
+            )
+
+            // Then
+            assertNamesExactly(issues, "issue2", "issue3")
+        }
     }
-}
+
+    @Test
+    fun `should query links with select many`() {
+        // Given
+        val test = givenTestCase()
+        withStoreTx { tx ->
+            tx.addIssueToBoard(test.issue1, test.board1)
+            tx.addIssueToBoard(test.issue1, test.board2)
+            tx.addIssueToBoard(test.issue2, test.board1)
+            tx.addIssueToBoard(test.issue3, test.board1)
+        }
+        val engine = givenOQueryEngine()
+
+        // When
+        withStoreTx { tx ->
+            val issues = engine.query(Issues.CLASS, NodeFactory.all()) as GremlinEntityIterable
+            val boards = issues.selectMany(Issues.Links.ON_BOARD)
+
+            // Then
+            assertNamesExactly(boards.sorted(), "board1", "board1", "board1", "board2")
+        }
+    }
 
 //    @Test
 //    fun issueGetterShouldNotBeEmpty() {
@@ -451,28 +452,28 @@ fun `should query links with select many`() {
 //        }
 //
 //    }
-//
-@Test
-fun `should query links with select many distinct`() {
-    // Given
-    val test = givenTestCase()
-    withStoreTx { tx ->
-        tx.addIssueToBoard(test.issue1, test.board1)
-        tx.addIssueToBoard(test.issue1, test.board2)
-        tx.addIssueToBoard(test.issue2, test.board1)
-        tx.addIssueToBoard(test.issue3, test.board1)
-    }
-    val engine = givenOQueryEngine()
 
-    // When
-    withStoreTx { tx ->
-        val issues = engine.query(Issues.CLASS, NodeFactory.all()) as GremlinEntityIterable
-        val boardsDistinct = engine.selectManyDistinct(issues, Issues.Links.ON_BOARD)
+    @Test
+    fun `should query links with select many distinct`() {
+        // Given
+        val test = givenTestCase()
+        withStoreTx { tx ->
+            tx.addIssueToBoard(test.issue1, test.board1)
+            tx.addIssueToBoard(test.issue1, test.board2)
+            tx.addIssueToBoard(test.issue2, test.board1)
+            tx.addIssueToBoard(test.issue3, test.board1)
+        }
+        val engine = givenOQueryEngine()
 
-        // Then
-        assertNamesExactly(boardsDistinct, "board1", "board2")
+        // When
+        withStoreTx { tx ->
+            val issues = engine.query(Issues.CLASS, NodeFactory.all()) as GremlinEntityIterable
+            val boardsDistinct = engine.selectManyDistinct(issues, Issues.Links.ON_BOARD)
+
+            // Then
+            assertNamesExactly(boardsDistinct, "board1", "board2")
+        }
     }
-}
 
     @Test
     fun `should query different links with or`() {
@@ -480,23 +481,13 @@ fun `should query links with select many distinct`() {
         val test = givenTestCase()
         withStoreTx { tx ->
             tx.addIssueToProject(test.issue1, test.project1)
-//            tx.addIssueToBoard(test.issue2, test.board2)
-//            tx.addIssueToBoard(test.issue3, test.board3)
+            tx.addIssueToBoard(test.issue2, test.board2)
+            tx.addIssueToBoard(test.issue3, test.board3)
         }
         val engine = givenOQueryEngine()
 
         // When
         withStoreTx { tx ->
-
-            val issues2 = tx.vertexTraversal()
-                .hasLabel(Issues.CLASS)
-                .or(
-                    `__`.V<Any>().hasId(test.project1.id.asOId())
-                        .`in`(YTDBVertexEntity.edgeClassName(Issues.Links.IN_PROJECT))
-                        .dedup(),
-//                    `__`.V<Any>().hasId(test.board2.id.asOId()).`in`(YTDBVertexEntity.edgeClassName(Issues.Links.ON_BOARD))
-                )
-                .toList()
 
             // Find all issues that are either in project1 or board2
             val issues =
@@ -512,185 +503,193 @@ fun `should query links with select many distinct`() {
             assertNamesExactly(issues, "issue1", "issue2")
         }
     }
-//
-//
-//    @Test
-//    fun `should query links with or`() {
-//        // Given
-//        val testCase = givenTestCase()
-//        withStoreTx { tx ->
-//            tx.addIssueToProject(testCase.issue1, testCase.project1)
-//            tx.addIssueToProject(testCase.issue2, testCase.project1)
-//            tx.addIssueToProject(testCase.issue3, testCase.project2)
-//        }
-//        val engine = givenOQueryEngine()
-//
-//        // When
-//        withStoreTx { tx ->
-//            // Find all issues that in project1 or project2
-//            val issuesInProject1 = LinkEqual(Issues.Links.IN_PROJECT, testCase.project1)
-//            val issuesInProject2 = LinkEqual(Issues.Links.IN_PROJECT, testCase.project2)
-//            val issues =
-//                engine.query(iterableGetter(engine, tx), Issues.CLASS, Or(issuesInProject1, issuesInProject2))
-//
-//            // Then
-//            assertNamesExactly(issues, "issue1", "issue2", "issue3")
-//        }
-//    }
-//
-//    @Test
-//    fun `should query links with and`() {
-//        // Given
-//        val test = givenTestCase()
-//        withStoreTx { tx ->
-//            tx.addIssueToBoard(test.issue1, test.board1)
-//            tx.addIssueToBoard(test.issue2, test.board1)
-//            tx.addIssueToBoard(test.issue2, test.board2)
-//            tx.addIssueToBoard(test.issue3, test.board3)
-//        }
-//        val engine = givenOQueryEngine()
-//
-//        // When
-//        withStoreTx { tx ->
-//            // Find all issues that are on board1 and board2 at the same time
-//            val issuesOnBoard1 = LinkEqual(Issues.Links.ON_BOARD, test.board1)
-//            val issuesOnBoard2 = LinkEqual(Issues.Links.ON_BOARD, test.board2)
-//            val issues =
-//                engine.query(iterableGetter(engine, tx), Issues.CLASS, And(issuesOnBoard1, issuesOnBoard2))
-//
-//            // Then
-//            assertNamesExactly(issues, "issue2")
-//        }
-//    }
-//
-//    @Test
-//    fun `should query by links`() {
-//        // Given
-//        val testCase = givenTestCase()
-//        withStoreTx { tx ->
-//            tx.addIssueToProject(testCase.issue1, testCase.project1)
-//            tx.addIssueToProject(testCase.issue2, testCase.project1)
-//            tx.addIssueToProject(testCase.issue3, testCase.project2)
-//        }
-//
-//        val engine = givenOQueryEngine()
-//
-//        // When
-//        withStoreTx { tx ->
-//            val issuesInProject = LinkEqual(Issues.Links.IN_PROJECT, testCase.project1)
-//            val issues = engine.query(iterableGetter(engine, tx), Issues.CLASS, issuesInProject)
-//
-//            // Then
-//            assertNamesExactly(issues, "issue1", "issue2")
-//        }
-//    }
-//
-//    @Test
-//    fun `should query by null`() {
-//        // Given
-//        val testCase = givenTestCase()
-//        withStoreTx { tx ->
-//            tx.addIssueToProject(testCase.issue1, testCase.project1)
-//        }
-//
-//        val engine = givenOQueryEngine()
-//
-//        // When
-//        withStoreTx { tx ->
-//            val issuesNotInProject = LinkEqual(Issues.Links.IN_PROJECT, null)
-//            val issues = engine.query(iterableGetter(engine, tx), Issues.CLASS, issuesNotInProject)
-//
-//            // Then
-//            assertNamesExactly(issues, "issue2", "issue3")
-//        }
-//    }
-//
-//
-//    @Test
-//    fun `should query with links not null`() {
-//        // Given
-//        val test = givenTestCase()
-//        withStoreTx { tx ->
-//            tx.addIssueToBoard(test.issue1, test.board1)
-//            tx.addIssueToBoard(test.issue2, test.board2)
-//        }
-//        val engine = givenOQueryEngine()
-//
-//        // When
-//        withStoreTx { tx ->
-//            val issuesOnBoard =
-//                engine.query(iterableGetter(engine, tx), Issues.CLASS, LinkNotNull(Issues.Links.ON_BOARD))
-//            val issuesInProject =
-//                engine.query(iterableGetter(engine, tx), Issues.CLASS, LinkNotNull(Issues.Links.IN_PROJECT))
-//
-//            // Then
-//            assertNamesExactly(issuesOnBoard, "issue1", "issue2")
-//            assertThat(issuesInProject).isEmpty()
-//        }
-//    }
-//
-//    @Test
-//    fun `should query by not null using unary not`() {
-//        // Given
-//        val testCase = givenTestCase()
-//        withStoreTx { tx ->
-//            tx.addIssueToProject(testCase.issue1, testCase.project1)
-//        }
-//
-//        val engine = givenOQueryEngine()
-//
-//        // When
-//        withStoreTx { tx ->
-//            val issuesInProject = UnaryNot(LinkEqual(Issues.Links.IN_PROJECT, null))
-//            val issues = engine.query(iterableGetter(engine, tx), Issues.CLASS, issuesInProject)
-//
-//            // Then
-//            assertNamesExactly(issues, "issue1")
-//        }
-//    }
-//
-//    @Test
-//    fun `should query with and`() {
-//        // Given
-//        val test = givenTestCase()
-//        val engine = givenOQueryEngine()
-//
-//        // When
-//        withStoreTx { tx ->
-//            test.issue2.setProperty(Issues.Props.PRIORITY, "normal")
-//
-//            val nameEqual = PropertyEqual("name", "issue2")
-//            val projectEqual = PropertyEqual(Issues.Props.PRIORITY, "normal")
-//            val issues = engine.query(iterableGetter(engine, tx), "Issue", And(nameEqual, projectEqual))
-//
-//            // Then
-//            assertThat(issues.size()).isEqualTo(1)
-//            assertThat(issues.first().getProperty("name")).isEqualTo("issue2")
-//            assertThat(issues.first().getProperty("priority")).isEqualTo("normal")
-//        }
-//    }
-//
-//    @Test
-//    fun `should query property in range`() {
-//        // Given
-//        val test = givenTestCase()
-//        val engine = givenOQueryEngine()
-//        withStoreTx { test.issue2.setProperty("value", 3) }
-//
-//        // When
-//        withStoreTx {
-//            val exclusive = engine.query("Issue", PropertyRange("value", 1, 5))
-//            val inclusiveMin = engine.query("Issue", PropertyRange("value", 3, 5))
-//            val inclusiveMax = engine.query("Issue", PropertyRange("value", 1, 3))
-//            val empty = engine.query("Issue", PropertyRange("value", 6, 12))
-//
-//            // Then
-//            assertNamesExactly(exclusive, "issue2")
-//            assertNamesExactly(inclusiveMin, "issue2")
-//            assertNamesExactly(inclusiveMax, "issue2")
-//            assertThat(empty).isEmpty()
-//        }
-//    }
+
+
+    @Test
+    fun `should query links with or`() {
+        // Given
+        val testCase = givenTestCase()
+        withStoreTx { tx ->
+            tx.addIssueToProject(testCase.issue1, testCase.project1)
+            tx.addIssueToProject(testCase.issue2, testCase.project1)
+            tx.addIssueToProject(testCase.issue3, testCase.project2)
+        }
+        val engine = givenOQueryEngine()
+
+        // When
+        withStoreTx { tx ->
+            // Find all issues that in project1 or project2
+            val issues = engine.query(
+                Issues.CLASS, NodeFactory.or(
+                    NodeFactory.hasLinkTo(Issues.Links.IN_PROJECT, testCase.project1),
+                    NodeFactory.hasLinkTo(Issues.Links.IN_PROJECT, testCase.project2)
+                )
+            )
+
+            // Then
+            assertNamesExactly(issues, "issue1", "issue2", "issue3")
+        }
+    }
+
+    @Test
+    fun `should query links with and`() {
+        // Given
+        val test = givenTestCase()
+        withStoreTx { tx ->
+            tx.addIssueToBoard(test.issue1, test.board1)
+            tx.addIssueToBoard(test.issue2, test.board1)
+            tx.addIssueToBoard(test.issue2, test.board2)
+            tx.addIssueToBoard(test.issue3, test.board3)
+        }
+        val engine = givenOQueryEngine()
+
+        // When
+        withStoreTx { tx ->
+            // Find all issues that are on board1 and board2 at the same time
+            val issues = engine.query(
+                Issues.CLASS, NodeFactory.and(
+                    NodeFactory.hasLinkTo(Issues.Links.ON_BOARD, test.board1),
+                    NodeFactory.hasLinkTo(Issues.Links.ON_BOARD, test.board2)
+                )
+            )
+
+            // Then
+            assertNamesExactly(issues, "issue2")
+        }
+    }
+
+    @Test
+    fun `should query by links`() {
+        // Given
+        val testCase = givenTestCase()
+        withStoreTx { tx ->
+            tx.addIssueToProject(testCase.issue1, testCase.project1)
+            tx.addIssueToProject(testCase.issue2, testCase.project1)
+            tx.addIssueToProject(testCase.issue3, testCase.project2)
+        }
+
+        val engine = givenOQueryEngine()
+
+        // When
+        withStoreTx { tx ->
+            val issues = engine.query(
+                Issues.CLASS,
+                NodeFactory.hasLinkTo(Issues.Links.IN_PROJECT, testCase.project1)
+            )
+
+            // Then
+            assertNamesExactly(issues, "issue1", "issue2")
+        }
+    }
+
+    @Test
+    fun `should query by null links`() {
+        // Given
+        val testCase = givenTestCase()
+        withStoreTx { tx ->
+            tx.addIssueToProject(testCase.issue1, testCase.project1)
+        }
+
+        val engine = givenOQueryEngine()
+
+        // When
+        withStoreTx { tx ->
+            val issuesNotInProject = NodeFactory.hasLinkTo(Issues.Links.IN_PROJECT, null)
+            val issues = engine.query(Issues.CLASS, issuesNotInProject)
+
+            // Then
+            assertNamesExactly(issues, "issue2", "issue3")
+        }
+    }
+
+
+    @Test
+    fun `should query with links not null`() {
+        // Given
+        val test = givenTestCase()
+        withStoreTx { tx ->
+            tx.addIssueToBoard(test.issue1, test.board1)
+            tx.addIssueToBoard(test.issue2, test.board2)
+        }
+        val engine = givenOQueryEngine()
+
+        // When
+        withStoreTx { tx ->
+            val issuesOnBoard =
+                engine.query(Issues.CLASS, NodeFactory.hasLink(Issues.Links.ON_BOARD))
+            val issuesInProject =
+                engine.query(Issues.CLASS, NodeFactory.hasLink(Issues.Links.IN_PROJECT))
+
+            // Then
+            assertNamesExactly(issuesOnBoard, "issue1", "issue2")
+            assertThat(issuesInProject).isEmpty()
+        }
+    }
+
+    @Test
+    fun `should query by not null using unary not`() {
+        // Given
+        val testCase = givenTestCase()
+        withStoreTx { tx ->
+            tx.addIssueToProject(testCase.issue1, testCase.project1)
+        }
+
+        val engine = givenOQueryEngine()
+
+        // When
+        withStoreTx { tx ->
+            val issues = engine.query(Issues.CLASS, NodeFactory.not(NodeFactory.hasNoLink(Issues.Links.IN_PROJECT)))
+
+            // Then
+            assertNamesExactly(issues, "issue1")
+        }
+    }
+
+    @Test
+    fun `should query with and`() {
+        // Given
+        val test = givenTestCase()
+        val engine = givenOQueryEngine()
+
+        // When
+        withStoreTx { tx ->
+            test.issue2.setProperty(Issues.Props.PRIORITY, "normal")
+
+            val issues = engine.query(
+                "Issue", NodeFactory.and(
+                    NodeFactory.propEqual("name", "issue2"),
+                    NodeFactory.propEqual(Issues.Props.PRIORITY, "normal")
+                )
+            )
+
+            // Then
+            assertThat(issues.size()).isEqualTo(1)
+            assertThat(issues.first().getProperty("name")).isEqualTo("issue2")
+            assertThat(issues.first().getProperty("priority")).isEqualTo("normal")
+        }
+    }
+
+    @Test
+    fun `should query property in range`() {
+        // Given
+        val test = givenTestCase()
+        val engine = givenOQueryEngine()
+        withStoreTx { test.issue2.setProperty("value", 3) }
+
+        // When
+        withStoreTx {
+            val exclusive = engine.query("Issue", NodeFactory.inRange("value", 1, 5))
+            val inclusiveMin = engine.query("Issue", NodeFactory.inRange("value", 3, 5))
+            val inclusiveMax = engine.query("Issue", NodeFactory.inRange("value", 1, 3))
+            val empty = engine.query("Issue", NodeFactory.inRange("value", 6, 12))
+
+            // Then
+            assertNamesExactly(exclusive, "issue2")
+            assertNamesExactly(inclusiveMin, "issue2")
+            assertNamesExactly(inclusiveMax, "issue2")
+            assertThat(empty).isEmpty()
+        }
+    }
 //
 //    @Test
 //    fun `should query by links sorted`() {
@@ -733,7 +732,7 @@ fun `should query links with select many distinct`() {
 //            assertOrderedNamesExactly(issuesDesc, "issue1", "issue2", "issue3")
 //        }
 //    }
-//
+
 //    @Test
 //    fun `should query by property sorted`() {
 //        // Given
@@ -749,14 +748,14 @@ fun `should query links with select many distinct`() {
 //                "name", // link property name
 //                true // ascending
 //            )
-//            val issuesAsc = engine.query(iterableGetter(engine, tx), Issues.CLASS, sortByPropertyAsc)
+//            val issuesAsc = engine.query(Issues.CLASS, sortByPropertyAsc)
 //
 //            val sortByLinkPropertyDesc = SortByProperty(
 //                null, // child node
 //                "name", // link property name
 //                false // descending
 //            )
-//            val issuesDesc = engine.query(iterableGetter(engine, tx), Issues.CLASS, sortByLinkPropertyDesc)
+//            val issuesDesc = engine.query(Issues.CLASS, sortByLinkPropertyDesc)
 //
 //            // Then
 //            // As sorted by project name
@@ -765,33 +764,33 @@ fun `should query links with select many distinct`() {
 //        }
 //    }
 //
-//    private fun assertOrderedNamesExactly(result: Iterable<Entity>, vararg names: String) {
-//        assertThat(result.map { it.getProperty("name") }).containsExactly(*names).inOrder()
-//    }
-//
-private fun givenModelMetadata(mockingBlock: ((ModelMetaData).() -> Unit)? = null): ModelMetaData {
-    return mockk<ModelMetaData>(relaxed = true) {
-        mockingBlock?.invoke(this)
-    }
+private fun assertOrderedNamesExactly(result: Iterable<Entity>, vararg names: String) {
+    assertThat(result.map { it.getProperty("name") }).containsExactly(*names).inOrder()
 }
-//
-//    private fun ModelMetaData.withEntityMetaData(
-//        entityType: String,
-//        mockingBlock: ((EntityMetaData).() -> Unit)? = null
-//    ): ModelMetaData {
-//        val entityMetaData = givenEntityMetaData {
-//            every { type }.returns(entityType)
-//            mockingBlock?.invoke(this)
-//        }
-//        every { getEntityMetaData(entityType) }.returns(entityMetaData)
-//        return this
-//    }
-//
-//    private fun givenEntityMetaData(mockingBlock: ((EntityMetaData).() -> Unit)? = null): EntityMetaData {
-//        return mockk<EntityMetaData>(relaxed = true) {
-//            mockingBlock?.invoke(this)
-//        }
-//    }
+
+    private fun givenModelMetadata(mockingBlock: ((ModelMetaData).() -> Unit)? = null): ModelMetaData {
+        return mockk<ModelMetaData>(relaxed = true) {
+            mockingBlock?.invoke(this)
+        }
+    }
+
+    private fun ModelMetaData.withEntityMetaData(
+        entityType: String,
+        mockingBlock: ((EntityMetaData).() -> Unit)? = null
+    ): ModelMetaData {
+        val entityMetaData = givenEntityMetaData {
+            every { type }.returns(entityType)
+            mockingBlock?.invoke(this)
+        }
+        every { getEntityMetaData(entityType) }.returns(entityMetaData)
+        return this
+    }
+
+    private fun givenEntityMetaData(mockingBlock: ((EntityMetaData).() -> Unit)? = null): EntityMetaData {
+        return mockk<EntityMetaData>(relaxed = true) {
+            mockingBlock?.invoke(this)
+        }
+    }
 //
     private fun givenOQueryEngine(metadataOrNull: ModelMetaData? = null): QueryEngine {
         // ToDo: return orientdb compatible query engine

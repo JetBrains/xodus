@@ -18,7 +18,6 @@ package jetbrains.exodus.query
 import jetbrains.exodus.entitystore.Entity
 import jetbrains.exodus.entitystore.youtrackdb.YTDBEntityId
 import jetbrains.exodus.entitystore.youtrackdb.gremlin.GremlinQuery.*
-import jetbrains.exodus.entitystore.youtrackdb.gremlin.GremlinQuery.AndThen
 import jetbrains.exodus.entitystore.youtrackdb.gremlin.GremlinQuery.Or
 import java.util.stream.Collectors
 import java.util.stream.StreamSupport
@@ -51,8 +50,15 @@ object NodeFactory {
     fun hasElement(property: String, value: Any): GremlinLeaf =
         GremlinLeaf(HasElement(property, value))
 
-    fun hasLinkTo(linkName: String, entity: Entity) =
-        GremlinLeaf(HasLinkTo(linkName, (entity.id as YTDBEntityId).asOId()))
+    fun hasLinkTo(linkName: String, entity: Entity?) =
+        if (entity == null) hasNoLink(linkName)
+        else GremlinLeaf(HasLinkTo(linkName, (entity.id as YTDBEntityId).asOId()))
+
+    fun hasNoLink(linkName: String) = GremlinLeaf(HasNoLink(linkName))
+    fun hasLink(linkName: String) = GremlinLeaf(HasLink(linkName))
+
+    fun inRange(property: String, min: Comparable<*>, max: Comparable<*>) =
+        GremlinLeaf(PropInRange(property, min, max))
 
     fun or(left: NodeBase, right: NodeBase): GremlinBinaryNode =
         GremlinBinaryNode(
@@ -67,6 +73,8 @@ object NodeFactory {
             ::And, ::intersectTwoIts
         )
 
+    fun not(nodeBase: NodeBase): GremlinUnaryNode =
+        GremlinUnaryNode(nodeBase, "not", ::Not)
 
     private fun intersectTwoIts(it1: Iterable<Entity>, it2: Iterable<Entity>): Iterable<Entity> {
         val s1 = StreamSupport.stream(it1.spliterator(), false)

@@ -14,10 +14,13 @@ class GremlinBinaryNode(
     private val combineInMem: (Iterable<Entity>, Iterable<Entity>) -> Iterable<Entity>
 ) : BinaryOperator(left, right, commutative), GremlinNode {
 
-    override fun getQuery(): GremlinQuery? =
-        if (left is GremlinNode && right is GremlinNode)
-            combineQuery(left.getQuery()!!, right.getQuery()!!)
-        else null
+    override fun getQuery(): GremlinQuery? {
+        val leftQ = (left as? GremlinNode)?.getQuery()
+        val rightQ = (right as? GremlinNode)?.getQuery()
+
+        return if (leftQ == null || rightQ == null) null
+        else combineQuery(leftQ, rightQ)
+    }
 
     override fun instantiate(
         entityType: String,
@@ -26,19 +29,21 @@ class GremlinBinaryNode(
         context: InstantiateContext?
     ): Iterable<Entity> =
 
-        getQuery()?.let {
-            GremlinEntityIterable.create(
-                entityType,
-                queryEngine.oStore.requireActiveTransaction(),
-                it
+        query
+            ?.let {
+                GremlinEntityIterable.create(
+                    entityType,
+                    queryEngine.oStore.requireActiveTransaction(),
+                    it
+                )
+            }
+            ?: combineInMem(
+                getLeft().instantiate(entityType, queryEngine, metaData, context),
+                getRight().instantiate(entityType, queryEngine, metaData, context)
             )
-        } ?: combineInMem(
-            getLeft().instantiate(entityType, queryEngine, metaData, context),
-            getRight().instantiate(entityType, queryEngine, metaData, context)
-        )
 
     override fun getClone(): NodeBase =
-        GremlinBinaryNode(getLeft(), getRight(), commutative, shortName, combineQuery, combineInMem)
+        GremlinBinaryNode(getLeft().clone, getRight().clone, commutative, shortName, combineQuery, combineInMem)
 
     override fun getSimpleName(): String = shortName
 }

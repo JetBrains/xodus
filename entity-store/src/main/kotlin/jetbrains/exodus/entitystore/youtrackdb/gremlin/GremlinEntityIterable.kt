@@ -42,7 +42,7 @@ class GremlinEntityIterableImpl(
         )
 
     private fun traversal(): GraphTraversal<*, YTDBVertex> =
-        query.traverse(oStore.requireActiveTransaction().vertexTraversal())
+        query.traverse(oStore.requireActiveTransaction().gV())
 
     override fun iterator(): GremlinEntityIterator = iterator(traversal())
 
