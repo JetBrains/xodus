@@ -16,6 +16,7 @@
 package jetbrains.exodus.query.metadata
 
 import jetbrains.exodus.bindings.ComparableSet
+import jetbrains.exodus.entitystore.Entity
 import jetbrains.exodus.entitystore.EntityId
 import jetbrains.exodus.entitystore.EntityRemovedInDatabaseException
 import jetbrains.exodus.entitystore.PersistentEntityStore
@@ -128,31 +129,34 @@ internal class DataAfterMigrationChecker(
                             for (propName in e1.propertyNames) {
                                 val v1 = e1.getProperty(propName)
                                 val v2 = e2.getProperty(propName)
+                                withEntityFieldExceptionLogging(e1, propName,"property") {
+                                    when {
+                                        v1 is ComparableSet<*> -> {
+                                            checkSets(
+                                                setsInfo = "$type $entityIdx/$xSize ${e1.id} $propName sets",
+                                                xSet = v1.toSet(),
+                                                oSet = (v2 as YTDBComparableSet<*>).toSet()
+                                            )
+                                        }
 
-                                when {
-                                    v1 is ComparableSet<*> -> {
-                                        checkSets(
-                                            setsInfo = "$type $entityIdx/$xSize ${e1.id} $propName sets",
-                                            xSet = v1.toSet(),
-                                            oSet = (v2 as YTDBComparableSet<*>).toSet()
-                                        )
-                                    }
-                                    v1 is String -> {
-                                        checkStrings(
-                                            strsInfo = "$type $entityIdx/$xSize ${e1.id} $propName strings",
-                                            xStr = v1,
-                                            oStr = v2 as String,
-                                            xGetRawBytes = { e1.getRawProperty(propName)?.bytesUnsafe!! }
-                                        )
-                                    }
-                                    else -> {
-                                        require((v1 == null && v2 == null) || v1?.compareTo(v2) == 0) {
-                                            """
+                                        v1 is String -> {
+                                            checkStrings(
+                                                strsInfo = "$type $entityIdx/$xSize ${e1.id} $propName strings",
+                                                xStr = v1,
+                                                oStr = v2 as String,
+                                                xGetRawBytes = { e1.getRawProperty(propName)?.bytesUnsafe!! }
+                                            )
+                                        }
+
+                                        else -> {
+                                            require((v1 == null && v2 == null) || v1?.compareTo(v2) == 0) {
+                                                """
                                                 $type $entityIdx/$xSize ${e1.id} $propName properties are different. 
                                                 xStore type: ${v1?.javaClass}, oStore type: ${v2?.javaClass}
                                                 xStore value: '${v1}', oStore value: '${v2}'
                                                 comparison result ${v1?.compareTo(v2)}
                                             """.trimIndent()
+                                            }
                                         }
                                     }
                                 }
@@ -163,11 +167,13 @@ internal class DataAfterMigrationChecker(
 
                         checkBlobsDuration += measureTime {
                             for (blobName in e1.blobNames) {
-                                checkBlobs(
-                                    blobsInfo = "$type $entityIdx/$xSize ${e1.id} $blobName blobs",
-                                    xBlob = e1.getBlob(blobName),
-                                    oBlob = e2.getBlob(blobName)
-                                )
+                                withEntityFieldExceptionLogging(e1, blobName, "blob") {
+                                    checkBlobs(
+                                        blobsInfo = "$type $entityIdx/$xSize ${e1.id} $blobName blobs",
+                                        xBlob = e1.getBlob(blobName),
+                                        oBlob = e2.getBlob(blobName)
+                                    )
+                                }
                                 blobsCount++
                                 printProgress(entityIdx)
                             }
@@ -175,24 +181,26 @@ internal class DataAfterMigrationChecker(
 
                         checkLinksDuration += measureTime {
                             for (linkName in e1.linkNames) {
-                                val xTargetEntities = e1.getLinks(linkName).filter { xTargetEntity ->
-                                    // filter "dead" links
-                                    try {
-                                        xTx.getEntity(xTargetEntity.id)
-                                        true
-                                    } catch (e: EntityRemovedInDatabaseException) {
-                                        false
+                                withEntityFieldExceptionLogging(e1, linkName, "link") {
+                                    val xTargetEntities = e1.getLinks(linkName).filter { xTargetEntity ->
+                                        // filter "dead" links
+                                        try {
+                                            xTx.getEntity(xTargetEntity.id)
+                                            true
+                                        } catch (e: EntityRemovedInDatabaseException) {
+                                            false
+                                        }
+                                    }.map { it.id.toString() }.toSet()
+                                    val oTargetEntities = e2.getLinks(linkName).map { it.id.toString() }.toSet()
+                                    require(
+                                        xTargetEntities.size == oTargetEntities.size
+                                                && xTargetEntities.containsAll(oTargetEntities)
+                                                && oTargetEntities.containsAll(xTargetEntities)
+                                    ) {
+                                        "$type $entityIdx/$xSize ${e1.id} $linkName links are different. xStore: ${xTargetEntities.size}, oStore: ${oTargetEntities.size}"
                                     }
-                                }.map { it.id.toString() }.toSet()
-                                val oTargetEntities = e2.getLinks(linkName).map { it.id.toString() }.toSet()
-                                require(
-                                    xTargetEntities.size == oTargetEntities.size
-                                            && xTargetEntities.containsAll(oTargetEntities)
-                                            && oTargetEntities.containsAll(xTargetEntities)
-                                ) {
-                                    "$type $entityIdx/$xSize ${e1.id} $linkName links are different. xStore: ${xTargetEntities.size}, oStore: ${oTargetEntities.size}"
+                                    linksCount += oTargetEntities.size
                                 }
-                                linksCount += oTargetEntities.size
                                 printProgress(entityIdx)
                             }
                         }
@@ -200,6 +208,23 @@ internal class DataAfterMigrationChecker(
                     printProgress(entityIdx)
                 }
             }
+        }
+    }
+
+    private fun withEntityFieldExceptionLogging(
+        entity: Entity,
+        propertyName: String,
+        fieldType: String,
+        code: () -> Unit
+    ) {
+        try {
+            code()
+        } catch (e: IllegalStateException) {
+//            it's valid fail with all property info logged
+            throw e
+        } catch (e: Throwable) {
+            log.error("Failed to verify $fieldType ${entity.type}-${entity.id.localId}:$propertyName")
+            throw e
         }
     }
 
