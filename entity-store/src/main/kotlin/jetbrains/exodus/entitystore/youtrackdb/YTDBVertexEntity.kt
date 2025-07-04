@@ -71,7 +71,11 @@ open class YTDBVertexEntity(vertex: Vertex, private val store: YTDBEntityStore) 
             STRING_BLOB_HASH_PROPERTY_NAME_SUFFIX
         )
 
-        fun validPropertyNamesPredicate(propertyNames: Collection<String>): (String) -> Boolean {
+        fun validPropertyNamesPredicate(entity: YTDBVertexEntity): (String) -> Boolean {
+            return validPropertyNamesPredicate(entity.vertex.propertyNames)
+        }
+
+        private fun validPropertyNamesPredicate(propertyNames: Collection<String>): (String) -> Boolean {
             val allPropertiesNames = propertyNames.toSet()
             return { propName ->
                 //not ignored properties
@@ -226,7 +230,7 @@ open class YTDBVertexEntity(vertex: Vertex, private val store: YTDBEntityStore) 
 
     override fun getPropertyNames(): List<String> {
         requireActiveTx()
-        val allPropertiesNames = vertex.propertyNames.toSet()
+        val allPropertiesNames = vertex.propertyNames
         val predicate = validPropertyNamesPredicate(allPropertiesNames)
         return allPropertiesNames
             .filter(predicate)
