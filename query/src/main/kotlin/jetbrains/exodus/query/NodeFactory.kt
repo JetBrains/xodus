@@ -73,8 +73,17 @@ object NodeFactory {
             ::And, ::intersectTwoIts
         )
 
+    fun combine(first: NodeBase, second: NodeBase) =
+        GremlinBinaryNode(
+            first, second, commutative = false, "andThen",
+            ::AndThen
+        )
+
     fun not(nodeBase: NodeBase): GremlinUnaryNode =
         GremlinUnaryNode(nodeBase, "not", ::Not)
+
+    fun sortBy(propName: String, direction: SortDirection) =
+        GremlinLeaf(SortBy(propName, direction))
 
     private fun intersectTwoIts(it1: Iterable<Entity>, it2: Iterable<Entity>): Iterable<Entity> {
         val s1 = StreamSupport.stream(it1.spliterator(), false)

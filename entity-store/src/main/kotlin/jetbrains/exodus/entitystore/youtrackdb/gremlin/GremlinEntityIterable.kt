@@ -18,11 +18,13 @@ interface GremlinEntityIterable : EntityIterable {
     }
 
     fun selectMany(linkName: String): EntityIterable
+
+    val query: GremlinQuery
 }
 
 class GremlinEntityIterableImpl(
     private val tx: YTDBStoreTransaction,
-    private val query: GremlinQuery
+    override val query: GremlinQuery
 ) : GremlinEntityIterable {
 
 
@@ -109,9 +111,13 @@ class GremlinEntityIterableImpl(
         TODO("Not yet implemented")
     }
 
-    override fun concat(right: EntityIterable): EntityIterable {
-        TODO("Not yet implemented")
-    }
+    override fun concat(right: EntityIterable): EntityIterable = GremlinEntityIterableImpl(
+        this.tx,
+        GremlinQuery.Union(
+            this.query,
+            (right as GremlinEntityIterableImpl).query
+        )
+    )
 
     override fun skip(number: Int): EntityIterable = modify(GremlinQuery.Skip(number.toLong()))
 

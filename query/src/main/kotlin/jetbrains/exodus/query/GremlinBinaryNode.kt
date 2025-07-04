@@ -11,7 +11,7 @@ class GremlinBinaryNode(
     commutative: Boolean,
     private val shortName: String,
     private val combineQuery: (GremlinQuery, GremlinQuery) -> GremlinQuery,
-    private val combineInMem: (Iterable<Entity>, Iterable<Entity>) -> Iterable<Entity>
+    private val combineInMem: ((Iterable<Entity>, Iterable<Entity>) -> Iterable<Entity>)? = null
 ) : BinaryOperator(left, right, commutative), GremlinNode {
 
     override fun getQuery(): GremlinQuery? {
@@ -28,19 +28,20 @@ class GremlinBinaryNode(
         metaData: ModelMetaData?,
         context: InstantiateContext?
     ): Iterable<Entity> =
-
-        query
-            ?.let {
-                GremlinEntityIterable.create(
-                    entityType,
-                    queryEngine.oStore.requireActiveTransaction(),
-                    it
-                )
-            }
-            ?: combineInMem(
+        query?.let {
+            GremlinEntityIterable.create(
+                entityType,
+                queryEngine.oStore.requireActiveTransaction(),
+                it
+            )
+        } ?: combineInMem?.let {
+            it(
                 getLeft().instantiate(entityType, queryEngine, metaData, context),
                 getRight().instantiate(entityType, queryEngine, metaData, context)
             )
+        } ?: run {
+            throw IllegalStateException("Only GremlinNode instances can be used in the chain")
+        }
 
     override fun getClone(): NodeBase =
         GremlinBinaryNode(getLeft().clone, getRight().clone, commutative, shortName, combineQuery, combineInMem)

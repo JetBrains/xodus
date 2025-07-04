@@ -19,13 +19,19 @@ import com.google.common.truth.Truth.assertThat
 import io.mockk.every
 import io.mockk.mockk
 import jetbrains.exodus.entitystore.Entity
+import jetbrains.exodus.entitystore.youtrackdb.YTDBVertexEntity
 import jetbrains.exodus.entitystore.youtrackdb.gremlin.GremlinEntityIterable
-import jetbrains.exodus.entitystore.youtrackdb.testutil.*
+import jetbrains.exodus.entitystore.youtrackdb.gremlin.GremlinQuery.SortDirection
+import jetbrains.exodus.entitystore.youtrackdb.testutil.InMemoryYouTrackDB
+import jetbrains.exodus.entitystore.youtrackdb.testutil.Issues
+import jetbrains.exodus.entitystore.youtrackdb.testutil.OTestMixin
+import jetbrains.exodus.entitystore.youtrackdb.testutil.name
 import jetbrains.exodus.query.metadata.EntityMetaData
 import jetbrains.exodus.query.metadata.ModelMetaData
 import jetbrains.exodus.query.metadata.PropertyMetaData
 import jetbrains.exodus.query.metadata.PropertyType
 import junit.framework.TestCase.assertEquals
+import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -212,38 +218,40 @@ class YTDBGremlinEngineTest(
         }
     }
 
-//    @Ignore
-//    @Test
-//    fun `should query when property exists sorted by value`() {
-//        // Given
-//        val test = givenTestCase()
-//        val engine = givenOQueryEngine()
-//
-//        withStoreTx {
-//            test.issue1.setProperty("order", "1")
-//            test.issue2.setProperty("order", "2")
-//            test.issue3.setProperty("order", "3")
-//        }
-//
-//        // When
-//        withStoreTx { tx ->
-//            val issuesAscending = engine.query(
-//                iterableGetter(engine, tx),
-//                Issues.CLASS,
-//                SortByProperty(PropertyNotNull("order"), "order", false)
-//            )
-//            val issuesDescending = engine.query(
-//                iterableGetter(engine, tx),
-//                Issues.CLASS,
-//                SortByProperty(PropertyNotNull("order"), "order", true)
-//            )
-//
-//            // Then
-//            assertOrderedNamesExactly(issuesAscending, "issue1", "issue2", "issue3")
-//            assertOrderedNamesExactly(issuesDescending, "issue3", "issue2", "issue1")
-//        }
-//    }
-//
+    @Test
+    fun `should query when property exists sorted by value`() {
+        // Given
+        val test = givenTestCase()
+        val engine = givenOQueryEngine()
+
+        withStoreTx {
+            test.issue1.setProperty("order", "1")
+            test.issue2.setProperty("order", "2")
+            test.issue3.setProperty("order", "3")
+        }
+
+        // When
+        withStoreTx { tx ->
+            val issuesAscending = engine.query(
+                Issues.CLASS,
+                NodeFactory.combine(
+                    NodeFactory.propNotNull("order"),
+                    NodeFactory.sortBy("order", SortDirection.ASC)
+                )
+            )
+            val issuesDescending = engine.query(
+                Issues.CLASS,
+                NodeFactory.combine(
+                    NodeFactory.propNotNull("order"),
+                    NodeFactory.sortBy("order", SortDirection.DESC)
+                )
+            )
+
+            // Then
+            assertOrderedNamesExactly(issuesAscending, "issue1", "issue2", "issue3")
+            assertOrderedNamesExactly(issuesDescending, "issue3", "issue2", "issue1")
+        }
+    }
 
     @Test
     fun `should query with or`() {
@@ -295,38 +303,72 @@ class YTDBGremlinEngineTest(
             assertEquals(test.issue2, issues.lastOrNull())
         }
     }
+
+    @Test
+    fun `should concat 2 queries and sum size`() {
+        // Given
+        val test = givenTestCase()
+        withStoreTx { tx ->
+            tx.addIssueToBoard(test.issue1, test.board1)
+            tx.addIssueToBoard(test.issue2, test.board1)
+            tx.addIssueToBoard(test.issue1, test.board2)
+        }
+        val engine = givenOQueryEngine()
+
+        // When
+        withStoreTx { tx ->
+            val issuesOnBoard1 = engine.query(
+                Issues.CLASS,
+                NodeFactory.hasLinkTo(Issues.Links.ON_BOARD, test.board1)
+            )
+            val issuesOnBoard2 = engine.query(
+                Issues.CLASS,
+                NodeFactory.hasLinkTo(Issues.Links.ON_BOARD, test.board2)
+            )
+            val s1 = issuesOnBoard1.size()
+            val s2 = issuesOnBoard2.size()
+            val concat = engine.concat(issuesOnBoard1, issuesOnBoard2)
+            val desc = (concat as GremlinEntityIterable).query.describeGremlin(StringBuilder()).toString()
 //
-//    @Test
-//    fun `should concat 2 queries and sum size`() {
-//        // Given
-//        val test = givenTestCase()
-//        withStoreTx { tx ->
-//            tx.addIssueToBoard(test.issue1, test.board1)
-//            tx.addIssueToBoard(test.issue2, test.board1)
-//            tx.addIssueToBoard(test.issue1, test.board2)
-//        }
-//        val engine = givenOQueryEngine()
+//            .union(
+//V()where(
+//out(OnBoard)
+//hasId(#33:0)
+//)
 //
-//        // When
-//        withStoreTx { tx ->
-//            val issuesOnBoard1 = engine.query(
-//                iterableGetter(engine, tx),
-//                Issues.CLASS,
-//                LinkEqual(Issues.Links.ON_BOARD, test.board1)
-//            )
-//            val issuesOnBoard2 = engine.query(
-//                iterableGetter(engine, tx),
-//                Issues.CLASS,
-//                LinkEqual(Issues.Links.ON_BOARD, test.board2)
-//            )
-//            val concat = engine.concat(issuesOnBoard1, issuesOnBoard2)
+//.hasLabel(Issue),
+//V()where(
+//out(OnBoard)
+//hasId(#27:0)
+//)
 //
-//            // Then
-//            assertEquals(3, concat.count())
-//            assertEquals(2, concat.toSet().size)
-//        }
-//    }
-//
+//.hasLabel(Issue)
+//)
+
+            // todo: remove V() when calling union()
+            val res = tx.requireActiveTransaction().traversal().V()
+                .union(
+                    `__`.V<Any>().where(
+                        `__`
+                            .out(YTDBVertexEntity.edgeClassName(Issues.Links.ON_BOARD))
+                            .hasId(test.board1.id.asOId())
+                    )
+                        .hasLabel(Issues.CLASS),
+
+                    `__`.V<Any>().where(
+                        `__`
+                            .out(YTDBVertexEntity.edgeClassName(Issues.Links.ON_BOARD))
+                            .hasId(test.board2.id.asOId())
+                    )
+                        .hasLabel(Issues.CLASS)
+                )
+                .toList()
+
+            // Then
+            assertEquals(3, concat.count())
+            assertEquals(2, concat.toSet().size)
+        }
+    }
 
     @Test
     fun `should query by link`() {
@@ -690,7 +732,7 @@ class YTDBGremlinEngineTest(
             assertThat(empty).isEmpty()
         }
     }
-//
+
 //    @Test
 //    fun `should query by links sorted`() {
 //        // Given
@@ -733,40 +775,35 @@ class YTDBGremlinEngineTest(
 //        }
 //    }
 
-//    @Test
-//    fun `should query by property sorted`() {
-//        // Given
-//        val test = givenTestCase()
+    @Test
+    fun `should query by property sorted`() {
+        // Given
+        val test = givenTestCase()
+
+        val metadata = givenModelMetadata().withEntityMetaData(Issues.CLASS)
+        val engine = givenOQueryEngine(metadata)
+
+        // When
+        withStoreTx { tx ->
+
+            val sortByPropertyAsc =
+                NodeFactory.sortBy("name", SortDirection.ASC)
 //
-//        val metadata = givenModelMetadata().withEntityMetaData(Issues.CLASS)
-//        val engine = givenOQueryEngine(metadata)
-//
-//        // When
-//        withStoreTx { tx ->
-//            val sortByPropertyAsc = SortByProperty(
-//                null, // child node
-//                "name", // link property name
-//                true // ascending
-//            )
-//            val issuesAsc = engine.query(Issues.CLASS, sortByPropertyAsc)
-//
-//            val sortByLinkPropertyDesc = SortByProperty(
-//                null, // child node
-//                "name", // link property name
-//                false // descending
-//            )
-//            val issuesDesc = engine.query(Issues.CLASS, sortByLinkPropertyDesc)
-//
-//            // Then
-//            // As sorted by project name
-//            assertOrderedNamesExactly(issuesDesc, "issue3", "issue2", "issue1")
-//            assertOrderedNamesExactly(issuesAsc, "issue1", "issue2", "issue3")
-//        }
-//    }
-//
-private fun assertOrderedNamesExactly(result: Iterable<Entity>, vararg names: String) {
-    assertThat(result.map { it.getProperty("name") }).containsExactly(*names).inOrder()
-}
+            val issuesAsc = engine.query(Issues.CLASS, sortByPropertyAsc)
+
+            val sortByLinkPropertyDesc = NodeFactory.sortBy("name", SortDirection.DESC)
+            val issuesDesc = engine.query(Issues.CLASS, sortByLinkPropertyDesc)
+
+            // Then
+            // As sorted by project name
+            assertOrderedNamesExactly(issuesDesc, "issue3", "issue2", "issue1")
+            assertOrderedNamesExactly(issuesAsc, "issue1", "issue2", "issue3")
+        }
+    }
+
+    private fun assertOrderedNamesExactly(result: Iterable<Entity>, vararg names: String) {
+        assertThat(result.map { it.getProperty("name") }).containsExactly(*names).inOrder()
+    }
 
     private fun givenModelMetadata(mockingBlock: ((ModelMetaData).() -> Unit)? = null): ModelMetaData {
         return mockk<ModelMetaData>(relaxed = true) {

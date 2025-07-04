@@ -4,6 +4,7 @@ import com.jetbrains.youtrack.db.api.gremlin.YTDBVertex
 import com.jetbrains.youtrack.db.api.record.RID
 import jetbrains.exodus.entitystore.youtrackdb.YTDBVertexEntity
 import org.apache.commons.lang3.StringUtils
+import org.apache.tinkerpop.gremlin.process.traversal.Order
 import org.apache.tinkerpop.gremlin.process.traversal.P
 import org.apache.tinkerpop.gremlin.process.traversal.TextP
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal
@@ -321,6 +322,46 @@ abstract class GremlinQuery(val shortName: String) {
         override fun describe(s: StringBuilder): StringBuilder = s.append(min).append(" <= ").append(propName).append(" <= ").append(max)
         override fun describeGremlin(s: StringBuilder): StringBuilder =
             s.append("has(").append(propName).append(", gte(").append(min).append(") and lte(").append(max).append("))")
+    }
+
+    enum class SortDirection {
+        ASC, DESC
+    }
+
+    data class SortBy(val propName: String, val direction: SortDirection) : GremlinQuery("sb") {
+        override fun traverse(g: YT): YT = g.order().by(
+            propName, when (direction) {
+                SortDirection.ASC -> Order.asc
+                SortDirection.DESC -> Order.desc
+            }
+        )
+
+        override fun describe(s: StringBuilder): StringBuilder =
+            s.append(".sortBy(").append(propName).append(", ").append(direction).append(")")
+
+        override fun describeGremlin(s: StringBuilder): StringBuilder =
+            s.append(".order().by(").append(propName).append(", ").append(direction.name.lowercase()).append(")")
+    }
+
+    data class Union(val first: GremlinQuery, val second: GremlinQuery) : GremlinQuery("union") {
+        override fun traverse(g: YT): YT = g.union(
+            first.traverse(`__`.V<Any>().asYT()),
+            second.traverse(`__`.V<Any>().asYT())
+        )
+
+        override fun describe(s: StringBuilder): StringBuilder {
+            s.append("UNION(")
+            first.describe(s).append(", ")
+            return second.describe(s).append(")")
+        }
+
+        override fun describeGremlin(s: StringBuilder): StringBuilder {
+            s.appendLine(".union(")
+            first.describeGremlin(s.append("V()")).appendLine(",")
+            second.describeGremlin(s.append("V()")).appendLine()
+            s.appendLine(")")
+            return s
+        }
     }
 
     @Suppress("UNCHECKED_CAST")
