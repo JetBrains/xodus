@@ -359,6 +359,29 @@ class MigrateDataTest {
     }
 
     @Test
+    fun `both string anb blobString property in xodus`() {
+        xodus.withTx { tx ->
+            val e = tx.newEntity("TestStringBlob")
+            e.setProperty("description", "The entity")
+            e.setBlobString("description", "The blob description")
+            e
+        }
+
+        migrateAndCheckData(xodus.store, youTrackDB)
+
+        youTrackDB.store.executeInTransaction { ytdbTX ->
+            xodus.withTx {
+                val ytdbEntity = ytdbTX.getAll("TestStringBlob").firstOrNull()
+                Assert.assertNotNull(ytdbEntity)
+                ytdbEntity!!
+                Assert.assertEquals("The blob description", ytdbEntity.getBlobString("description"))
+                Assert.assertTrue(ytdbEntity.propertyNames.isEmpty())
+            }
+        }
+    }
+
+
+    @Test
     fun `copy links`() {
         val entities = pileOfEntities(
             eLinks(
