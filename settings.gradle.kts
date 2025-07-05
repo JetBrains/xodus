@@ -177,9 +177,6 @@ project(":benchmarks").name = "xodus-benchmarks"
 include("samples")
 project(":samples").name = "xodus-samples"
 
-include("tools")
-project(":tools").name = "xodus-tools"
-
 include("environment-crash-tests")
 project(":environment-crash-tests").name = "xodus-environment-crash-tests"
 

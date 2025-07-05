@@ -150,7 +150,8 @@ subprojects {
         maxHeapSize = "1g"
         jvmArgs = listOf(
             "-ea",
-            "-XX:+HeapDumpOnOutOfMemoryError"
+            "-XX:+HeapDumpOnOutOfMemoryError",
+			"-Xmx2g"
         )
     }
 
