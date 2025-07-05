@@ -206,10 +206,9 @@ abstract class YTDBEntityIterableBase(tx: YTDBStoreTransaction) : YTDBEntityIter
     private var cachedSize: Long = -1
 
     override fun size(): Long {
-        val currentTx = oStore.requireActiveTransaction()
-        val sourceQuery = query()
-        val countQuery = YTDBCountSelect(sourceQuery.withOrder(EmptyOrder))
-        cachedSize = countQuery.count(currentTx)
+        cachedSize = YTDBQueryExecution
+            .execute(query().count(), oStore.requireActiveTransaction())
+            .use { it.next().getLong("count") }!!
         return cachedSize
     }
 

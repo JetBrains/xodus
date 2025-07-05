@@ -15,8 +15,6 @@
  */
 package jetbrains.exodus.entitystore.youtrackdb.query
 
-import jetbrains.exodus.entitystore.youtrackdb.YTDBStoreTransaction
-
 object YTDBQueryFunctions {
 
     fun intersect(left: YTDBSelect, right: YTDBSelect): YTDBSelect {
@@ -112,21 +110,6 @@ object YTDBQueryFunctions {
     private fun isSameClassName(left: YTDBClassSelect, right: YTDBClassSelect): Boolean {
         return left.className == right.className
     }
-}
-
-class YTDBCountSelect(
-    val source: YTDBSelect,
-) : YTDBQuery {
-
-    override fun sql(builder: SqlBuilder) {
-        builder.append("SELECT count(*) as count FROM (")
-        source.sql(builder)
-        builder.append(")")
-    }
-
-    fun count(tx: YTDBStoreTransaction): Long =
-        YTDBQueryExecution.execute(this, tx)
-            .use { it.next().getLong("count") }!!
 }
 
 class YTDBFirstSelect(

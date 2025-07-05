@@ -99,8 +99,7 @@ class YTDBEdgeExistsCondition(
 ) : YTDBCondition {
 
     override fun sql(builder: SqlBuilder) {
-        val edgeParam = builder.addParam("edge", edge)
-        builder.append("outE(:$edgeParam).size() > 0")
+        builder.append("outE('$edge').size() > 0")
     }
 }
 
@@ -109,8 +108,7 @@ class YTDBEdgeIsNullCondition(
 ) : YTDBCondition {
 
     override fun sql(builder: SqlBuilder) {
-        val edgeParam = builder.addParam("edge", edge)
-        builder.append("outE(:$edgeParam).size() == 0")
+        builder.append("outE('$edge').size() == 0")
     }
 }
 

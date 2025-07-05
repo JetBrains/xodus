@@ -38,6 +38,7 @@ import jetbrains.exodus.entitystore.youtrackdb.iterate.link.YTDBLinksFromEntityI
 import jetbrains.exodus.entitystore.youtrackdb.iterate.link.YTDBVertexEntityIterable
 import jetbrains.exodus.util.LightByteArrayOutputStream
 import jetbrains.exodus.util.UTFUtil
+import jnr.ffi.types.nlink_t
 import mu.KLogging
 import java.io.ByteArrayInputStream
 import java.io.File
@@ -69,6 +70,22 @@ open class YTDBVertexEntity(vertex: Vertex, private val store: YTDBEntityStore) 
             BLOB_SIZE_PROPERTY_NAME_SUFFIX,
             STRING_BLOB_HASH_PROPERTY_NAME_SUFFIX
         )
+
+        fun validPropertyNamesPredicate(entity: YTDBVertexEntity): (String) -> Boolean {
+            return validPropertyNamesPredicate(entity.vertex.propertyNames)
+        }
+
+        private fun validPropertyNamesPredicate(propertyNames: Collection<String>): (String) -> Boolean {
+            val allPropertiesNames = propertyNames.toSet()
+            return { propName ->
+                //not ignored properties
+                !IGNORED_PROPERTY_NAMES.contains(propName)
+                        && !allPropertiesNames.contains(blobHashProperty(propName))
+                        && !allPropertiesNames.contains(blobSizeProperty(propName))
+                        && !IGNORED_SUFFIXES.any { suffix -> propName.endsWith(suffix) }
+            }
+        }
+
 
         fun localEntityIdSequenceName(className: String): String =
             "${className}_sequence_localEntityId"
@@ -133,9 +150,14 @@ open class YTDBVertexEntity(vertex: Vertex, private val store: YTDBEntityStore) 
         vertexRecord = (store.databaseSession as DatabaseSessionInternal).newVertex(className)
     }
 
-    override fun generateId() {
+    override fun generateId(localId: Long?) {
         val type = oEntityId.getTypeName()
-        store.requireActiveTransaction().generateEntityId(type, vertexRecord)
+        if (localId != null) {
+            vertexRecord.setLong(LOCAL_ENTITY_ID_PROPERTY_NAME, localId)
+        } else {
+            store.requireActiveTransaction().generateEntityId(type, vertexRecord)
+        }
+
         oEntityId = RIDEntityId.fromVertex(vertexRecord)
     }
 
@@ -209,14 +231,9 @@ open class YTDBVertexEntity(vertex: Vertex, private val store: YTDBEntityStore) 
     override fun getPropertyNames(): List<String> {
         requireActiveTx()
         val allPropertiesNames = vertex.propertyNames
+        val predicate = validPropertyNamesPredicate(allPropertiesNames)
         return allPropertiesNames
-            .filter { propName ->
-                //not ignored properties
-                !IGNORED_PROPERTY_NAMES.contains(propName)
-                        && !allPropertiesNames.contains(blobHashProperty(propName))
-                        && !allPropertiesNames.contains(blobSizeProperty(propName))
-                        && !IGNORED_SUFFIXES.any { suffix -> propName.endsWith(suffix) }
-            }
+            .filter(predicate)
             .toList()
     }
 

@@ -16,6 +16,7 @@
 package jetbrains.exodus.entitystore.youtrackdb.query
 
 import com.google.common.truth.Truth.assertThat
+import com.jetbrains.youtrack.db.internal.core.id.RecordId
 import org.junit.Test
 
 class YTDBQueryTest {
@@ -86,6 +87,55 @@ class YTDBQueryTest {
                 "project2", "Sample2",
                 "project3", "Sample3"
             )
+    }
+
+    @Test
+    fun `should select count (simple)`() {
+        val simpleSelect = YTDBClassSelect("Person", YTDBEqualCondition("name", "John"))
+        val countSelect = simpleSelect.count()
+        val query = buildSql(countSelect)
+
+        assertThat(query.sql)
+            .isEqualTo("SELECT COUNT(*) AS count FROM Person WHERE name = :name0")
+        assertThat(query.params)
+            .containsExactly("name0", "John")
+    }
+
+    @Test
+    fun `should select count (nested)`() {
+        val select1 = YTDBClassSelect("Person", YTDBEqualCondition("name", "John"))
+        val select2 = YTDBClassSelect("Person", YTDBEqualCondition("name", "George"))
+        val intersectSelect = YTDBIntersectSelect(select1, select2)
+        val countSelect = intersectSelect.count()
+        val query = buildSql(countSelect)
+
+        assertThat(query.sql)
+            .isEqualTo("SELECT COUNT(*) AS count FROM (SELECT expand(intersect(\$a0, \$b0)) LET \$a0=(SELECT FROM Person WHERE name = :name1), \$b0=(SELECT FROM Person WHERE name = :name2))")
+        assertThat(query.params)
+            .containsExactly(
+                "name1", "John",
+                "name2", "George"
+            )
+    }
+
+    @Test
+    fun `should query size() for links`() {
+        val select = YTDBLinkInFromIdsSelect(
+            "linkName",
+            listOf(RecordId(34, 4), RecordId(34, 5))
+        )
+
+        val count = select.count()
+        val query = buildSql(count)
+
+        assertThat(query.sql)
+            .isEqualTo("SELECT in('linkName').size() AS count FROM :targetIds0")
+
+        assertThat(query.params)
+            .containsExactly(
+                "targetIds0", listOf(RecordId(34, 4), RecordId(34, 5))
+            )
+
     }
 
     private fun buildSql(YTDBSql: YTDBSql): SqlQuery {
