@@ -267,6 +267,9 @@ open class EnvironmentConfig(protected val env: EnvironmentImpl) : MBeanBase(get
         env.gc()
     }
 
+    override val threadsAndPermits: String
+        get() = env.threadsAndPermits
+
     companion object {
         internal fun getObjectName(env: Environment) =
                 "$CONFIG_OBJECT_NAME_PREFIX, location=${escapeLocation(env.location)}"

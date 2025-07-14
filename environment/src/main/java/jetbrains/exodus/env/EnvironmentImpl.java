@@ -297,6 +297,10 @@ public class EnvironmentImpl implements Environment {
         return statistics;
     }
 
+    public String getThreadsAndPermits() {
+        return txnDispatcher.getThreadsAndPermits();
+    }
+
     public GarbageCollector getGC() {
         return gc;
     }

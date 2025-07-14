@@ -58,6 +58,7 @@ interface EnvironmentConfigMBean {
     var isGcEnabled: Boolean
     val isGcSuspended: Boolean
     val gcStartIn: Int
+    val threadsAndPermits: String
     var gcMinUtilization: Int
     var gcRenameFiles: Boolean
     var gcFileMinAge: Int
