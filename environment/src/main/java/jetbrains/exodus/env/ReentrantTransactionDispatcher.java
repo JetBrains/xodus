@@ -59,6 +59,19 @@ final class ReentrantTransactionDispatcher {
         }
     }
 
+    String getThreadsAndPermits() {
+        StringBuilder sb = new StringBuilder();
+
+        try (CriticalSection ignored = criticalSection.enter()) {
+            for (var threadEntry : threadPermits.entrySet()) {
+                var thread = threadEntry.getKey();
+                sb.append(thread.getName()).append("#").append(thread.getId()).append(": ").append(threadEntry.getValue()).append('\n');
+            }
+        }
+
+        return sb.toString();
+    }
+
     /**
      * Acquire transaction with a single permit in a thread. Transactions are acquired reentrantly, i.e.
      * with respect to transactions already acquired in the thread.

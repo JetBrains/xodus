@@ -294,6 +294,10 @@ public class EnvironmentImpl implements Environment {
         return statistics;
     }
 
+    public String getThreadsAndPermits() {
+        return txnDispatcher.getThreadsAndPermits();
+    }
+
     public GarbageCollector getGC() {
         return gc;
     }
@@ -373,7 +377,7 @@ public class EnvironmentImpl implements Environment {
     }
 
     @NotNull
-    public TransactionBase beginReadOnlyUnmonitoredTransaction(){
+    public TransactionBase beginReadOnlyUnmonitoredTransaction() {
         checkIsOperative();
         return new ReadonlyTransaction(this, false, null) {
             @Override
@@ -739,7 +743,7 @@ public class EnvironmentImpl implements Environment {
                             true, fileAddress, fileOffset);
 
             var startBackupMetadata = Paths.get(log.getLocation()).resolve(
-                BackupMetadata.START_BACKUP_METADATA_FILE_NAME);
+                    BackupMetadata.START_BACKUP_METADATA_FILE_NAME);
             try {
                 Files.deleteIfExists(startBackupMetadata);
             } catch (IOException e) {
@@ -768,7 +772,7 @@ public class EnvironmentImpl implements Environment {
             gc.resume();
         }
         var startBackupMetadata = Paths.get(log.getLocation()).resolve(
-            BackupMetadata.START_BACKUP_METADATA_FILE_NAME);
+                BackupMetadata.START_BACKUP_METADATA_FILE_NAME);
         try {
             Files.deleteIfExists(startBackupMetadata);
         } catch (IOException e) {
