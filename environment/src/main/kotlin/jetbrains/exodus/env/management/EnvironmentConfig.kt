@@ -137,6 +137,12 @@ open class EnvironmentConfig(protected val env: EnvironmentImpl) : MBeanBase(get
             config.envTxnReplayTimeout = txnReplayTimeout
         }
 
+    override var envQueryOptimizedContains: Boolean
+        get() = config.envQueryOptimizedContains
+        set(value) {
+            config.envQueryOptimizedContains = value
+        }
+
     override var envTxnReplayMaxCount: Int
         get() = config.envTxnReplayMaxCount
         set(txnReplayMaxCount) {

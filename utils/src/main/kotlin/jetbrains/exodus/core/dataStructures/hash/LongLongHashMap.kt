@@ -147,7 +147,10 @@ class LongLongHashMap @JvmOverloads constructor(capacity: Int = 0, private val l
         }
     }
 
-    private fun getEntry(key: Long): Entry? {
+    /**
+     * This function returns Entry without Long boxing for better performance.
+     */
+    internal fun getEntry(key: Long): Entry? {
         val table = table
         val index = HashUtil.indexFor(key, table.size, mask)
         var e = table[index]
@@ -182,7 +185,7 @@ class LongLongHashMap @JvmOverloads constructor(capacity: Int = 0, private val l
         }
     }
 
-    private class Entry(override val key: Long, override var value: Long) : MutableMap.MutableEntry<Long?, Long> {
+    internal class Entry(override val key: Long, override var value: Long) : MutableMap.MutableEntry<Long?, Long> {
 
         var hashNext: Entry? = null
 

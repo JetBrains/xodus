@@ -17,23 +17,24 @@ package jetbrains.exodus.lucene2.codecs
 
 import org.apache.lucene.codecs.FilterCodec
 import org.apache.lucene.codecs.StoredFieldsFormat
-import org.apache.lucene.codecs.compressing.CompressingStoredFieldsFormat
 import org.apache.lucene.codecs.compressing.CompressionMode
 import org.apache.lucene.codecs.compressing.Compressor
 import org.apache.lucene.codecs.compressing.Decompressor
-import org.apache.lucene.codecs.lucene87.Lucene87Codec
+import org.apache.lucene.codecs.lucene101.Lucene101Codec
+import org.apache.lucene.codecs.lucene90.compressing.Lucene90CompressingStoredFieldsFormat
+import org.apache.lucene.store.ByteBuffersDataInput
 import org.apache.lucene.store.DataInput
 import org.apache.lucene.store.DataOutput
 import org.apache.lucene.util.BytesRef
 
 /**
- * Lucene70Codec with no compression of stored fields.
+ * Lucene101Codec with no compression of stored fields.
  */
-class Lucene87CodecWithNoFieldCompression : FilterCodec("Lucene70CodecWithNoFieldCompression", Lucene87Codec()) {
+class Lucene101CodecWithNoFieldCompression : FilterCodec("Lucene101CodecWithNoFieldCompression", Lucene101Codec()) {
 
     private val flatFieldsFormat: StoredFieldsFormat =
-        CompressingStoredFieldsFormat(
-            "Lucene50StoredFieldsFlat",
+        Lucene90CompressingStoredFieldsFormat(
+            "Lucene90StoredFieldsFlat",
             NoCompression,
             16,
             1,
@@ -52,8 +53,12 @@ private object NoCompression : CompressionMode() {
 
 private class TrivialCompressor : Compressor() {
 
-    override fun compress(bytes: ByteArray, off: Int, len: Int, out: DataOutput) =
-        out.writeBytes(bytes, off, len)
+    override fun compress(buffersInput: ByteBuffersDataInput, out: DataOutput) {
+        val len = buffersInput.length().toInt()
+        val bytes = ByteArray(len)
+        buffersInput.readBytes(bytes, 0, len)
+        out.writeBytes(bytes, len)
+    }
 
     override fun close() {}
 }

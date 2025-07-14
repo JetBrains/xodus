@@ -31,7 +31,8 @@ public class BTreeCursorDupConcurrentModificationTest extends BTreeTestBase {
 
     @Before
     public void prepareTree() {
-        tm = new BTreeEmpty(log, new BTreeBalancePolicy(5), true, 1).getMutableCopy();
+        tm = new BTreeEmpty(log, new BTreeBalancePolicy(5), true, 1,
+                Integer.MAX_VALUE).getMutableCopy();
 
         tm.put(key(1), value("v10"));
         tm.put(key(2), value("v20"));

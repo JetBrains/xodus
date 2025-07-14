@@ -15,7 +15,7 @@
  */
 package jetbrains.exodus.tree.btree;
 
-abstract class BaseLeafNodeMutable extends BaseLeafNode implements ILeafNodeMutable {
+public abstract class BaseLeafNodeMutable extends BaseLeafNode implements ILeafNodeMutable {
     @Override
     public boolean isMutable() {
         return true;

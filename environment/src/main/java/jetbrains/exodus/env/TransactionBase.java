@@ -30,6 +30,7 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.List;
 import java.util.Map;
+import java.util.function.BooleanSupplier;
 
 /**
  * Base class for transactions.
@@ -55,6 +56,8 @@ public abstract class TransactionBase implements Transaction {
     @Nullable
     private StackTraceElement[] traceFinish;
     private boolean disableStoreGetCache;
+    @Nullable
+    private BooleanSupplier commitValidation;
 
     @Nullable
     private Runnable beforeTransactionFlushAction;
@@ -191,8 +194,18 @@ public abstract class TransactionBase implements Transaction {
     }
 
     boolean invalidVersion(final long root) {
-        return metaTree.root != root;
+        if (commitValidation == null) {
+            return metaTree.root != root;
+        } else {
+            return metaTree.root != root || !commitValidation.getAsBoolean();
+        }
     }
+
+    @Override
+    public void setTxValidationHook(@Nullable BooleanSupplier validationHook) {
+        commitValidation = validationHook;
+    }
+
 
     @Nullable
     public StackTrace getTrace() {
@@ -215,7 +228,7 @@ public abstract class TransactionBase implements Transaction {
         return false;
     }
 
-    boolean isIgnoreInStuckTransactionMonitor(){
+    boolean isIgnoreInStuckTransactionMonitor() {
         return false;
     }
 

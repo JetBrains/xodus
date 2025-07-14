@@ -111,7 +111,7 @@ fun main(args: Array<String>) {
     val enCrypted = if (source.isDirectory) {
         BackupUtil.reEncryptBackup(FileTreeArchiveInputStream(source), key, basicIV, null, 0, newCipherProvider(cipherId))
     } else {
-        val stream = ArchiveStreamFactory().createArchiveInputStream(BufferedInputStream(
+        val stream = ArchiveStreamFactory().createArchiveInputStream<TarArchiveInputStream>(BufferedInputStream(
             if (gzip) {
                 GZIPInputStream(source.inputStream())
             } else {
@@ -151,7 +151,7 @@ private fun abort(message: String): Nothing {
     exitProcess(1)
 }
 
-internal class FileTreeArchiveInputStream(private val directory: File) : ArchiveInputStream() {
+internal class FileTreeArchiveInputStream(private val directory: File) : ArchiveInputStream<FileTreeArchiveInputStream.VirtualArchiveEntry>() {
 
     private val fileIterator: Iterator<File> = Files.walk(directory.toPath()).map { it.toFile() }.iterator()
     private var currentInputStream:InputStream? = null
@@ -161,7 +161,7 @@ internal class FileTreeArchiveInputStream(private val directory: File) : Archive
         return stream.read()
     }
 
-    override fun getNextEntry(): ArchiveEntry? {
+    override fun getNextEntry(): VirtualArchiveEntry? {
         val nextFile = if (fileIterator.hasNext()){
             fileIterator.next()
         } else {

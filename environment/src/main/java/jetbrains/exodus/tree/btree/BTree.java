@@ -24,16 +24,17 @@ public class BTree extends BTreeBase {
     private final RandomAccessLoggable rootLoggable;
     private final BasePageImmutable root;
 
-    public BTree(@NotNull final Log log, final long rootAddress, final boolean allowsDuplicates, final int structureId) {
-        this(log, BTreeBalancePolicy.DEFAULT, rootAddress, allowsDuplicates, structureId);
+    public BTree(@NotNull final Log log, final long rootAddress, final boolean allowsDuplicates,
+                 final int structureId, final int maxEntrySize) {
+        this(log, BTreeBalancePolicy.DEFAULT, rootAddress, allowsDuplicates, structureId, maxEntrySize);
     }
 
     public BTree(@NotNull final Log log,
                  @NotNull final BTreeBalancePolicy policy,
                  final long rootAddress,
                  final boolean allowsDuplicates,
-                 final int structureId) {
-        super(log, policy, allowsDuplicates, structureId);
+                 final int structureId, final int maxEntrySize) {
+        super(log, policy, allowsDuplicates, structureId, maxEntrySize);
         if (rootAddress == Loggable.NULL_ADDRESS) {
             throw new IllegalArgumentException("Can't instantiate not empty tree with null root address.");
         }
@@ -59,7 +60,7 @@ public class BTree extends BTreeBase {
     @Override
     @NotNull
     public BTreeMutable getMutableCopy() {
-        final BTreeMutable result = new BTreeMutable(this);
+        final BTreeMutable result = new BTreeMutable(this, maxEntrySize);
         result.addExpiredLoggable(rootLoggable);
         return result;
     }

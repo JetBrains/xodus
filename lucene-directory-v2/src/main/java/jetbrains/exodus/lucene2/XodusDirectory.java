@@ -33,7 +33,6 @@ import jetbrains.exodus.log.SharedLogCache;
 import jetbrains.exodus.util.IOUtil;
 import org.apache.lucene.index.IndexFileNames;
 import org.apache.lucene.store.*;
-import org.apache.lucene.util.FutureObjects;
 import org.apache.lucene.util.IOUtils;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
@@ -52,10 +51,12 @@ import java.util.concurrent.atomic.AtomicLong;
 
 public class XodusDirectory extends Directory implements CacheDataProvider {
     private static final Logger logger = LoggerFactory.getLogger(XodusDirectory.class);
-    private static final VarHandle SHORT_VAR_HANDLE = MethodHandles.byteArrayViewVarHandle(short[].class, ByteOrder.BIG_ENDIAN);
-    private static final VarHandle INT_VAR_HANDLE = MethodHandles.byteArrayViewVarHandle(int[].class, ByteOrder.BIG_ENDIAN);
-    private static final VarHandle LONG_VAR_HANDLE = MethodHandles.byteArrayViewVarHandle(long[].class, ByteOrder.BIG_ENDIAN);
+    private static final VarHandle SHORT_VAR_HANDLE = MethodHandles.byteArrayViewVarHandle(short[].class, ByteOrder.LITTLE_ENDIAN);
+    private static final VarHandle INT_VAR_HANDLE = MethodHandles.byteArrayViewVarHandle(int[].class, ByteOrder.LITTLE_ENDIAN);
+    private static final VarHandle LONG_VAR_HANDLE = MethodHandles.byteArrayViewVarHandle(long[].class, ByteOrder.LITTLE_ENDIAN);
     private static final VarHandle LONG_LE_VAR_HANDLE = MethodHandles.byteArrayViewVarHandle(long[].class, ByteOrder.LITTLE_ENDIAN);
+    private static final int[] SHIFTS = {0, 7, 14, 21, 28, 35, 42, 49, 56, 63};
+
 
     private static final String NAME_TO_ADDRESS_STORE_NAME = "xodus.lucene.v2.nameToAddressStore";
 
@@ -1154,98 +1155,29 @@ public class XodusDirectory extends Directory implements CacheDataProvider {
 
                 int positionOffset = 0;
                 try {
-                    byte b = page[pageOffset];
-                    positionOffset++;
-
-                    if (b >= 0) {
-                        return b;
+                    long i = 0;
+                    for (int shift : SHIFTS) {
+                        byte b = page[pageOffset++];
+                        positionOffset++;
+                        i |= (b & 0x7FL) << shift;
+                        if (b >= 0) {
+                            return i;
+                        }
                     }
-
-                    pageOffset++;
-                    long i = b & 0x7FL;
-                    b = page[pageOffset];
-                    positionOffset++;
-
-                    i |= (b & 0x7FL) << 7;
-                    if (b >= 0) {
-                        return i;
-                    }
-
-                    pageOffset++;
-                    b = page[pageOffset];
-                    positionOffset++;
-
-                    i |= (b & 0x7FL) << 14;
-                    if (b >= 0) {
-                        return i;
-                    }
-
-                    pageOffset++;
-                    b = page[pageOffset];
-                    positionOffset++;
-
-                    i |= (b & 0x7FL) << 21;
-                    if (b >= 0) {
-                        return i;
-                    }
-
-                    pageOffset++;
-                    b = page[pageOffset];
-                    positionOffset++;
-
-                    i |= (b & 0x7FL) << 28;
-                    if (b >= 0) {
-                        return i;
-                    }
-
-                    pageOffset++;
-                    b = page[pageOffset];
-                    positionOffset++;
-
-                    i |= (b & 0x7FL) << 35;
-                    if (b >= 0) {
-                        return i;
-                    }
-
-                    pageOffset++;
-                    b = page[pageOffset];
-                    positionOffset++;
-
-                    i |= (b & 0x7FL) << 42;
-                    if (b >= 0) {
-                        return i;
-                    }
-
-                    pageOffset++;
-                    b = page[pageOffset];
-                    positionOffset++;
-
-                    i |= (b & 0x7FL) << 49;
-                    if (b >= 0) {
-                        return i;
-                    }
-
-                    pageOffset++;
-                    b = page[pageOffset];
-                    positionOffset++;
-
-                    i |= (b & 0x7FL) << 56;
-                    if (b >= 0) {
-                        return i;
-                    }
+                    throw new IOException("Invalid vLong detected (negative values disallowed)");
                 } finally {
                     movePosition(positionOffset);
                 }
 
-                throw new IOException("Invalid vLong detected (negative values disallowed)");
+//                throw new IOException("Invalid vLong detected (negative values disallowed)");
             } else {
                 return super.readVLong();
             }
         }
 
         @Override
-        public void readLELongs(long[] dst, int offset, int length) throws IOException {
-            FutureObjects.checkFromIndexSize(offset, length, dst.length);
+        public void readLongs(long[] dst, int offset, int length) throws IOException {
+            Objects.checkFromIndexSize(offset, length, dst.length);
 
             var pageOffset = (int) position & (pageSize - 1);
             var pageAddress = fileAddress + position - pageOffset;
@@ -1262,7 +1194,7 @@ public class XodusDirectory extends Directory implements CacheDataProvider {
 
                 movePosition(bytesNeeded);
             } else {
-                super.readLELongs(dst, offset, length);
+                super.readLongs(dst, offset, length);
             }
         }
 

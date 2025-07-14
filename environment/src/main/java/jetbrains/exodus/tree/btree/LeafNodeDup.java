@@ -35,7 +35,7 @@ class LeafNodeDup extends LeafNode {
 
     LeafNodeDup(@NotNull BTreeBase mainTree, @NotNull RandomAccessLoggable loggable) {
         super(mainTree.log, loggable);
-        tree = new BTreeDup(mainTree, this);
+        tree = new BTreeDup(mainTree, this, mainTree.maxEntrySize);
     }
 
     @NotNull

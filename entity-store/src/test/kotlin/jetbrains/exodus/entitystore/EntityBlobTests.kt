@@ -243,9 +243,13 @@ class EntityBlobTests : EntityStoreTestBase() {
         }
         store.clear()
         store.executeInReadonlyTransaction { txn ->
-            assertNull(store.blobVault
-                .getContent(0, (txn as PersistentStoreTransaction).environmentTransaction,
-                    null))
+            assertNull(
+                store.blobVault
+                    .getContent(
+                        0, (txn as PersistentStoreTransaction).environmentTransaction,
+                        null
+                    )
+            )
         }
     }
 

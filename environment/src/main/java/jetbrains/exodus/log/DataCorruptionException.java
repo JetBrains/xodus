@@ -18,19 +18,44 @@ package jetbrains.exodus.log;
 import jetbrains.exodus.ExodusException;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.function.Supplier;
+
 public class DataCorruptionException extends ExodusException {
+    private static final ThreadLocal<Boolean> unsafeMode = ThreadLocal.withInitial(() -> Boolean.FALSE);
+
+    public static void executeUnsafe(Runnable route) {
+        unsafeMode.set(Boolean.TRUE);
+        try {
+            route.run();
+        } finally {
+            unsafeMode.set(Boolean.FALSE);
+        }
+    }
+
+    public static  <T> T computeUnsafe(Supplier<T> supplier) {
+        unsafeMode.set(Boolean.TRUE);
+        try {
+            return supplier.get();
+        } finally {
+            unsafeMode.set(Boolean.FALSE);
+        }
+    }
+
     public DataCorruptionException(@NotNull final String message) {
         super(message);
     }
 
     private DataCorruptionException(@NotNull final String message, final long address, final long fileLengthBound, final String logLocation) {
-        this(message + LogUtil.getWrongAddressErrorMessage(address, fileLengthBound) +
-                ", database location: " + logLocation);
+        this(message + LogUtil.getWrongAddressErrorMessage(address, fileLengthBound) + ", database location: " + logLocation);
     }
 
     public static void raise(@NotNull final String message, @NotNull final Log log, final long address) {
         checkLogIsClosing(log);
-        log.switchToReadOnlyMode();
+
+        var unsafe = unsafeMode.get();
+        if (!unsafe) {
+            log.switchToReadOnlyMode();
+        }
 
         throw new DataCorruptionException(message, address, log.getFileLengthBound(), log.getLocation());
     }

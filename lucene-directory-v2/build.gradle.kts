@@ -5,7 +5,8 @@ dependencies {
     implementation(libs.jetbrains.annotations)
 
     implementation(libs.lucene.core)
-    implementation(libs.lucene.analyzers.common)
+    implementation(libs.lucene.analysis.common)
+    implementation(libs.lucene.backward.codecs)
     implementation(libs.lucene.queries)
     implementation(libs.lucene.queryparser)
 

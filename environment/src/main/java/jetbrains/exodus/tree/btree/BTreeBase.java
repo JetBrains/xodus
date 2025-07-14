@@ -52,12 +52,15 @@ public abstract class BTreeBase implements ITree {
     protected final boolean allowsDuplicates;
     protected long size = -1;
     protected final int structureId;
+    protected final int maxEntrySize;
 
-    BTreeBase(@NotNull final Log log, @NotNull final BTreeBalancePolicy balancePolicy, final boolean allowsDuplicates, final int structureId) {
+    BTreeBase(@NotNull final Log log, @NotNull final BTreeBalancePolicy balancePolicy, final boolean allowsDuplicates,
+              final int structureId, final int maxEntrySize) {
         this.log = log;
         this.balancePolicy = balancePolicy;
         this.allowsDuplicates = allowsDuplicates;
         this.structureId = structureId;
+        this.maxEntrySize = maxEntrySize;
     }
 
     @Override

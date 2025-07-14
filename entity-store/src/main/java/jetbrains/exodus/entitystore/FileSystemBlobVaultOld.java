@@ -39,6 +39,7 @@ import java.nio.file.*;
 import java.nio.file.attribute.PosixFilePermission;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Stream;
 
 
 public class FileSystemBlobVaultOld extends BlobVault implements DiskBasedBlobVault {
@@ -142,6 +143,15 @@ public class FileSystemBlobVaultOld extends BlobVault implements DiskBasedBlobVa
         return blobHandleGenerator.nextHandle();
     }
 
+    public boolean updateNextHandle(long handle) {
+        if (blobHandleGenerator instanceof UpdatableBlobHandleGenerator) {
+            ((UpdatableBlobHandleGenerator) blobHandleGenerator).setHandle(handle);
+            return true;
+        }
+
+        return false;
+    }
+
     private void setContent(final long blobHandle, @NotNull final InputStream content) throws Exception {
         final File location = getBlobLocation(blobHandle, false);
         setContentImpl(content, location);
@@ -242,7 +252,7 @@ public class FileSystemBlobVaultOld extends BlobVault implements DiskBasedBlobVa
     public InputStream getContent(final long blobHandle, @NotNull final Transaction txn, @Nullable Long expectedLength) {
         try {
             var location = getBlobLocation(blobHandle);
-            if (expectedLength != null && location.length() != expectedLength.longValue()) {
+            if (expectedLength != null && location.length() != expectedLength) {
                 return null;
             }
 
@@ -349,6 +359,10 @@ public class FileSystemBlobVaultOld extends BlobVault implements DiskBasedBlobVa
         IOUtil.deleteRecursively(tmpBlobsDir.toFile());
     }
 
+    public long findMaxBlobHandle() {
+        return storedBlobHandles().max(Long::compareTo).orElse(-1L);
+    }
+
     @NotNull
     @Override
     public BackupStrategy getBackupStrategy() {
@@ -423,58 +437,20 @@ public class FileSystemBlobVaultOld extends BlobVault implements DiskBasedBlobVa
         };
     }
 
-    public Iterator<Long> storedBlobHandles() {
-        return new Iterator<>() {
-          private final Deque<File> stack =
-              new ArrayDeque<>(Collections.singletonList(location.toFile()));
-          private final File[] EMPTY = new File[0];
-          private File[] files = EMPTY;
-          private int i = 0;
-
-          @Override
-          public boolean hasNext() {
-            while (true) {
-              if (i < files.length) {
-                final File file = files[i++];
-                if (file.isDirectory()) {
-                  stack.push(file);
-                  files = EMPTY;
-                  i = 0;
-                } else {
-                  final String name = file.getName();
-                  if (name.endsWith(blobExtension)) {
-                    return true;
-                  }
-                }
-              } else {
-                if (stack.isEmpty()) {
-                  return false;
-                }
-                final File dir = stack.pop();
-                files = dir.listFiles();
-                if (files == null) {
-                  files = EMPTY;
-                }
-                i = 0;
-              }
-            }
-          }
-
-          @Override
-          public Long next() {
-            if (!hasNext()) {
-              throw new NoSuchElementException();
-            }
-            final File file = files[i - 1];
-            return getBlobHandleByFile(file);
-          }
-
-          @Override
-          public void remove() {
-            throw new UnsupportedOperationException();
-          }
-        };
+    /**
+     * Returned stream has to be closed.
+     */
+    public Stream<Long> storedBlobHandles() {
+        try {
+            //noinspection resource
+            return Files.walk(location).filter(
+                    path -> Files.isRegularFile(path) &&
+                            path.getFileName().toString().endsWith(blobExtension)).map(path -> getBlobHandleByFile(path.toFile()));
+        } catch (IOException e) {
+            throw new EntityStoreException(e);
+        }
     }
+
     public long getBlobHandleByFile(@NotNull final File file) {
         final String name = file.getName();
         final String blobExtension = getBlobExtension();

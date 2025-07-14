@@ -27,18 +27,16 @@ import jetbrains.exodus.core.execution.SharedTimer
 import jetbrains.exodus.env.*
 import jetbrains.exodus.io.Block
 import jetbrains.exodus.io.RemoveBlockType
-import jetbrains.exodus.log.AbstractBlockListener
-import jetbrains.exodus.log.Log
-import jetbrains.exodus.log.LogUtil
-import jetbrains.exodus.log.Loggable
+import jetbrains.exodus.log.*
 import jetbrains.exodus.runtime.OOMGuard
 import jetbrains.exodus.tree.ExpiredLoggableCollection
+import jetbrains.exodus.tree.patricia.UnexpectedLoggableException
 import jetbrains.exodus.util.DeferredIO
 import mu.KLogging
 import java.io.File
-import java.io.PrintWriter
-import java.io.StringWriter
-import java.util.TreeSet
+import java.nio.file.Files
+import java.nio.file.Paths
+import java.util.*
 import java.util.concurrent.ConcurrentLinkedQueue
 
 
@@ -53,8 +51,6 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
     internal val cleaner = BackgroundCleaner(this)
     private val openStoresCache = IntHashMap<StoreImpl>()
 
-    @Volatile
-    private var logExceptionMessage: String? = null
     private var lastBrokenMessage = 0L
 
     init {
@@ -232,14 +228,18 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
     }
 
     private fun doCleanFiles(fragmentedFiles: Iterator<Long>): Boolean {
-        if (logExceptionMessage != null) {
+        val logPath = Paths.get(environment.location)
+
+        if (Files.exists(logPath.resolve(STOP_GC_FILE))) {
             val ts = System.currentTimeMillis()
 
             val printBrokenMessage = lastBrokenMessage + 15 * 60 * 1000 < ts
             if (printBrokenMessage) {
                 lastBrokenMessage = ts
+
                 logger.error {
-                    "GC is disabled on database ${log.location} because of error:\n $logExceptionMessage \n please contact support to fix broken database."
+                    "GC is disabled on database ${log.location} because of an GC error. " +
+                            "Please file the issue to resolve the problem."
                 }
             }
 
@@ -255,7 +255,7 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
         val guard = OOMGuard(softRef = false)
 
         val sortedFiles = TreeSet<Long>()
-        for(fileId in fragmentedFiles) {
+        for (fileId in fragmentedFiles) {
             sortedFiles.add(fileId)
         }
 
@@ -275,17 +275,43 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
 
             while (sortedFilesIterator.hasNext()) {
                 val file = sortedFilesIterator.next()
-                cleanSingleFile(file, txn)
+
+                DataCorruptionException.executeUnsafe {
+                    cleanSingleFile(file, txn)
+                }
 
                 cleanedFiles.add(file)
 
                 if (!isTxnExclusive) {
                     break // do not process more than one file in a non-exclusive txn
                 }
+
                 if (started + ec.gcTransactionTimeout <= System.currentTimeMillis()) {
+                    val logCancelation = environment.environmentConfig.logGcCancelations
+                    if (logCancelation) {
+                        logger.warn(
+                            "GC for database ${environment.log.location}" +
+                                    " was interrupted because of timeout (${
+                                        ec.gcTransactionTimeout
+                                    } ms) while cleaning file ${LogUtil.getLogFilename(file)}"
+                        )
+                    }
                     break // break by timeout
                 }
+
                 if (guard.isItCloseToOOM()) {
+                    val logCancelation = environment.environmentConfig.logGcCancelations
+                    if (logCancelation) {
+                        logger.warn(
+                            "GC for database ${environment.log.location}" +
+                                    " was interrupted because of risk of OutOfMemoryError while cleaning file ${
+                                        LogUtil.getLogFilename(
+                                            file
+                                        )
+                                    }"
+                        )
+
+                    }
                     break // break because of the risk of OutOfMemoryError
                 }
             }
@@ -299,12 +325,18 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
         } catch (_: ReadonlyTransactionException) {
             return false
         } catch (e: Throwable) {
-            val sw = StringWriter()
-            val pw = PrintWriter(sw)
+            loggingError(e) {
+                "Error during cleaning files: ${e.message}\n"
+            }
 
-            e.printStackTrace(pw)
+            try {
+                Files.createFile(logPath.resolve(STOP_GC_FILE))
+            } catch (e: Throwable) {
+                loggingError(e) {
+                    "Error creating stop file: ${e.message}\n"
+                }
+            }
 
-            logExceptionMessage = sw.toString()
             throw ExodusException.toExodusException(e)
         } finally {
             txn.abort()
@@ -352,7 +384,11 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
             throw ExodusException("Attempt to clean already cleaned file")
         }
         loggingInfo {
-            "start cleanFile(${environment.location}${File.separatorChar}${LogUtil.getLogFilename(fileAddress)})" +
+            "start cleanFile(${environment.location}${File.separatorChar}${
+                LogUtil.getLogFilename(
+                    fileAddress
+                )
+            })" +
                     ", free bytes = ${formatBytes(getFileFreeBytes(fileAddress))}"
         }
         val log = log
@@ -362,14 +398,18 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
             logger.debug(
                 String.format(
                     "Cleaner acquired txn when log high address was: %d (%s@%d) when cleaning file %s",
-                    high, LogUtil.getLogFilename(highFile), high - highFile, LogUtil.getLogFilename(fileAddress)
+                    high,
+                    LogUtil.getLogFilename(highFile),
+                    high - highFile,
+                    LogUtil.getLogFilename(fileAddress)
                 )
             )
         }
 
+        val useTreeScan = ec.gcByTreeScan
         try {
             val nextFileAddress = fileAddress + log.fileLengthBound
-            val loggables = log.getLoggableIterator(fileAddress)
+            var loggables = log.getLoggableIterator(fileAddress)
             while (loggables.hasNext()) {
                 val loggable = loggables.next()
 
@@ -381,12 +421,41 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
                 if (structureId != Loggable.NO_STRUCTURE_ID && structureId != EnvironmentImpl.META_TREE_ID) {
                     var store = openStoresCache.get(structureId)
                     if (store == null) {
-                        // TODO: remove openStoresCache when txn.openStoreByStructureId() is fast enough (XD-381)
                         store = txn.openStoreByStructureId(structureId)
                         openStoresCache[structureId] = store
                     }
 
-                    store.reclaim(txn, loggable, loggables)
+                    try {
+                        if (useTreeScan) {
+                            store.reclaimByTreeIteration(txn, fileAddress, nextFileAddress)
+                        } else {
+                            store.reclaim(txn, loggable, loggables)
+                        }
+                    } catch (e: ExodusException) {
+                        logger.warn(
+                            "Error during reclaiming loggable, trying to retry by iteration over the whole tree. Store: ${
+                                store.name
+                            }, loggable: ${
+                                loggable.address
+                            }, file name : ${
+                                LogUtil.getLogFilename(
+                                    fileAddress
+                                )
+                            }",
+                            e
+                        )
+
+                        store.reclaimByTreeIteration(txn, fileAddress, nextFileAddress)
+
+                        if (e is UnexpectedLoggableException) {
+                            val loggableAddress = e.loggableAddress
+
+                            if (loggableAddress > -1) {
+                                loggables = log.getLoggableIterator(loggableAddress)
+                            }
+                        }
+                    }
+
                 }
             }
         } catch (e: Throwable) {
@@ -398,6 +467,7 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
     companion object : KLogging() {
 
         const val UTILIZATION_PROFILE_STORE_NAME = "exodus.gc.up"
+        const val STOP_GC_FILE = "stop.gc"
 
         @JvmStatic
         fun isUtilizationProfile(storeName: String): Boolean {
@@ -420,6 +490,7 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
             logger.debug { message() }
         }
 
-        internal fun formatBytes(bytes: Long) = if (bytes == Long.MAX_VALUE) "Unknown" else "${bytes / 1000}Kb"
+        internal fun formatBytes(bytes: Long) =
+            if (bytes == Long.MAX_VALUE) "Unknown" else "${bytes / 1000}Kb"
     }
 }

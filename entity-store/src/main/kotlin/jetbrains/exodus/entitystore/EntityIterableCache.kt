@@ -26,6 +26,7 @@ import jetbrains.exodus.entitystore.iterate.EntityIterableBase
 import jetbrains.exodus.env.ReadonlyTransactionException
 import mu.KLogging
 import java.lang.Long.max
+import java.util.concurrent.locks.ReentrantLock
 
 class EntityIterableCache internal constructor(private val store: PersistentEntityStoreImpl) {
 
@@ -51,7 +52,9 @@ class EntityIterableCache internal constructor(private val store: PersistentEnti
     private val heavyIterablesCache =
         ConcurrentObjectCache<Any, Long>(config.entityIterableCacheHeavyIterablesCacheSize)
 
+    @Volatile
     private var cacheAdapter = EntityIterableCacheAdapter.create(config)
+    private val cacheAdapterLock = ReentrantLock()
 
     val stats = EntityIterableCacheStatistics()
 
@@ -174,12 +177,21 @@ class EntityIterableCache internal constructor(private val store: PersistentEnti
         iterableCountsCache.cacheObject(handle.identity, count to System.currentTimeMillis())
     }
 
+    fun lockCacheAdapter() {
+        cacheAdapterLock.lock()
+    }
+
+    fun unlockCacheAdapter() {
+        cacheAdapterLock.unlock()
+    }
+
     fun compareAndSetCacheAdapter(old: Any, new: Any): Boolean {
-        if (cacheAdapter === old) {
-            cacheAdapter = new as EntityIterableCacheAdapter
-            return true
+        if (cacheAdapter !== old) {
+            return false
         }
-        return false
+        cacheAdapter = new as EntityIterableCacheAdapter
+
+        return true
     }
 
     private inner class EntityIterableAsyncInstantiation(
@@ -309,6 +321,7 @@ class EntityIterableCache internal constructor(private val store: PersistentEnti
         private fun updateCacheSizeIfNecessary() {
             try {
                 val targetSize = config.entityIterableCacheSize.toLong()
+                val cacheAdapter = cacheAdapter
                 val currentSize = cacheAdapter.size()
                 if (!cacheAdapter.isWeightedCache
                     && targetSize > 0

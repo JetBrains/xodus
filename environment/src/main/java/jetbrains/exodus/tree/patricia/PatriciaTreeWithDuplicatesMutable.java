@@ -145,6 +145,11 @@ final class PatriciaTreeWithDuplicatesMutable extends PatriciaTreeWithDuplicates
         return ((ITreeMutable) treeNoDuplicates).reclaim(loggable, loggables);
     }
 
+    @Override
+    public boolean reclaimByTreeIteration(long startAddress, long endAddress) {
+        return ((ITreeMutable) treeNoDuplicates).reclaimByTreeIteration(startAddress, endAddress);
+    }
+
     private ITreeMutable getTreeNoDuplicates() {
         return (ITreeMutable) treeNoDuplicates;
     }

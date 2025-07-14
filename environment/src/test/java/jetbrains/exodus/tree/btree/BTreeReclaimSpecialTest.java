@@ -50,7 +50,7 @@ public class BTreeReclaimSpecialTest extends BTreeTestBase {
         log.endWrite();
         Assert.assertEquals(1, log.getNumberOfFiles());
         Assert.assertTrue(log.getHighAddress() < fileSize);
-        tm = new BTreeEmpty(log, true, 1).getMutableCopy();
+        tm = new BTreeEmpty(log, true, 1, Integer.MAX_VALUE).getMutableCopy();
         final ArrayByteIterable key = key("K");
         for (int i = 0; i <= COUNT; i++) {
             tm.put(key, v(i));
@@ -81,7 +81,7 @@ public class BTreeReclaimSpecialTest extends BTreeTestBase {
 
     @Test
     public void testDups() {
-        tm = new BTreeEmpty(log, true, 1).getMutableCopy();
+        tm = new BTreeEmpty(log, true, 1, Integer.MAX_VALUE).getMutableCopy();
         tm.put(key("k"), value("v0"));
         tm.put(key("k"), value("v1"));
         long firstAddress = saveTree();
@@ -97,6 +97,8 @@ public class BTreeReclaimSpecialTest extends BTreeTestBase {
     }
 
     private void reloadMutableTree(long address) {
-        tm = new BTree(log, getTreeMutable().getBalancePolicy(), address, true, 1).getMutableCopy();
+        tm = new BTree(log,
+                getTreeMutable().getBalancePolicy(), address, true,
+                1, Integer.MAX_VALUE).getMutableCopy();
     }
 }
