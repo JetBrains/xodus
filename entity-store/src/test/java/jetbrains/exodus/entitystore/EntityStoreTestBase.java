@@ -30,7 +30,7 @@ public abstract class EntityStoreTestBase extends TestBase {
 
     private static final String TEMP_FOLDER = TestUtil.createTempDir().getAbsolutePath();
 
-    private PersistentEntityStoreImpl store;
+    protected PersistentEntityStoreImpl store;
     @Nullable
     private PersistentStoreTransaction txn;
     protected boolean isPartiallyTornDown;
@@ -156,6 +156,14 @@ public abstract class EntityStoreTestBase extends TestBase {
     }
 
     protected final PersistentStoreTransaction getStoreTransaction() {
+        return txn;
+    }
+
+    protected PersistentStoreTransaction restartTx() {
+        if (txn != null) {
+            txn.abort();
+        }
+        txn = store.beginTransaction();
         return txn;
     }
 
