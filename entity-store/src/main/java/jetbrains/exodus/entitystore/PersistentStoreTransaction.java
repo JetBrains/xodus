@@ -1107,7 +1107,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
     }
 
     private void flushBlobs(final BlobVault blobVault) throws Exception {
-        if (blobStreams != null || blobFiles != null) {
+        if (blobStreams != null || blobFiles != null || deferredBlobsToDelete != null) {
             closeOpenedBlobStreams();
 
             final LongHashMap<Path> tmpBlobFiles;

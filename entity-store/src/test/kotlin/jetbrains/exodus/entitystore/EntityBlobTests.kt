@@ -18,7 +18,9 @@ package jetbrains.exodus.entitystore
 import jetbrains.exodus.ExodusException
 import jetbrains.exodus.TestFor
 import jetbrains.exodus.TestUtil
+import jetbrains.exodus.crypto.EncryptedBlobVault
 import jetbrains.exodus.kotlin.notNull
+import jetbrains.exodus.util.DeferredIO
 import org.junit.Assert
 import java.io.*
 
@@ -73,6 +75,18 @@ class EntityBlobTests : EntityStoreTestBase() {
         Assert.assertNull(issue.getBlob("body"))
         Assert.assertNull(issue.getBlobString("body"))
     }
+
+    fun testDeleteBlobs2() {
+        entityStore.config.maxInPlaceBlobSize = 0
+
+        testDeleteBlobs()
+        restartTx()
+
+        DeferredIO.getJobProcessor().waitForTimedJobs(100)
+        val fsBlobVault = (storeTransaction.store.blobVault as EncryptedBlobVault).sourceVault
+        Assert.assertEquals(0, fsBlobVault.storedBlobHandles().count())
+    }
+
 
     fun testDeleteBlobsWithinTxn() {
         val txn = storeTransaction
