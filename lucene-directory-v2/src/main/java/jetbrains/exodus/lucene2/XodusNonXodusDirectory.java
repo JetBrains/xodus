@@ -545,7 +545,7 @@ public class XodusNonXodusDirectory extends Directory implements CacheDataProvid
             }
 
             if (storeivFile) {
-                try (var ivStream = new DataOutputStream(Files.newOutputStream(fileDesc.filePath()))) {
+                try (var ivStream = new DataOutputStream(Files.newOutputStream(fileDesc.ivFilePath()))) {
                     ivStream.writeLong(((StreamCipherOutputStream) os).maxIv);
                 }
             }
