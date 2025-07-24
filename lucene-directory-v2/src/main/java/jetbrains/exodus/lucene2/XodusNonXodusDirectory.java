@@ -18,6 +18,8 @@ package jetbrains.exodus.lucene2;
 import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.crypto.StreamCipher;
 import jetbrains.exodus.crypto.StreamCipherProvider;
+import jetbrains.exodus.env.Environment;
+import jetbrains.exodus.env.EnvironmentImpl;
 import jetbrains.exodus.io.SharedOpenFilesCache;
 import jetbrains.exodus.log.CacheDataProvider;
 import jetbrains.exodus.log.Log;
@@ -59,8 +61,7 @@ public class XodusNonXodusDirectory extends Directory implements CacheDataProvid
 
     private final int identity;
 
-    private final Path luceneOutputPath;
-
+    private final Path luceneOutput;
     private final Path luceneIndex;
 
     private final AtomicLong nextAddress;
@@ -80,13 +81,31 @@ public class XodusNonXodusDirectory extends Directory implements CacheDataProvid
     private final AtomicLong ivGen;
 
     private final Random ivRnd = new Random();
+    private final Environment env;
 
     private volatile boolean closed = false;
 
+    public static XodusNonXodusDirectory fromXodusEnv(Environment env) throws IOException {
+
+        final EnvironmentImpl environment = (EnvironmentImpl) env;
+        var log = environment.getLog();
+        var logConfig = log.getConfig();
+
+        return new XodusNonXodusDirectory(
+                Path.of(log.getLocation()),
+                ((SharedLogCache) log.cache),
+                log.getCachePageSize(),
+                logConfig.getCipherProvider(),
+                logConfig.getCipherKey(),
+                env
+        );
+    }
+
     public XodusNonXodusDirectory(
             Path rootPath, SharedLogCache sharedLogCache, int cachePageSize,
-            StreamCipherProvider cipherProvider, byte[] cipherKey
-    ) throws IOException {
+            StreamCipherProvider cipherProvider, byte[] cipherKey,
+            Environment env) throws IOException {
+        this.env = env;
 
         if (!Files.isDirectory(rootPath)) {
             throw new ExodusException("Path " + rootPath + " does not exist in file system.");
@@ -98,13 +117,13 @@ public class XodusNonXodusDirectory extends Directory implements CacheDataProvid
 
         this.identity = Log.Companion.getIdentityGenerator().nextId();
 
-        this.luceneOutputPath = rootPath.resolve("luceneOutput");
+        this.luceneOutput = rootPath.resolve("luceneOutput");
         this.luceneIndex = rootPath.resolve("luceneIndex");
 
-        if (Files.exists(luceneOutputPath)) {
-            IOUtil.deleteRecursively(luceneOutputPath.toFile());
+        if (Files.exists(luceneOutput)) {
+            IOUtil.deleteRecursively(luceneOutput.toFile());
         } else {
-            Files.createDirectory(luceneOutputPath);
+            Files.createDirectory(luceneOutput);
         }
 
         if (!Files.exists(luceneIndex)) {
@@ -240,7 +259,7 @@ public class XodusNonXodusDirectory extends Directory implements CacheDataProvid
     @Override
     public IndexOutput createOutput(String name, IOContext context) throws IOException {
         ensureOpen();
-        maybeDeletePendingFiles(); // todo: explore
+        maybeDeletePendingFiles();
 
         // todo: what if we call this twice with the same name, before the actual file is saved?
         // uniqueness of files is not guaranteed anymore.
@@ -302,7 +321,6 @@ public class XodusNonXodusDirectory extends Directory implements CacheDataProvid
     public void rename(String source, String dest) throws IOException {
 
         ensureOpen();
-        // todo: ATOMICITY!
         if (pendingDeletes.containsKey(source)) {
             throw new NoSuchFileException(
                     "file \"" + source + "\" is pending delete and cannot be moved");
@@ -314,15 +332,13 @@ public class XodusNonXodusDirectory extends Directory implements CacheDataProvid
             pendingDeletes.remove(dest); // watch out if the delete fails, it's back in here
         }
 
-        final var destDesc = fileNameRegistry.createFileDescription(dest, sourceDesc.address());
-        Files.move(sourceDesc.filePath(), destDesc.filePath(), StandardCopyOption.ATOMIC_MOVE);
-        deleteFile(source);
-        fileNameRegistry.register(destDesc);
+        fileNameRegistry.rename(sourceDesc, dest, cipherKey != null);
     }
 
     @Override
     public synchronized void close() throws IOException {
         deletePendingFiles();
+        env.close();
 
         closed = true;
         var filesCache = SharedOpenFilesCache.getInstance();
@@ -337,8 +353,6 @@ public class XodusNonXodusDirectory extends Directory implements CacheDataProvid
     @Override
     public void deleteFile(String name) throws IOException {
         ensureOpen();
-        // todo: files can be deleted later, so what happens if the directory is closed before the
-        // actual deletion.
 
         final var fileDesc = fileNameRegistry.removeByIndexName(name);
 
@@ -472,7 +486,7 @@ public class XodusNonXodusDirectory extends Directory implements CacheDataProvid
     }
 
     private OutputStream openOutputStream(String fileName) throws IOException {
-        var fileStream = Files.newOutputStream(luceneOutputPath.resolve(fileName), StandardOpenOption.WRITE,
+        var fileStream = Files.newOutputStream(luceneOutput.resolve(fileName), StandardOpenOption.WRITE,
                 StandardOpenOption.CREATE_NEW);
         if (cipherKey == null) {
             return fileStream;
@@ -501,7 +515,7 @@ public class XodusNonXodusDirectory extends Directory implements CacheDataProvid
 
         XodusIndexOutput(String outputFileName, String indexName, boolean storeivFile, OutputStream stream) {
             // todo: should we really pass outputFileName as "name" here?
-            super("XodusIndexOutput(path=\"" + luceneOutputPath.resolve(outputFileName) + "\")", outputFileName,
+            super("XodusIndexOutput(path=\"" + luceneOutput.resolve(outputFileName) + "\")", outputFileName,
                     new FilterOutputStream(stream) {
                         // This implementation ensures, that we never write more than CHUNK_SIZE bytes:
                         @Override
@@ -515,7 +529,7 @@ public class XodusNonXodusDirectory extends Directory implements CacheDataProvid
                         }
                     }, CHUNK_SIZE);
 
-            outputFilePath = luceneOutputPath.resolve(outputFileName);
+            outputFilePath = luceneOutput.resolve(outputFileName);
             this.storeivFile = storeivFile;
 
             this.indexName = indexName;
@@ -554,8 +568,6 @@ public class XodusNonXodusDirectory extends Directory implements CacheDataProvid
 
             closed = true;
         }
-
-
     }
 
     private long occupyNextFileAddress(Path filePath) throws IOException {

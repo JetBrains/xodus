@@ -23,8 +23,10 @@ import org.jetbrains.annotations.NotNull;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.RandomAccessFile;
+import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
@@ -120,6 +122,14 @@ public final class DirUtil {
     public static Stream<Path> listLuceneFiles(Path path) throws IOException {
         //noinspection resource
         return Files.walk(path).filter(LUCENE_FILE_FILTER);
+    }
+
+    public static void tryMoveAtomically(Path sourcePath, Path destPath) throws IOException {
+        try {
+            Files.move(sourcePath, destPath, StandardCopyOption.ATOMIC_MOVE);
+        } catch (AtomicMoveNotSupportedException ex) {
+            Files.move(sourcePath, destPath);
+        }
     }
 
 }

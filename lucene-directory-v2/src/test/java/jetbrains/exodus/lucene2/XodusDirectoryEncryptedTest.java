@@ -29,7 +29,7 @@ import java.nio.file.Path;
 
 @ThreadLeakFilters(filters = XodusThreadFilter.class)
 @TestRuleLimitSysouts.Limit(bytes = 30 * 1024)
-public class XodusDirectoryEncryptedTest extends BaseDirectoryTestCase {
+public class XodusDirectoryEncryptedTest extends XodusDirectoryBaseTest {
     @Override
     protected Directory getDirectory(Path path) throws IOException {
         final EnvironmentConfig config = new EnvironmentConfig();
@@ -38,19 +38,6 @@ public class XodusDirectoryEncryptedTest extends BaseDirectoryTestCase {
         config.setCipherKey("000102030405060708090a0b0c0d0e0f000102030405060708090a0b0c0d0e0f");
         config.setCipherBasicIV(314159262718281828L);
 
-        EnvironmentImpl environment = (EnvironmentImpl) Environments.newInstance(path.toFile(), config);
-
-        var log = environment.getLog();
-        var logConfig = log.getConfig();
-
-
-//        return new XodusDirectory(environment);
-        return new XodusNonXodusDirectory(
-                Path.of(log.getLocation()),
-                ((SharedLogCache) log.cache),
-                log.getCachePageSize(),
-                logConfig.getCipherProvider(),
-                logConfig.getCipherKey()
-        );
+        return XodusNonXodusDirectory.fromXodusEnv(Environments.newInstance(path.toFile(), config));
     }
 }
