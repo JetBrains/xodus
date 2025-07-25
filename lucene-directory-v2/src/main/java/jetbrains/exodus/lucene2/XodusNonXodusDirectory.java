@@ -24,7 +24,6 @@ import jetbrains.exodus.io.SharedOpenFilesCache;
 import jetbrains.exodus.log.CacheDataProvider;
 import jetbrains.exodus.log.Log;
 import jetbrains.exodus.log.SharedLogCache;
-import jetbrains.exodus.lucene2.DirectoryFileNamesRegistry.FileDescription;
 import jetbrains.exodus.util.IOUtil;
 import org.apache.lucene.index.IndexFileNames;
 import org.apache.lucene.store.*;
@@ -42,7 +41,9 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Consumer;
 
+import static jetbrains.exodus.lucene2.DirUtil.listFilesInDir;
 
 public class XodusNonXodusDirectory extends Directory implements CacheDataProvider {
     private static final Logger logger = LoggerFactory.getLogger(XodusNonXodusDirectory.class);
@@ -63,12 +64,13 @@ public class XodusNonXodusDirectory extends Directory implements CacheDataProvid
 
     private final Path luceneOutput;
     private final Path luceneIndex;
+    private final Path metadataFolder;
 
     private final AtomicLong nextAddress;
 
-    private final ConcurrentHashMap<String, FileDescription> pendingDeletes = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, Long> pendingDeletes = new ConcurrentHashMap<>();
 
-    private final DirectoryFileNamesRegistry fileNameRegistry;
+    private final DirectoryFileNamesRegistry fileNameRegistry = new DirectoryFileNamesRegistry();
 
     private final AtomicInteger opsSinceLastDelete = new AtomicInteger();
 
@@ -78,14 +80,21 @@ public class XodusNonXodusDirectory extends Directory implements CacheDataProvid
 
     private final int pageSize;
 
-    private final AtomicLong ivGen;
+    private final IvGenerator ivGenerator;
 
-    private final Random ivRnd = new Random();
-    private final Environment env;
+    private final Closeable underlyingCloseable;
 
     private volatile boolean closed = false;
 
     public static XodusNonXodusDirectory fromXodusEnv(Environment env) throws IOException {
+        return fromXodusEnv(env, null, null);
+    }
+
+    static XodusNonXodusDirectory fromXodusEnv(
+            Environment env,
+            Consumer<Path> cleanupListener,
+            Consumer<Long> ivGenListener
+    ) throws IOException {
 
         final EnvironmentImpl environment = (EnvironmentImpl) env;
         var log = environment.getLog();
@@ -97,15 +106,18 @@ public class XodusNonXodusDirectory extends Directory implements CacheDataProvid
                 log.getCachePageSize(),
                 logConfig.getCipherProvider(),
                 logConfig.getCipherKey(),
-                env
+                env, cleanupListener, ivGenListener
         );
     }
 
     public XodusNonXodusDirectory(
             Path rootPath, SharedLogCache sharedLogCache, int cachePageSize,
             StreamCipherProvider cipherProvider, byte[] cipherKey,
-            Environment env) throws IOException {
-        this.env = env;
+            Closeable underlyingCloseable,
+            Consumer<Path> cleanupListener,
+            Consumer<Long> ivGenListener
+    ) throws IOException {
+        this.underlyingCloseable = underlyingCloseable;
 
         if (!Files.isDirectory(rootPath)) {
             throw new ExodusException("Path " + rootPath + " does not exist in file system.");
@@ -119,6 +131,7 @@ public class XodusNonXodusDirectory extends Directory implements CacheDataProvid
 
         this.luceneOutput = rootPath.resolve("luceneOutput");
         this.luceneIndex = rootPath.resolve("luceneIndex");
+        this.metadataFolder = rootPath.resolve("metadata");
 
         if (Files.exists(luceneOutput)) {
             IOUtil.deleteRecursively(luceneOutput.toFile());
@@ -130,100 +143,99 @@ public class XodusNonXodusDirectory extends Directory implements CacheDataProvid
             Files.createDirectory(luceneIndex);
         }
 
-        fileNameRegistry = new DirectoryFileNamesRegistry(luceneIndex);
-        long[] maxAddressLengthIv = new long[]{-1, -1, -1};
-        var fetchIvs = cipherKey != null;
-
-        final Set<Path> filesToDelete = new HashSet<>();
-        final Map<String, Path> indexFilesWithIv = new HashMap<>();
-
-        try (var fileStream = Files.newDirectoryStream(luceneIndex)) {
-            fileStream.forEach(p -> {
-                final var realFileName = p.getFileName().toString();
-
-                final var nameFromIvFile = DirectoryFileNamesRegistry.indexNameFromIvFileName(realFileName);
-                if (nameFromIvFile != null) {
-                    indexFilesWithIv.put(nameFromIvFile, p);
-                    return;
-                }
-
-                final var fileDesc = fileNameRegistry.tryRegisterFile(realFileName);
-
-                if (fileDesc == null) {
-                    filesToDelete.add(p);
-                    return;
-                }
-
-                if (fileDesc.address() > maxAddressLengthIv[0]) {
-                    maxAddressLengthIv[0] = fileDesc.address();
-                    try {
-                        maxAddressLengthIv[1] = Files.size(p);
-                    } catch (IOException e) {
-                        throw new ExodusException("Error during fetching of size of file " + p, e);
-                    }
-                }
-
-                if (fetchIvs) {
-                    var ivPath = fileDesc.ivFilePath();
-
-                    if (Files.exists(ivPath)) {
-                        try (var ivStream = new DataInputStream(Files.newInputStream(ivPath))) {
-                            var iv = ivStream.readLong();
-
-                            if (iv > maxAddressLengthIv[2]) {
-                                maxAddressLengthIv[2] = iv;
-                            }
-                        } catch (EOFException eof) {
-                            //ignore
-                        } catch (IOException e) {
-                            throw new ExodusException("Can not read iv file " + ivRnd, e);
-                        }
-                    }
-                }
-            });
+        if (!Files.exists(metadataFolder)) {
+            Files.createDirectory(metadataFolder);
         }
 
-        for (Path toDelete : filesToDelete) {
-            try {
-                Files.deleteIfExists(toDelete);
-            } catch (IOException e) {
-                throw new ExodusException("Can not delete file " + toDelete, e);
+        final var luceneFiles = listFilesInDir(luceneIndex);
+        final var metadataFiles = listFilesInDir(metadataFolder);
+        final var filesToDelete = new HashSet<Path>();
+
+        var maxAddress = -1L;
+        var maxAddressSize = -1L;
+        var maxIv = -1L;
+
+        for (var e : luceneFiles.entrySet()) {
+            final var fileName = e.getKey();
+            final var filePath = e.getValue();
+            final var metadataPath = metadataFiles.remove(fileName);
+
+            if (metadataPath == null) {
+                // need to remove the index file as well
+                filesToDelete.add(filePath);
+            } else {
+
+                final var md = readMetadataFile(metadataPath);
+                final var address = md[0];
+                final var iv = md[1];
+                final var size = Files.size(filePath);
+
+                fileNameRegistry.register(fileName, address);
+
+                if (address > maxAddress) {
+                    maxAddress = address;
+                    maxAddressSize = size;
+                }
+                if (cipherKey != null && iv > maxIv) {
+                    maxIv = iv;
+                }
             }
         }
 
-        indexFilesWithIv.keySet().removeAll(fileNameRegistry.indexNames());
-        for (Path ivPath : indexFilesWithIv.values()) {
-            try {
-                Files.deleteIfExists(ivPath);
-            } catch (IOException e) {
-                throw new ExodusException("Can not delete orphan iv file " + ivPath, e);
+        if (!filesToDelete.isEmpty() || !metadataFiles.isEmpty()) {
+            logger.warn(
+                    "Found {} orphaned Lucene index files and {} metadata files. Removing them...",
+                    filesToDelete.size(), metadataFiles.size());
+
+            filesToDelete.addAll(metadataFiles.values());
+
+            for (var toDelete : filesToDelete) {
+                Files.deleteIfExists(toDelete);
+                if (cleanupListener != null) {
+                    cleanupListener.accept(toDelete);
+                }
             }
         }
 
         this.pageSize = cachePageSize;
+        this.nextAddress = new AtomicLong(calculateInitialAddress(maxAddress, maxAddressSize));
+        this.ivGenerator = new IvGenerator(maxIv + 1, ivGenListener);
+        this.rootPath = rootPath;
+    }
 
-        if (maxAddressLengthIv[0] >= 0) {
-            var nextAddress = maxAddressLengthIv[0] + maxAddressLengthIv[1];
+    public int getPageSize() {
+        return pageSize;
+    }
+
+    private long calculateInitialAddress(long maxAddress, long maxAddressSize) {
+        final long initialAddress;
+        if (maxAddress >= 0) {
+            var nextAddress = maxAddress + maxAddressSize;
             var pages = (nextAddress + pageSize - 1) / pageSize;
 
             if (pages == 0) {
                 pages = 1;
             }
 
-            this.nextAddress = new AtomicLong(pages * pageSize);
+            initialAddress = pages * pageSize;
         } else {
-            this.nextAddress = new AtomicLong(0);
+            initialAddress = 0;
         }
+        return initialAddress;
+    }
 
-        this.ivGen = new AtomicLong(maxAddressLengthIv[2] + 1);
-        this.rootPath = rootPath;
+    private Path filePath(String name) {
+        return luceneIndex.resolve(name);
+    }
+
+    private Path metadataPath(String name) {
+        return metadataFolder.resolve(name);
     }
 
     @Override
     public String[] listAll() {
         ensureOpen();
         return fileNameRegistry.indexNames()
-                .stream()
                 .sorted()
                 .toArray(String[]::new);
     }
@@ -232,8 +244,8 @@ public class XodusNonXodusDirectory extends Directory implements CacheDataProvid
     public long fileLength(String name) throws IOException {
         ensureOpen();
 
-        final var fileDesc = fileNameRegistry.lookupByIndexName(name);
-        final var fileSize = Files.size(fileDesc.filePath());
+        fileNameRegistry.addressByName(name); // throw exception if not found
+        final var fileSize = Files.size(filePath(name));
 
         return cipherKey == null ? fileSize : subtractWithIvSpace(Long.BYTES, fileSize);
     }
@@ -261,11 +273,7 @@ public class XodusNonXodusDirectory extends Directory implements CacheDataProvid
         ensureOpen();
         maybeDeletePendingFiles();
 
-        // todo: what if we call this twice with the same name, before the actual file is saved?
-        // uniqueness of files is not guaranteed anymore.
-        if (fileNameRegistry.existsIndexName(name)) {
-            throw new FileAlreadyExistsException("File " + name + " already exists");
-        }
+        fileNameRegistry.prepareName(name);
 
         // name of the file in the output folder. it will be moved to the index folder once the output is closed.
         final var outputFileName = name + outputIndex.getAndIncrement();
@@ -287,23 +295,19 @@ public class XodusNonXodusDirectory extends Directory implements CacheDataProvid
     public void sync(Collection<String> names) throws IOException {
 
         ensureOpen();
-        for (final var indexName : names) {
-            final var fileDesc = fileNameRegistry.lookupByIndexName(indexName);
+        for (final var name : names) {
+            fileNameRegistry.addressByName(name);
 
             try {
-                IOUtils.fsync(fileDesc.filePath(), false);
+                IOUtils.fsync(filePath(name), false);
             } catch (IOException e) {
-                throw new ExodusException("Error during syncing of file " + fileDesc.filePath(), e);
+                throw new ExodusException("Error during syncing of file " + filePath(name), e);
             }
 
-            if (cipherKey != null) {
-                try {
-                    if (Files.exists(fileDesc.ivFilePath())) {
-                        IOUtils.fsync(fileDesc.ivFilePath(), false);
-                    }
-                } catch (IOException e) {
-                    throw new ExodusException("Error during syncing of file " + fileDesc.filePath(), e);
-                }
+            try {
+                IOUtils.fsync(metadataPath(name), false);
+            } catch (IOException e) {
+                throw new ExodusException("Error during syncing of file " + metadataPath(name), e);
             }
         }
 
@@ -314,6 +318,7 @@ public class XodusNonXodusDirectory extends Directory implements CacheDataProvid
     public void syncMetaData() throws IOException {
         ensureOpen();
         IOUtils.fsync(luceneIndex, true);
+        IOUtils.fsync(metadataFolder, true);
         maybeDeletePendingFiles();
     }
 
@@ -322,23 +327,43 @@ public class XodusNonXodusDirectory extends Directory implements CacheDataProvid
 
         ensureOpen();
         if (pendingDeletes.containsKey(source)) {
-            throw new NoSuchFileException(
+            throw new FileNotFoundException(
                     "file \"" + source + "\" is pending delete and cannot be moved");
         }
-        final var sourceDesc = fileNameRegistry.lookupByIndexName(source);
         maybeDeletePendingFiles();
         if (pendingDeletes.remove(dest) != null) {
             privateDeleteFile(dest); // try again to delete it - this is the best effort
             pendingDeletes.remove(dest); // watch out if the delete fails, it's back in here
         }
 
-        fileNameRegistry.rename(sourceDesc, dest, cipherKey != null);
+        try {
+            fileNameRegistry.rename(source, dest, () -> {
+
+                final var destPath = filePath(dest);
+                final var destMetadataPath = metadataPath(dest);
+                final var sourcePath = filePath(source);
+                final var sourceMetadataPath = metadataPath(source);
+
+                try {
+                    Files.copy(sourceMetadataPath, destMetadataPath);
+                    DirUtil.tryMoveAtomically(sourcePath, destPath);
+                    Files.delete(sourceMetadataPath);
+                } catch (IOException e) {
+                    throw new ExodusException("Error during renaming of file " + source, e);
+                }
+            });
+        } catch (ExodusException e) {
+            // we've just wrapped it because of the lambda, now turning it into FileNotFoundException
+            if (e.getCause() instanceof NoSuchFileException) {
+                throw new FileNotFoundException("File \"" + source + "\" does not exist");
+            }
+        }
     }
 
     @Override
     public synchronized void close() throws IOException {
         deletePendingFiles();
-        env.close();
+        underlyingCloseable.close();
 
         closed = true;
         var filesCache = SharedOpenFilesCache.getInstance();
@@ -354,9 +379,9 @@ public class XodusNonXodusDirectory extends Directory implements CacheDataProvid
     public void deleteFile(String name) throws IOException {
         ensureOpen();
 
-        final var fileDesc = fileNameRegistry.removeByIndexName(name);
+        final var address = fileNameRegistry.remove(name);
 
-        pendingDeletes.put(name, fileDesc);
+        pendingDeletes.put(name, address);
         privateDeleteFile(name);
 
         maybeDeletePendingFiles();
@@ -395,30 +420,27 @@ public class XodusNonXodusDirectory extends Directory implements CacheDataProvid
         }
     }
 
-    private synchronized void privateDeleteFile(String indexFileName) {
+    private synchronized void privateDeleteFile(String fileName) {
         var cache = SharedOpenFilesCache.getInstance();
-        pendingDeletes.compute(indexFileName, (k, fileDesc) -> {
-            if (fileDesc == null) {
+        pendingDeletes.compute(fileName, (k, address) -> {
+            if (address == null) {
                 return null;
             }
 
             try {
                 if (cache != null) {
-                    cache.removeFile(fileDesc.filePath().toFile());
+                    cache.removeFile(filePath(fileName).toFile());
                 }
 
-                Files.deleteIfExists(fileDesc.filePath());
-
-                if (cipherKey != null) {
-                    Files.deleteIfExists(fileDesc.ivFilePath());
-                }
+                Files.deleteIfExists(filePath(fileName));
+                Files.deleteIfExists(metadataPath(fileName));
 
                 return null;
             } catch (IOException ioe) {
                 // On windows, a file delete can fail because there's still an open
                 // file handle against it.  We record this in pendingDeletes and
                 // try again later.
-                return fileDesc;
+                return address;
             }
         });
     }
@@ -432,16 +454,22 @@ public class XodusNonXodusDirectory extends Directory implements CacheDataProvid
     @Override
     public byte[] readPage(long pageAddress, long fileAddress) {
         var filesCache = SharedOpenFilesCache.getInstance();
-        final var fileDesc = fileNameRegistry.lookupByAddress(fileAddress);
+        final String fileName;
+        try {
+            fileName = fileNameRegistry.nameByAddress(fileAddress);
+        } catch (FileNotFoundException e) {
+            throw new ExodusException(e);
+        }
+
         var pageOffset = pageAddress - fileAddress;
 
         var page = new byte[pageSize];
 
         int dataRead;
-        try (var file = filesCache.getCachedFile(fileDesc.filePath().toFile())) {
+        try (var file = filesCache.getCachedFile(filePath(fileName).toFile())) {
             dataRead = DirUtil.readFully(file, pageOffset, page);
         } catch (IOException e) {
-            throw new ExodusException("Can not access file " + fileDesc.filePath(), e);
+            throw new ExodusException("Can not access file " + filePath(fileName), e);
         }
 
         if (cipherKey != null) {
@@ -462,12 +490,14 @@ public class XodusNonXodusDirectory extends Directory implements CacheDataProvid
     @Override
     public IndexInput openInput(String name, IOContext context) throws IOException {
         ensureOpen();
-        var fileDesc = fileNameRegistry.lookupByIndexName(name);
-        var fileSize = Files.size(fileDesc.filePath());
+        var address = fileNameRegistry.addressByName(name);
+        var fileSize = Files.size(filePath(name));
 
         return new XodusIndexInput(
-                "XodusIndexInput(path=\"" + fileDesc.filePath() + "\")",
-                fileDesc.address(), cipherKey == null ? 0 : Long.BYTES, fileSize
+                "XodusIndexInput(path=\"" + filePath(name) + "\")",
+                address,
+                cipherKey == null ? 0 : Long.BYTES,
+                fileSize
         );
     }
 
@@ -481,10 +511,6 @@ public class XodusNonXodusDirectory extends Directory implements CacheDataProvid
     }
 
 
-    private static long asHashedIv(long iv) {
-        return iv * 6364136223846793005L - 4019793664819917546L;
-    }
-
     private OutputStream openOutputStream(String fileName) throws IOException {
         var fileStream = Files.newOutputStream(luceneOutput.resolve(fileName), StandardOpenOption.WRITE,
                 StandardOpenOption.CREATE_NEW);
@@ -492,10 +518,8 @@ public class XodusNonXodusDirectory extends Directory implements CacheDataProvid
             return fileStream;
         }
 
-        return new StreamCipherOutputStream(fileStream, cipherKey, cipherProvider,
-                ivGen, ivRnd, pageSize);
+        return new StreamCipherOutputStream(fileStream, cipherKey, cipherProvider, ivGenerator, pageSize);
     }
-
 
     final class XodusIndexOutput extends OutputStreamIndexOutput {
         /**
@@ -514,7 +538,6 @@ public class XodusNonXodusDirectory extends Directory implements CacheDataProvid
         final OutputStream os;
 
         XodusIndexOutput(String outputFileName, String indexName, boolean storeivFile, OutputStream stream) {
-            // todo: should we really pass outputFileName as "name" here?
             super("XodusIndexOutput(path=\"" + luceneOutput.resolve(outputFileName) + "\")", outputFileName,
                     new FilterOutputStream(stream) {
                         // This implementation ensures, that we never write more than CHUNK_SIZE bytes:
@@ -536,7 +559,6 @@ public class XodusNonXodusDirectory extends Directory implements CacheDataProvid
             this.os = stream;
         }
 
-
         @Override
         public String getName() {
             return indexName;
@@ -550,21 +572,20 @@ public class XodusNonXodusDirectory extends Directory implements CacheDataProvid
             super.close();
 
             var fileAddress = occupyNextFileAddress(outputFilePath);
-            var fileDesc = fileNameRegistry.createFileDescription(indexName, fileAddress);
 
             try {
-                Files.move(outputFilePath, fileDesc.filePath(), StandardCopyOption.ATOMIC_MOVE);
+                Files.move(outputFilePath, filePath(indexName), StandardCopyOption.ATOMIC_MOVE);
             } catch (AtomicMoveNotSupportedException e) {
-                Files.move(outputFilePath, fileDesc.filePath());
+                Files.move(outputFilePath, filePath(indexName));
             }
 
-            if (storeivFile) {
-                try (var ivStream = new DataOutputStream(Files.newOutputStream(fileDesc.ivFilePath()))) {
-                    ivStream.writeLong(((StreamCipherOutputStream) os).maxIv);
-                }
-            }
+            saveMetadataFile(
+                    metadataPath(indexName),
+                    fileAddress,
+                    cipherKey == null ? -1 : ((StreamCipherOutputStream) os).maxIv
+            );
 
-            fileNameRegistry.register(fileDesc);
+            fileNameRegistry.register(indexName, fileAddress);
 
             closed = true;
         }
@@ -584,10 +605,7 @@ public class XodusNonXodusDirectory extends Directory implements CacheDataProvid
         private final byte[] cipherKey;
         private final StreamCipher cipher;
 
-        private final AtomicLong ivGen;
-
-        private final Random ivRnd;
-
+        private final IvGenerator ivGenerator;
 
         private final int pageSize;
 
@@ -601,12 +619,11 @@ public class XodusNonXodusDirectory extends Directory implements CacheDataProvid
         public StreamCipherOutputStream(final @NotNull OutputStream out,
                                         final byte @NotNull [] cipherKey,
                                         final @NotNull StreamCipherProvider cipherProvider,
-                                        final @NotNull AtomicLong ivGen,
-                                        final Random ivRnd, final int pageSize) throws IOException {
+                                        final IvGenerator ivGenerator,
+                                        final int pageSize) throws IOException {
             super(out);
 
-            this.ivGen = ivGen;
-            this.ivRnd = ivRnd;
+            this.ivGenerator = ivGenerator;
             this.cipherKey = cipherKey;
 
             cipher = cipherProvider.newCipher();
@@ -616,12 +633,14 @@ public class XodusNonXodusDirectory extends Directory implements CacheDataProvid
             generateAndStoreCipher();
         }
 
-
         private void generateAndStoreCipher() throws IOException {
-            final long iv = asHashedIv(ivGen.getAndAdd(ivRnd.nextInt(16)));
+            final long unhashedIv = ivGenerator.generate();
+
+            maxIv = unhashedIv;
+
+            final long iv = hashedIv(unhashedIv);
 
             cipher.init(cipherKey, iv);
-            maxIv = iv;
             var rawIv = new byte[Long.BYTES];
 
             LONG_VAR_HANDLE.set(rawIv, 0, iv);
@@ -629,6 +648,9 @@ public class XodusNonXodusDirectory extends Directory implements CacheDataProvid
             position += Long.BYTES;
         }
 
+        private static long hashedIv(long iv) {
+            return iv * 6364136223846793005L - 4019793664819917546L;
+        }
 
         @Override
         public void write(int b) throws IOException {
@@ -998,7 +1020,6 @@ public class XodusNonXodusDirectory extends Directory implements CacheDataProvid
                     movePosition(positionOffset);
                 }
 
-//                throw new IOException("Invalid vLong detected (negative values disallowed)");
             } else {
                 return super.readVLong();
             }
@@ -1052,6 +1073,28 @@ public class XodusNonXodusDirectory extends Directory implements CacheDataProvid
     protected void ensureOpen() throws AlreadyClosedException {
         if (closed) {
             throw new AlreadyClosedException("Directory " + rootPath + " already closed");
+        }
+    }
+
+    /**
+     * Read address and IV from a metadata file
+     */
+    public long[] readMetadataFile(Path metadataPath) throws IOException {
+        try (DataInputStream input = new DataInputStream(Files.newInputStream(metadataPath))) {
+            return new long[]{
+                    input.readLong(),
+                    cipherKey != null ? input.readLong() : -1
+            };
+        }
+    }
+
+    public void saveMetadataFile(Path metadataPath, long address, long iv) throws IOException {
+
+        try (var ivStream = new DataOutputStream(Files.newOutputStream(metadataPath))) {
+            ivStream.writeLong(address);
+            if (cipherKey != null) {
+                ivStream.writeLong(iv);
+            }
         }
     }
 }

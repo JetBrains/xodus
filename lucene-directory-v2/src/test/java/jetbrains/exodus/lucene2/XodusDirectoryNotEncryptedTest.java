@@ -31,12 +31,12 @@ import java.nio.file.Path;
 @TestRuleLimitSysouts.Limit(bytes = 30 * 1024)
 public class XodusDirectoryNotEncryptedTest extends XodusDirectoryBaseTest {
     @Override
-    protected Directory getDirectory(Path path) throws IOException {
+    protected EnvironmentConfig getEnvironmentConfig() {
         final EnvironmentConfig config = new EnvironmentConfig();
         config.setLogCachePageSize(1024);
         config.removeSetting(EnvironmentConfig.CIPHER_ID);
         config.removeSetting(EnvironmentConfig.CIPHER_KEY);
 
-        return XodusNonXodusDirectory.fromXodusEnv(Environments.newInstance(path.toFile(), config));
+        return config;
     }
 }

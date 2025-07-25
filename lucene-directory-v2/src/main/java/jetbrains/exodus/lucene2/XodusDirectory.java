@@ -447,29 +447,36 @@ public class XodusDirectory extends Directory implements CacheDataProvider {
     }
 
     @Override
-    public void rename(String source, String dest) {
+    public void rename(String source, String dest) throws FileNotFoundException {
         ensureOpen();
 
         maybeDeletePendingFiles();
 
-        environment.executeInTransaction(txn -> {
-            var fromKey = StringBinding.stringToEntry(source);
-            var value = nameToAddressStore.get(txn, fromKey);
+        try {
+            environment.executeInTransaction(txn -> {
+                var fromKey = StringBinding.stringToEntry(source);
+                var value = nameToAddressStore.get(txn, fromKey);
 
-            if (value == null) {
-                throw new ExodusException("File " + source + " does not exist.");
+                if (value == null) {
+                    throw new ExodusException("File " + source + " does not exist.");
+                }
+
+                var address = LongBinding.entryToLong(value);
+                if (address < 0) {
+                    throw new ExodusException("File " + source + " does not exist.");
+                }
+
+                nameToAddressStore.delete(txn, fromKey);
+
+                var toKey = StringBinding.stringToEntry(dest);
+                nameToAddressStore.put(txn, toKey, value);
+            });
+        } catch (ExodusException e) {
+            if (e.getMessage().equals("File " + source + " does not exist.")) {
+                throw new FileNotFoundException(e.getMessage());
             }
-
-            var address = LongBinding.entryToLong(value);
-            if (address < 0) {
-                throw new ExodusException("File " + source + " does not exist.");
-            }
-
-            nameToAddressStore.delete(txn, fromKey);
-
-            var toKey = StringBinding.stringToEntry(dest);
-            nameToAddressStore.put(txn, toKey, value);
-        });
+            throw e;
+        }
     }
 
     @Override
