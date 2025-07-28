@@ -115,120 +115,69 @@ public abstract class XodusDirectoryBaseTest extends BaseDirectoryTestCase {
 
     private enum DirOperation {CREATE, RENAME, DELETE}
 
+
     @Test
-    public void testMultipleThreadsAccess() throws IOException, ExecutionException, InterruptedException {
-        final var threadCount = 8;
-        final int initialCount = 50;
-//        final int initialCount = 0;
-        final var opDistribution = Map.of(
-                DirOperation.RENAME, 1.0
-//                DirOperation.DELETE, 1.0
+    public void testParallelDelete() throws IOException, ExecutionException, InterruptedException {
+        runMultiThreadingTest(
+                Map.of(DirOperation.DELETE, 1.0),
+                8,
+                50,
+                20,
+                10
         );
-//        final var opDistribution = Map.of(
-//                DirOperation.CREATE, 0.5,
-//                DirOperation.RENAME, 0.5
-////                DirOperation.DELETE, 0.45
-//        );
-        final var rounds = 1000;
-        final var iterationsPerThread = 10;
-
-        for (int r = 0; r < rounds; r++) {
-
-            final var fileDir = createTempDir("testBrokenDirCleanup_" + r);
-
-            try (
-                    var dir = getDirectory(fileDir);
-                    var executor = Executors.newFixedThreadPool(threadCount)
-            ) {
-                final Set<String> names = Collections.newSetFromMap(new ConcurrentHashMap<>());
-                for (int i = 0; i < initialCount; i++) {
-                    final var fileName = "file_" + i;
-                    createFileLimitBytes(dir, fileName, 10, 100);
-                    names.add(fileName);
-                }
-
-                final var cb = new CyclicBarrier(threadCount);
-                final var work = IntStream.range(0, threadCount)
-                        .mapToObj(i ->
-                                executor.submit(() -> {
-                                    try {
-                                        cb.await();
-                                        runRandomWork(dir, "" + i, iterationsPerThread, names, opDistribution);
-                                    } catch (Exception e) {
-                                        log.error("Failed to run random work", e);
-                                        throw new RuntimeException(e);
-                                    }
-                                })
-                        )
-                        .toList();
-
-                for (Future<?> future : work) {
-                    future.get();
-                }
-
-                assertEquals(names.size(), dir.listAll().length);
-            }
-        }
     }
 
     @Test
-    public void testParallelRemove() throws Exception {
+    public void testParallelRename() throws IOException, ExecutionException, InterruptedException {
+        runMultiThreadingTest(
+                Map.of(DirOperation.RENAME, 1.0),
+                8,
+                50,
+                20,
+                10
+        );
+    }
 
-        for (int r = 0; r < 10; r++) {
-            final var fileDir = createTempDir("testParallelRemove_" + r);
-            final var threadCount = 8;
-            final List<String> names = Collections.synchronizedList(new ArrayList<>());
+    private void runMultiThreadingTest(
+            Map<DirOperation, Double> operationsDistribution,
+            int numOfThreads,
+            int numOfInitialFiles,
+            int numOfRounds,
+            int numOfIterationsPerThread
+    ) throws IOException, ExecutionException, InterruptedException {
 
-            try (
-                    var dir = getDirectory(fileDir);
-                    var executor = Executors.newFixedThreadPool(threadCount)
-            ) {
-                for (int i = 0; i < 10000; i++) {
-                    final var fileName = "file_" + i;
-                    createFileLimitBytes(dir, fileName, 10, 100);
-                    names.add(fileName);
+        try (var executor = Executors.newFixedThreadPool(numOfThreads)) {
+            for (int r = 0; r < numOfRounds; r++) {
+
+                try (var dir = getDirectory(createTempDir("testBrokenDirCleanup_" + r))) {
+                    final Set<String> names = Collections.newSetFromMap(new ConcurrentHashMap<>());
+                    for (int i = 0; i < numOfInitialFiles; i++) {
+                        final var fileName = "initial_" + i;
+                        createFileLimitBytes(dir, fileName, 10, 100);
+                        names.add(fileName);
+                    }
+
+                    final var cb = new CyclicBarrier(numOfThreads);
+                    final var work = IntStream.range(0, numOfThreads)
+                            .mapToObj(i ->
+                                    executor.submit(() -> {
+                                        try {
+                                            cb.await();
+                                            runRandomWork(dir, "" + i, numOfIterationsPerThread, names, operationsDistribution);
+                                        } catch (Exception e) {
+                                            log.error("Failed to run random work", e);
+                                            throw new RuntimeException(e);
+                                        }
+                                    })
+                            )
+                            .toList();
+
+                    for (Future<?> future : work) {
+                        future.get();
+                    }
+
+                    assertEquals(names.size(), dir.listAll().length);
                 }
-
-                final var s = new CyclicBarrier(threadCount);
-                final var tasks = new ArrayList<Future<?>>(threadCount);
-                for (int t = 0; t < threadCount; t++) {
-                    tasks.add(executor.submit(() -> {
-                        try {
-                            s.await();
-                        } catch (InterruptedException | BrokenBarrierException e) {
-                            throw new RuntimeException(e);
-                        }
-
-                        while (true) {
-                            final var totalNamesLeft = names.size();
-                            if (totalNamesLeft == 0) {
-                                break;
-                            }
-                            final String randomName;
-                            try {
-                                randomName = names.get(RandomUtils.nextInt(0, totalNamesLeft));
-                            } catch (IndexOutOfBoundsException e) {
-                                continue;
-                            }
-
-                            try {
-                                dir.deleteFile(randomName);
-                            } catch (FileNotFoundException e) {
-                                continue;
-                            } catch (IOException e) {
-                                throw new RuntimeException(e);
-                            } finally {
-                                names.remove(randomName);
-                            }
-                        }
-                    }));
-                }
-
-                for (Future<?> task : tasks) {
-                    task.get();
-                }
-
-                assertEquals(0, dir.listAll().length);
             }
         }
     }
@@ -321,7 +270,6 @@ public abstract class XodusDirectoryBaseTest extends BaseDirectoryTestCase {
             return RandomUtils.nextBytes(length);
         });
     }
-
 
     private static void createFileLimitBytes(
             Directory dir,

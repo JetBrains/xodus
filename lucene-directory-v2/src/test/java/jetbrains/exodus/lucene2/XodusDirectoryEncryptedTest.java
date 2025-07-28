@@ -38,7 +38,6 @@ public class XodusDirectoryEncryptedTest extends XodusDirectoryBaseTest {
         return config;
     }
 
-
     @Test
     public void testIvGeneration() throws IOException {
         final var fileDir = createTempDir("testIvGeneration");
