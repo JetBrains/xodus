@@ -15,11 +15,17 @@
  */
 package jetbrains.exodus.lucene2;
 
-import java.io.FileNotFoundException;
+import jetbrains.exodus.ExodusException;
+import org.apache.lucene.util.IOFunction;
+import org.apache.lucene.util.IORunnable;
+
 import java.io.IOException;
 import java.nio.file.FileAlreadyExistsException;
+import java.nio.file.NoSuchFileException;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Stream;
 
 class DirectoryFileNamesRegistry {
@@ -27,73 +33,149 @@ class DirectoryFileNamesRegistry {
     private final ConcurrentHashMap<String, Long> name2addr = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<Long, String> addr2name = new ConcurrentHashMap<>();
 
-    public void register(String fileName, long address) {
-        if (address < 0) {
-            throw new IllegalArgumentException("Address cannot be negative: " + address);
-        }
-        addr2name.put(address, fileName);
-        name2addr.put(fileName, address);
+    private final AtomicLong tempAddresses = new AtomicLong(-1);
+
+    public void register(String fileName, long address) throws IOException {
+        materializeAddress(fileName, occupyName(fileName), address);
     }
 
-    public void prepareName(String fileName) throws FileAlreadyExistsException {
-        if (name2addr.putIfAbsent(fileName, -1L) != null) {
-            throw new FileAlreadyExistsException(fileName);
+    public long occupyName(String fileName) throws IOException {
+        final var tempAddr = tempAddresses.getAndDecrement();
+
+        updateAddr2Name(tempAddr, prevName -> {
+            if (prevName != null) {
+                throw new IllegalStateException("Temporary address " + tempAddr + " is already taken, something went wrong.");
+            }
+
+            if (name2addr.putIfAbsent(fileName, tempAddr) != null) {
+                throw new FileAlreadyExistsException(fileName);
+            }
+
+            return fileName;
+        });
+
+        return tempAddr;
+    }
+
+    public void materializeAddress(String fileName, long tempAddress, long realAddress) throws IOException {
+        if (realAddress < 0) {
+            throw new IllegalArgumentException("Address cannot be negative: " + realAddress);
         }
+        if (tempAddress >= 0) {
+            throw new IllegalArgumentException("Temporary address must be negative: " + tempAddress);
+        }
+
+        updateAddr2Name(realAddress, existingName -> {
+            if (existingName != null) {
+                throw new IllegalStateException("Address " + realAddress + " is already taken, something went wrong.");
+            }
+            name2addr.compute(fileName, (n, prevAddress) -> {
+                if (prevAddress == null || prevAddress != tempAddress) {
+                    throw new IllegalStateException("File name " + fileName + " doesn't have a temporary address associated with it, cannot materialize.");
+                }
+
+                return realAddress;
+            });
+
+            return fileName;
+        });
+
+        addr2name.remove(tempAddress);
     }
 
     public long addressByName(String fileName) throws IOException {
         final var address = name2addr.get(fileName);
         if (address == null) {
-            throw new FileNotFoundException("File $fileName does not exist");
+            throw new NoSuchFileException("File " + fileName + " does not exist");
         }
         if (address < 0) {
-            throw new IOException("File " + fileName + " cannot be read because it is being currently written.");
+            throw new IOException("Cannot access file " + fileName + " because it's currently being written.");
         }
         return address;
     }
 
-    public String nameByAddress(long address) throws FileNotFoundException {
+    public String nameByAddress(long address) throws NoSuchFileException {
         if (address < 0) {
             throw new IllegalArgumentException("Address cannot be negative: " + address);
         }
         final var name = addr2name.get(address);
         if (name == null) {
-            throw new FileNotFoundException("File with address $address does not exist");
+            throw new NoSuchFileException("File with address " + address + " does not exist");
         }
         return name;
     }
 
-    public long remove(String fileName) throws FileNotFoundException {
-        final var oldAddr = name2addr.remove(fileName);
-        if (oldAddr == null) {
-            throw new FileNotFoundException("File " + fileName + " does not exist");
-        }
-        addr2name.remove(oldAddr);
-        return oldAddr;
+    public long remove(String fileName) throws IOException {
+        final var address = addressByName(fileName);
+
+        updateAddr2Name(address, existingName -> {
+            if (!Objects.equals(fileName, existingName)) {
+                // has already been removed or renamed
+                throw new NoSuchFileException(fileName);
+            }
+
+            if (name2addr.remove(fileName) == null) {
+                throw new NoSuchFileException(fileName);
+            }
+
+            return null;
+
+        });
+
+        return address;
     }
 
     public void rename(
             String sourceName,
             String destName,
-            Runnable fileMoveAction
+            IORunnable fileMoveAction
     ) throws IOException {
-        final var sourceAddr = addressByName(sourceName);
+        if (Objects.equals(sourceName, destName)) {
+            return;
+        }
+        final var address = addressByName(sourceName);
 
-        // this will allow new name to be instantly available
-        name2addr.put(destName, sourceAddr);
+        updateAddr2Name(address, oldName -> {
+            if (!Objects.equals(oldName, sourceName)) {
+                // has already been removed or renamed
+                throw new NoSuchFileException("File " + sourceName + " does not exist");
+            }
 
-        // making the old name unavailable for read
-        name2addr.remove(sourceName);
+            if (name2addr.putIfAbsent(destName, address) != null) {
+                throw new FileAlreadyExistsException(destName);
+            }
+            if (name2addr.remove(sourceName) == null) {
+                // already removed in parallel thread
+                name2addr.remove(destName, address); // is it safe ?
+                throw new NoSuchFileException("File " + destName + " does not exist");
+            }
 
-        addr2name.compute(sourceAddr, (k, v) -> {
             fileMoveAction.run();
             return destName;
         });
     }
 
-    public Stream<String> indexNames() {
-        return name2addr.entrySet().stream()
+    public Stream<String> fileNames() {
+        return name2addr.entrySet()
+                .stream()
                 .filter(e -> e.getValue() >= 0)
                 .map(Map.Entry::getKey);
+    }
+
+    private void updateAddr2Name(long address, IOFunction<String, String> action) throws IOException {
+        try {
+            addr2name.compute(address, (a, oldName) -> {
+                try {
+                    return action.apply(oldName);
+                } catch (IOException e) {
+                    throw new ExodusException(e);
+                }
+            });
+        } catch (ExodusException e) {
+            if (e.getCause() instanceof IOException) {
+                throw ((IOException) e.getCause());
+            }
+            throw e;
+        }
     }
 }

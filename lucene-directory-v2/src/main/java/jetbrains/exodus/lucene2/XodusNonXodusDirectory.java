@@ -235,9 +235,7 @@ public class XodusNonXodusDirectory extends Directory implements CacheDataProvid
     @Override
     public String[] listAll() {
         ensureOpen();
-        return fileNameRegistry.indexNames()
-                .sorted()
-                .toArray(String[]::new);
+        return fileNameRegistry.fileNames().sorted().toArray(String[]::new);
     }
 
     @Override
@@ -273,12 +271,12 @@ public class XodusNonXodusDirectory extends Directory implements CacheDataProvid
         ensureOpen();
         maybeDeletePendingFiles();
 
-        fileNameRegistry.prepareName(name);
+        final var tempAddress = fileNameRegistry.occupyName(name);
 
         // name of the file in the output folder. it will be moved to the index folder once the output is closed.
         final var outputFileName = name + outputIndex.getAndIncrement();
 
-        return new XodusIndexOutput(outputFileName, name, cipherKey != null, openOutputStream(outputFileName));
+        return new XodusIndexOutput(outputFileName, name, cipherKey != null, openOutputStream(outputFileName), tempAddress);
     }
 
     @Override
@@ -324,10 +322,13 @@ public class XodusNonXodusDirectory extends Directory implements CacheDataProvid
 
     @Override
     public void rename(String source, String dest) throws IOException {
+        if (Objects.equals(source, dest)) {
+            return;
+        }
 
         ensureOpen();
         if (pendingDeletes.containsKey(source)) {
-            throw new FileNotFoundException(
+            throw new NoSuchFileException(
                     "file \"" + source + "\" is pending delete and cannot be moved");
         }
         maybeDeletePendingFiles();
@@ -336,28 +337,16 @@ public class XodusNonXodusDirectory extends Directory implements CacheDataProvid
             pendingDeletes.remove(dest); // watch out if the delete fails, it's back in here
         }
 
-        try {
-            fileNameRegistry.rename(source, dest, () -> {
+        fileNameRegistry.rename(source, dest, () -> {
+            final var destPath = filePath(dest);
+            final var destMetadataPath = metadataPath(dest);
+            final var sourcePath = filePath(source);
+            final var sourceMetadataPath = metadataPath(source);
 
-                final var destPath = filePath(dest);
-                final var destMetadataPath = metadataPath(dest);
-                final var sourcePath = filePath(source);
-                final var sourceMetadataPath = metadataPath(source);
-
-                try {
-                    Files.copy(sourceMetadataPath, destMetadataPath);
-                    DirUtil.tryMoveAtomically(sourcePath, destPath);
-                    Files.delete(sourceMetadataPath);
-                } catch (IOException e) {
-                    throw new ExodusException("Error during renaming of file " + source, e);
-                }
-            });
-        } catch (ExodusException e) {
-            // we've just wrapped it because of the lambda, now turning it into FileNotFoundException
-            if (e.getCause() instanceof NoSuchFileException) {
-                throw new FileNotFoundException("File \"" + source + "\" does not exist");
-            }
-        }
+            Files.copy(sourceMetadataPath, destMetadataPath);
+            DirUtil.tryMoveAtomically(sourcePath, destPath);
+            Files.delete(sourceMetadataPath);
+        });
     }
 
     @Override
@@ -457,7 +446,7 @@ public class XodusNonXodusDirectory extends Directory implements CacheDataProvid
         final String fileName;
         try {
             fileName = fileNameRegistry.nameByAddress(fileAddress);
-        } catch (FileNotFoundException e) {
+        } catch (NoSuchFileException e) {
             throw new ExodusException(e);
         }
 
@@ -532,12 +521,13 @@ public class XodusNonXodusDirectory extends Directory implements CacheDataProvid
         final boolean storeivFile;
 
         final String indexName;
+        final long tempAddress;
 
         boolean closed;
 
         final OutputStream os;
 
-        XodusIndexOutput(String outputFileName, String indexName, boolean storeivFile, OutputStream stream) {
+        XodusIndexOutput(String outputFileName, String indexName, boolean storeivFile, OutputStream stream, long tempAddress) {
             super("XodusIndexOutput(path=\"" + luceneOutput.resolve(outputFileName) + "\")", outputFileName,
                     new FilterOutputStream(stream) {
                         // This implementation ensures, that we never write more than CHUNK_SIZE bytes:
@@ -552,11 +542,12 @@ public class XodusNonXodusDirectory extends Directory implements CacheDataProvid
                         }
                     }, CHUNK_SIZE);
 
-            outputFilePath = luceneOutput.resolve(outputFileName);
+            this.outputFilePath = luceneOutput.resolve(outputFileName);
             this.storeivFile = storeivFile;
 
             this.indexName = indexName;
             this.os = stream;
+            this.tempAddress = tempAddress;
         }
 
         @Override
@@ -585,7 +576,7 @@ public class XodusNonXodusDirectory extends Directory implements CacheDataProvid
                     cipherKey == null ? -1 : ((StreamCipherOutputStream) os).maxIv
             );
 
-            fileNameRegistry.register(indexName, fileAddress);
+            fileNameRegistry.materializeAddress(indexName, tempAddress, fileAddress);
 
             closed = true;
         }

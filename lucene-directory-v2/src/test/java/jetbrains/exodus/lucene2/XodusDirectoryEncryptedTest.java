@@ -50,7 +50,7 @@ public class XodusDirectoryEncryptedTest extends XodusDirectoryBaseTest {
             final var ivs = new ArrayList<Long>();
             try (var dir = getDirectory(fileDir, null, ivs::add)) {
                 for (int i = 0; i < totalFiles; i++) {
-                    createFileLimitPages(dir, "file_" + numOfPages + "_" + i, numOfPages);
+                    randomFileOfNPages(dir, "file_" + numOfPages + "_" + i, numOfPages);
                 }
             }
 
@@ -70,7 +70,7 @@ public class XodusDirectoryEncryptedTest extends XodusDirectoryBaseTest {
         final var ivs1 = new ArrayList<Long>();
         try (var dir = getDirectory(fileDir, null, ivs1::add)) {
             for (int i = 0; i <= 98; i++) {
-                createFileLimitPages(dir, "file_" + i, 1);
+                randomFileOfNPages(dir, "file_" + i, 1);
             }
 
             assertEquals(99, ivs1.size());
@@ -84,7 +84,7 @@ public class XodusDirectoryEncryptedTest extends XodusDirectoryBaseTest {
 
         final var ivs2 = new ArrayList<Long>();
         try (var dir = getDirectory(fileDir, null, ivs2::add)) {
-            createFileLimitPages(dir, "file_99", 1);
+            randomFileOfNPages(dir, "file_99", 1);
 
             assertEquals(1, ivs2.size());
             assertTrue(ivs1.getLast() < ivs2.getFirst());
@@ -99,7 +99,7 @@ public class XodusDirectoryEncryptedTest extends XodusDirectoryBaseTest {
         final var ivs3 = new ArrayList<Long>();
         try (var dir = getDirectory(fileDir, null, ivs3::add)) {
             for (int i = 100; i <= 109; i++) {
-                createFileLimitPages(dir, "file_" + i, 1);
+                randomFileOfNPages(dir, "file_" + i, 1);
             }
 
             assertEquals(10, ivs3.size());
