@@ -20,6 +20,7 @@ import org.apache.lucene.util.IOFunction;
 import org.apache.lucene.util.IORunnable;
 
 import java.io.IOException;
+import java.io.InterruptedIOException;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.NoSuchFileException;
 import java.util.Map;
@@ -40,6 +41,7 @@ class DirectoryFileNamesRegistry {
     }
 
     public long occupyName(String fileName) throws IOException {
+        checkInterrupted();
         final var tempAddr = tempAddresses.getAndDecrement();
 
         updateAddr2Name(tempAddr, prevName -> {
@@ -58,6 +60,7 @@ class DirectoryFileNamesRegistry {
     }
 
     public void materializeAddress(String fileName, long tempAddress, long realAddress) throws IOException {
+        checkInterrupted();
         if (realAddress < 0) {
             throw new IllegalArgumentException("Address cannot be negative: " + realAddress);
         }
@@ -106,6 +109,7 @@ class DirectoryFileNamesRegistry {
     }
 
     public long remove(String fileName) throws IOException {
+        checkInterrupted();
         final var address = addressByName(fileName);
 
         updateAddr2Name(address, existingName -> {
@@ -130,6 +134,7 @@ class DirectoryFileNamesRegistry {
             String destName,
             IORunnable fileMoveAction
     ) throws IOException {
+        checkInterrupted();
         if (Objects.equals(sourceName, destName)) {
             return;
         }
@@ -160,6 +165,12 @@ class DirectoryFileNamesRegistry {
                 .stream()
                 .filter(e -> e.getValue() >= 0)
                 .map(Map.Entry::getKey);
+    }
+
+    public static void checkInterrupted() throws InterruptedIOException {
+        if (Thread.currentThread().isInterrupted()) {
+            throw new InterruptedIOException();
+        }
     }
 
     private void updateAddr2Name(long address, IOFunction<String, String> action) throws IOException {

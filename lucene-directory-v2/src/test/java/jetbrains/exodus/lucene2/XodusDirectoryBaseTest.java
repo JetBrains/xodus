@@ -17,10 +17,10 @@ package jetbrains.exodus.lucene2;
 
 import jetbrains.exodus.env.EnvironmentConfig;
 import jetbrains.exodus.env.Environments;
-import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.RandomUtils;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.tests.store.BaseDirectoryTestCase;
+import org.apache.lucene.util.IOConsumer;
 import org.apache.lucene.util.IORunnable;
 import org.junit.Rule;
 import org.junit.Test;
@@ -41,11 +41,17 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import static jetbrains.exodus.lucene2.XodusDirectoryBaseTest.DirOperation.*;
+
 public abstract class XodusDirectoryBaseTest extends BaseDirectoryTestCase {
 
     private static final Logger log = LoggerFactory.getLogger(XodusDirectoryBaseTest.class);
     @Rule
     public final TestName name = new TestName();
+
+    private static final int DEFAULT_THREADS = 8;
+    private static final int DEFAULT_ROUNDS = 10;
+    private static final int DEFAULT_INTERRUPTION_INTERVAL = 100;
 
     protected abstract EnvironmentConfig getEnvironmentConfig();
 
@@ -72,7 +78,7 @@ public abstract class XodusDirectoryBaseTest extends BaseDirectoryTestCase {
     public void testDurableDir() throws IOException {
 
         final var fileCount = RandomUtils.nextInt(10, 1000);
-        final var content = IntStream.range(0, fileCount)
+        final var expectedContent = IntStream.range(0, fileCount)
                 .boxed()
                 .collect(Collectors.toMap(
                         i -> "file_" + i,
@@ -81,7 +87,7 @@ public abstract class XodusDirectoryBaseTest extends BaseDirectoryTestCase {
 
         final var fileDir = createTempDir("testDurableDir");
         try (Directory dir = getDirectory(fileDir)) {
-            for (Map.Entry<String, byte[]> e : content.entrySet()) {
+            for (Map.Entry<String, byte[]> e : expectedContent.entrySet()) {
                 final var fileName = e.getKey();
                 final var bytes = e.getValue();
                 try (var o = dir.createOutput(fileName, newIOContext(random()))) {
@@ -91,518 +97,534 @@ public abstract class XodusDirectoryBaseTest extends BaseDirectoryTestCase {
         }
 
         try (Directory dir = getDirectory(fileDir)) {
-            validateDirectoryContent(dir, content);
+            checkDirContent(expectedContent, getDirectoryContent(dir), 0);
         }
     }
 
+    @Test
+    public void simple_createSameFile() throws IOException {
+        // two files being created by 8 threads, only 2 win
+        final var name1 = "name_1";
+        final var name2 = "name_2";
 
-    private enum DirOperation {CREATE, RENAME, DELETE}
+        simpleScenarioTest(
+                DEFAULT_ROUNDS, DEFAULT_THREADS,
+                dir -> {
+                },
+                (dir, get, r, t, i) -> ignoreFileException(() ->
+                        dir.createFile(t % 2 == 0 ? name1 : name2)
+                ),
+                DirOperationsVerifier.match(
+                        isCreate(name1::equals),
+                        isCreate(name2::equals)
+                )
+        );
+    }
+
+    @Test
+    public void simple_deleteSameFile() throws IOException {
+        // two files being deleted by 8 threads, only 2 win
+        final var name1 = "name_1";
+        final var name2 = "name_2";
+
+        simpleScenarioTest(
+                DEFAULT_ROUNDS, DEFAULT_THREADS,
+                dir -> {
+                    dir.createFile(name1);
+                    dir.createFile(name2);
+                },
+                (dir, get, r, t, i) -> ignoreFileException(() ->
+                        dir.deleteFile(t % 2 == 0 ? name1 : name2)
+                ),
+                DirOperationsVerifier.match(
+                        isDelete(name1::equals),
+                        isDelete(name2::equals)
+                )
+        );
+    }
+
+    @Test
+    public void simple_renameSameFile() throws IOException {
+        // same file being renamed by 8 threads, only 1 win
+        final var oldFileName = "old_name";
+        final var newNamePrefix = "new_name";
+        simpleScenarioTest(
+                DEFAULT_ROUNDS, DEFAULT_THREADS,
+                dir -> dir.createFile(oldFileName),
+                (dir, gen, r, t, i) -> ignoreFileException(() ->
+                        dir.renameFile(oldFileName, newNamePrefix + t)
+                ),
+                DirOperationsVerifier.match(
+                        isRename(oldFileName::equals, n -> n.startsWith(newNamePrefix))
+                )
+        );
+    }
+
+    @Test
+    public void simple_renameIntoSameFile() throws IOException {
+        // 8 files being renamed to the same name by 8 threads, only 1 wins
+        final var oldFilePrefix = "old_name";
+        final var newFileName = "new_name";
+        final var numberOfThreads = DEFAULT_THREADS;
+        simpleScenarioTest(
+                DEFAULT_ROUNDS, numberOfThreads,
+                dir -> dir.createNFiles(oldFilePrefix, numberOfThreads),
+                (dir, gen, r, t, i) -> ignoreFileException(() ->
+                        dir.renameFile(oldFilePrefix + t, newFileName)
+                ),
+                DirOperationsVerifier.match(
+                        isRename(n -> n.startsWith(oldFilePrefix), newFileName::equals)
+                )
+        );
+    }
+
+    @Test
+    public void simple_sameRename() throws IOException {
+        // 8 threads doing the same rename operation, only 1 wins
+        final var oldName = "old_name";
+        final var newName = "new_name";
+        simpleScenarioTest(
+                DEFAULT_ROUNDS, DEFAULT_THREADS,
+                dir -> dir.createFile(oldName),
+                (dir, gen, r, t, i) -> ignoreFileException(() ->
+                        dir.renameFile(oldName, newName)
+                ),
+                DirOperationsVerifier.match(
+                        isRename(oldName::equals, newName::equals)
+                )
+        );
+    }
+
+    @Test
+    public void simple_renameAndDelete() throws IOException {
+        // 8 threads, attempting to rename or delete same file, only 1 wins (either delete or remove)
+        final var oldName = "old_name";
+        final var newName = "new_name";
+        simpleScenarioTest(
+                DEFAULT_ROUNDS, DEFAULT_THREADS,
+                dir -> dir.createFile(oldName),
+                (dir, gen, r, t, i) -> ignoreFileException(() -> {
+                    if (t % 2 == 0) {
+                        dir.deleteFile(oldName);
+                    } else {
+                        dir.renameFile(oldName, newName);
+                    }
+                }),
+                DirOperationsVerifier.match(
+                        isRename(oldName::equals, newName::equals).or(isDelete(oldName::equals))
+                )
+        );
+    }
 
 
     @Test
-    public void testParallelCreate() throws IOException, ExecutionException, InterruptedException {
-        runMultiThreadedRandomTest(
-                "testParallelCreate",
-                Map.of(DirOperation.CREATE, 1.0),
+    public void random_create() throws IOException {
+        randomScenariosTest(
+                Map.of(DirOperationType.CREATE, 1.0),
                 () -> new RandomNameGenerator("file_", 200),
-                8,
+                DEFAULT_ROUNDS,
                 0,
-                20,
+                DEFAULT_THREADS,
                 30
         );
     }
 
     @Test
-    public void testParallelCreateHighContention() throws IOException, ExecutionException, InterruptedException {
+    public void random_createHighContention() throws IOException {
         // all threads are trying to create files with the same name
-        runMultiThreadedRandomTest(
-                "testParallelCreateHighContention",
-                Map.of(DirOperation.CREATE, 1.0),
+        randomScenariosTest(
+                Map.of(DirOperationType.CREATE, 1.0),
                 () -> new PooledNameGenerator("file_", 200),
-                8,
+                DEFAULT_ROUNDS,
                 0,
-                30,
+                DEFAULT_THREADS,
                 20
         );
     }
 
     @Test
-    public void testParallelDelete() throws IOException, ExecutionException, InterruptedException {
-        runMultiThreadedRandomTest(
-                "testParallelDelete",
-                Map.of(DirOperation.DELETE, 1.0),
-                UniqueFileNameGenerator::new, // not used in this test
-                8,
+    public void random_delete() throws IOException {
+        randomScenariosTest(
+                Map.of(DirOperationType.DELETE, 1.0),
+                UniqueFileNameGenerator::new,
+                DEFAULT_ROUNDS,
                 80,
-                20,
+                DEFAULT_THREADS,
                 10
         );
     }
 
     @Test
-    public void testParallelRename() throws IOException, ExecutionException, InterruptedException {
-        runMultiThreadedRandomTest(
-                "TestParallelRename",
-                Map.of(DirOperation.RENAME, 1.0),
+    public void random_rename() throws IOException {
+        randomScenariosTest(
+                Map.of(DirOperationType.RENAME, 1.0),
                 () -> new RandomNameGenerator("file_", 200),
-                8,
+                DEFAULT_ROUNDS,
                 50,
-                20,
+                DEFAULT_THREADS,
                 10
         );
     }
 
     @Test
-    public void testParallelRenameHighContention() throws IOException, ExecutionException, InterruptedException {
-        runMultiThreadedRandomTest(
-                "TestParallelRename",
-                Map.of(DirOperation.RENAME, 1.0),
+    public void random_renameHighContention() throws IOException {
+        randomScenariosTest(
+                Map.of(DirOperationType.RENAME, 1.0),
                 () -> new PooledNameGenerator("file_", 200),
-                8,
+                DEFAULT_ROUNDS,
                 50,
-                20,
+                DEFAULT_THREADS,
                 10
         );
     }
 
     @Test
-    public void testParallelDeleteRename() throws IOException, ExecutionException, InterruptedException {
-        runMultiThreadedRandomTest(
-                "testParallelDeleteRename",
+    public void random_deleteRename() throws IOException {
+        randomScenariosTest(
                 Map.of(
-                        DirOperation.DELETE, 0.5,
-                        DirOperation.RENAME, 0.5
+                        DirOperationType.DELETE, 0.5,
+                        DirOperationType.RENAME, 0.5
                 ),
                 UniqueFileNameGenerator::new,
-                8,
+                DEFAULT_ROUNDS,
                 500,
-                20,
+                DEFAULT_THREADS,
                 100
         );
     }
 
     @Test
-    public void testParallelWork() throws IOException, ExecutionException, InterruptedException {
-        runMultiThreadedRandomTest(
-                "testParallelWork",
+    public void random_createRenameDelete() throws IOException {
+        randomScenariosTest(
                 Map.of(
-                        DirOperation.CREATE, 0.4,
-                        DirOperation.DELETE, 0.3,
-                        DirOperation.RENAME, 0.3
+                        DirOperationType.CREATE, 0.4,
+                        DirOperationType.DELETE, 0.3,
+                        DirOperationType.RENAME, 0.3
                 ),
                 UniqueFileNameGenerator::new,
-                8,
+                DEFAULT_ROUNDS,
                 0,
-                20,
+                DEFAULT_THREADS,
                 100
         );
     }
 
     @Test
-    public void testParallelRenameSameFile() throws IOException, ExecutionException, InterruptedException {
-        // renaming a single file in parallel. only one rename must win.
-
-        final var threadCount = 8;
-        final var rounds = 20;
-
-        try (var executor = Executors.newFixedThreadPool(threadCount)) {
-            for (int r = 0; r < rounds; r++) {
-                final Map<String, byte[]> directoryContent;
-                final var fileDir = createTempDir("parallel_rename_" + r);
-                try (var dir = getDirectory(fileDir)) {
-                    final var oldName = "name_1";
-                    final var content = randomFileOfSize(dir, oldName, 10, 100);
-
-                    final var cb = new CyclicBarrier(threadCount);
-
-                    final var futures = new ArrayList<Future<String>>();
-                    for (int i = 0; i < threadCount; i++) {
-                        final var tid = i;
-                        futures.add(executor.submit(() -> {
-                            try {
-                                final var newName = "new_name_" + tid;
-                                cb.await();
-                                dir.rename(oldName, newName);
-                                return newName;
-                            } catch (NoSuchFileException e) {
-                                // that's fine
-                                return null;
-                            } catch (InterruptedException | BrokenBarrierException | IOException e) {
-                                throw new RuntimeException(e);
-                            }
-                        }));
-                    }
-
-                    final var successfulRenames = new ArrayList<String>();
-                    for (var future : futures) {
-                        final var result = future.get();
-                        if (result != null) {
-                            successfulRenames.add(result);
-                        }
-                    }
-
-                    assertEquals(1, successfulRenames.size());
-
-                    final var newName = successfulRenames.getFirst();
-                    directoryContent = Map.of(newName, content);
-
-                    validateDirectoryContent(dir, directoryContent);
-                }
-
-                try (var dir = getDirectory(fileDir)) {
-                    validateDirectoryContent(dir, directoryContent);
-                }
-            }
-        }
+    public void crash_create() throws IOException {
+        randomScenariosCrashTest(
+                Map.of(DirOperationType.CREATE, 1.0),
+                UniqueFileNameGenerator::new,
+                DEFAULT_ROUNDS,
+                0,
+                DEFAULT_THREADS,
+                10000,
+                DEFAULT_INTERRUPTION_INTERVAL,
+                DirContentVerifier.DIR_CAN_CONTAIN_MORE
+        );
     }
 
     @Test
-    public void testParallelRenameIntoSameFile() throws IOException, ExecutionException, InterruptedException {
-        // renaming multiple files with the same new name. only one rename must win.
-
-        final var threadCount = 8;
-        final var rounds = 20;
-
-        try (var executor = Executors.newFixedThreadPool(threadCount)) {
-            for (int r = 0; r < rounds; r++) {
-                final Map<String, byte[]> directoryContent = new HashMap<>();
-                final var fileDir = createTempDir("parallel_rename_" + r);
-                final var newName = "new_name_1";
-
-                try (var dir = getDirectory(fileDir)) {
-                    for (int t = 0; t < threadCount; t++) {
-                        final var oldName = "name_" + t;
-                        final var content = randomFileOfSize(dir, oldName, 10, 100);
-                        directoryContent.put(oldName, content);
-                    }
-
-                    final var cb = new CyclicBarrier(threadCount);
-
-                    final var futures = new ArrayList<Future<String>>();
-                    for (int i = 0; i < threadCount; i++) {
-                        final var tid = i;
-                        futures.add(executor.submit(() -> {
-                            try {
-                                final var oldName = "name_" + tid;
-                                cb.await();
-                                dir.rename(oldName, newName);
-                                return oldName;
-                            } catch (NoSuchFileException | FileAlreadyExistsException e) {
-                                // that's fine
-                                return null;
-                            } catch (InterruptedException | BrokenBarrierException | IOException e) {
-                                throw new RuntimeException(e);
-                            }
-                        }));
-                    }
-
-                    final var successfulRenames = new ArrayList<String>();
-                    for (var future : futures) {
-                        final var result = future.get();
-                        if (result != null) {
-                            successfulRenames.add(result);
-                        }
-                    }
-
-                    assertEquals(1, successfulRenames.size());
-
-                    final var oldName = successfulRenames.getFirst();
-                    final var oldContent = directoryContent.remove(oldName);
-                    directoryContent.put(newName, oldContent);
-
-                    validateDirectoryContent(dir, directoryContent);
-                }
-
-                try (var dir = getDirectory(fileDir)) {
-                    validateDirectoryContent(dir, directoryContent);
-                }
-            }
-        }
+    public void crash_delete() throws IOException {
+        randomScenariosCrashTest(
+                Map.of(DirOperationType.DELETE, 1.0),
+                UniqueFileNameGenerator::new,
+                DEFAULT_ROUNDS,
+                500,
+                DEFAULT_THREADS,
+                10000,
+                DEFAULT_INTERRUPTION_INTERVAL,
+                DirContentVerifier.DIR_CAN_CONTAIN_LESS
+        );
     }
 
     @Test
-    public void testParallelSameRenames() throws IOException, ExecutionException, InterruptedException {
-        // executing same rename operations, but in parallel
-
-        final var threadCount = 8;
-        final var rounds = 20;
-
-        try (var executor = Executors.newFixedThreadPool(threadCount)) {
-            for (int r = 0; r < rounds; r++) {
-                final Map<String, byte[]> directoryContent = new HashMap<>();
-                final var fileDir = createTempDir("parallel_rename_" + r);
-                final var oldName = "name_1";
-                final var newName = "new_name_1";
-
-                try (var dir = getDirectory(fileDir)) {
-                    final var content = randomFileOfSize(dir, oldName, 10, 100);
-                    directoryContent.put(oldName, content);
-
-                    final var cb = new CyclicBarrier(threadCount);
-
-                    final var futures = new ArrayList<Future<Boolean>>();
-                    for (int i = 0; i < threadCount; i++) {
-                        futures.add(executor.submit(() -> {
-                            try {
-                                cb.await();
-                                dir.rename(oldName, newName);
-                                return true;
-                            } catch (NoSuchFileException | FileAlreadyExistsException e) {
-                                // that's fine
-                                return false;
-                            } catch (InterruptedException | BrokenBarrierException | IOException e) {
-                                throw new RuntimeException(e);
-                            }
-                        }));
+    public void crash_rename() throws IOException {
+        randomScenariosCrashTest(
+                Map.of(DirOperationType.RENAME, 1.0),
+                UniqueFileNameGenerator::new,
+                DEFAULT_ROUNDS,
+                500,
+                DEFAULT_THREADS,
+                10000,
+                DEFAULT_INTERRUPTION_INTERVAL,
+                (expected, ignore, actual) -> {
+                    if (!expected.keySet().equals(actual.keySet())) {
+                        log.info("expected and actual mismatch. that is okay");
                     }
-
-                    var successfulRenames = 0;
-                    for (var future : futures) {
-                        final var result = future.get();
-                        if (result) {
-                            successfulRenames++;
-                        }
+                    assertEquals(expected.size(), actual.size());
+                    for (byte[] expectedValue : expected.values()) {
+                        assertTrue(
+                                actual.values().stream().anyMatch(actualValue -> Arrays.equals(expectedValue, actualValue))
+                        );
                     }
-
-                    assertEquals(1, successfulRenames);
-
-                    final var oldContent = directoryContent.remove(oldName);
-                    directoryContent.put(newName, oldContent);
-
-                    validateDirectoryContent(dir, directoryContent);
                 }
-
-                try (var dir = getDirectory(fileDir)) {
-                    validateDirectoryContent(dir, directoryContent);
-                }
-            }
-        }
+        );
     }
 
-    @Test
-    public void testParallelRenameAndDelete() throws IOException, ExecutionException, InterruptedException {
-
-        final var deletingThreads = 1;
-        final var renamingThreads = 1;
-        final var rounds = 20;
-
-        try (var executor = Executors.newFixedThreadPool(deletingThreads + renamingThreads)) {
-            for (int r = 0; r < rounds; r++) {
-                final Map<String, byte[]> directoryContent = new HashMap<>();
-                final var fileDir = createTempDir("delete_remove_test" + r);
-                final var oldName = "name_1";
-                final var newName = "new_name_1";
-
-                try (var dir = getDirectory(fileDir)) {
-                    final var content = randomFileOfSize(dir, oldName, 10, 100);
-                    directoryContent.put(oldName, content);
-
-                    final var cb = new CyclicBarrier(deletingThreads + renamingThreads);
-
-                    final var futures = new ArrayList<Future<String>>();
-                    for (int dt = 0; dt < deletingThreads; dt++) {
-                        futures.add(executor.submit(() -> {
-                            try {
-                                cb.await();
-                                dir.deleteFile(oldName);
-                                return oldName;
-                            } catch (NoSuchFileException e) {
-                                return null;
-                            }
-                        }));
-                    }
-
-                    for (int rt = 0; rt < renamingThreads; rt++) {
-                        futures.add(executor.submit(() -> {
-                            try {
-                                cb.await();
-                                dir.rename(oldName, newName);
-                                return newName;
-                            } catch (NoSuchFileException e) {
-                                return null;
-                            }
-                        }));
-                    }
-
-                    final var successfulOps = new ArrayList<String>();
-                    for (var future : futures) {
-                        final var result = future.get();
-                        if (result != null) {
-                            successfulOps.add(result);
-                        }
-                    }
-
-                    assertEquals(1, successfulOps.size());
-
-                    switch (successfulOps.getFirst()) {
-                        case oldName -> directoryContent.remove(oldName);
-                        case newName -> directoryContent.put(newName, directoryContent.remove(oldName));
-                        default -> fail("");
-                    }
-
-                    validateDirectoryContent(dir, directoryContent);
-                }
-
-                try (var dir = getDirectory(fileDir)) {
-                    validateDirectoryContent(dir, directoryContent);
-                }
-            }
-        }
-    }
-
-    private <RESULT> void runMultiThreadedTest(
-            int numOfThreads,
+    private void multiThreadedTest(
             int numOfRounds,
+            int numOfThreads,
             int numOfIterationsPerThread,
-            int numOfInitialFiles
+            Supplier<FileNameGenerator> fileNameGenerator,
+            IOConsumer<DirectoryWrapper> dirInitializer,
+            DirectoryWork work,
+            long interruptAfterMillis,
+            DirContentVerifier dirContentVerifier,
+            DirOperationsVerifier opsVerifier
     ) throws IOException {
         try (var executor = Executors.newFixedThreadPool(numOfThreads)) {
             for (int r = 0; r < numOfRounds; r++) {
-                final var fileContentRegistry = new ConcurrentHashMap<String, byte[]>();
+                final Map<String, byte[]> expectedDirContent;
+                final Map<String, byte[]> actualDirContent;
+                final List<DirOperation> performedOperations;
                 final var fileDir = createTempDir(name.getMethodName() + "_" + r);
+                final var fileNameGen = fileNameGenerator.get();
 
                 try (var dir = getDirectory(fileDir)) {
-                    for (int i = 0; i < numOfInitialFiles; i++) {
-                        final var fileName = "initial_" + i;
-                        final var content = randomFileOfSize(dir, fileName, 10, 100);
-                        fileContentRegistry.put(fileName, content);
-                    }
+                    final var dirWrapper = new DirectoryWrapper(dir);
+                    dirInitializer.accept(dirWrapper);
+
+                    dirWrapper.enableCollectingLog();
 
                     final var cb = new CyclicBarrier(numOfThreads);
-                    final var futures = new ArrayList<Future<RESULT>>();
-                }
-            }
-        }
-    }
+                    final var futures = new ArrayList<Future<?>>();
 
-//    interface DirectoryWork {
-//        void run(
-//                Map<String, byte[]> directoryContent,
-//                int threadId,
-//                int roundId,
-//                int
-//        ) throws IOException;
-//    }
-
-    private void runMultiThreadedRandomTest(
-            String dirName,
-            Map<DirOperation, Double> operationsDistribution,
-            Supplier<FileNameGenerator> fileNameGeneratorSup,
-            int numOfThreads,
-            int numOfInitialFiles,
-            int numOfRounds,
-            int numOfIterationsPerThread
-    ) throws IOException, ExecutionException, InterruptedException {
-
-        try (var executor = Executors.newFixedThreadPool(numOfThreads)) {
-            for (int r = 0; r < numOfRounds; r++) {
-                final var roundIndex = r;
-                final var fileNameGenerator = fileNameGeneratorSup.get();
-                final var fileContentRegistry = new ConcurrentHashMap<String, byte[]>();
-                final var fileDir = createTempDir(dirName + "_" + r);
-
-                try (var dir = getDirectory(fileDir)) {
-
-                    for (int i = 0; i < numOfInitialFiles; i++) {
-                        final var fileName = "initial_" + i;
-                        final var content = randomFileOfSize(dir, fileName, 10, 100);
-                        fileContentRegistry.put(fileName, content);
+                    for (int t = 0; t < numOfThreads; t++) {
+                        final var roundId = r;
+                        final var threadId = t;
+                        futures.add(executor.submit(() -> {
+                            try {
+                                cb.await();
+                                for (int i = 0; i < numOfIterationsPerThread; i++) {
+                                    work.run(dirWrapper, fileNameGen, roundId, threadId, i);
+                                }
+                            } catch (Exception e) {
+//                                log.error(e.getMessage(), e);
+                                throw new RuntimeException(e);
+                            }
+                        }));
                     }
 
-                    final var cb = new CyclicBarrier(numOfThreads);
-                    final var work = IntStream.range(0, numOfThreads)
-                            .mapToObj(i ->
-                                    executor.submit(() -> {
-                                        try {
-                                            cb.await();
-                                            runRandomWork(dir, roundIndex, i + 1, numOfIterationsPerThread, fileContentRegistry, operationsDistribution, fileNameGenerator);
-                                        } catch (Exception e) {
-                                            log.error("Failed to run random work", e);
-                                            throw new RuntimeException(e);
-                                        }
-                                    })
-                            )
-                            .toList();
-
-                    for (Future<?> future : work) {
-                        future.get();
-                    }
-
-                    validateDirectoryContent(dir, fileContentRegistry);
-                }
-
-                // validate it once again after re-open
-                try (var dir = getDirectory(fileDir)) {
-                    validateDirectoryContent(dir, fileContentRegistry);
-                }
-
-            }
-        }
-    }
-
-    private static void runRandomWork(
-            Directory dir,
-            int roundIdx,
-            int threadIdx,
-            int iterations,
-            Map<String, byte[]> fileContentRegistry,
-            Map<DirOperation, Double> opDistribution,
-            FileNameGenerator fileNameGenerator
-    ) throws IOException {
-
-        for (int i = 0; i < iterations; i++) {
-            final var it = i;
-
-            // choose an operation based on opDistribution probabilities
-            switch (randomValueFromDistribution(opDistribution)) {
-                case CREATE -> {
-                    try {
-                        final var fileName = fileNameGenerator.peekName(roundIdx, threadIdx, it);
-                        final var content = randomFileOfSize(dir, fileName, 10, 100);
-                        fileNameGenerator.nameHasBeenUsed(fileName);
-                        fileContentRegistry.put(fileName, content);
-                    } catch (FileAlreadyExistsException e) {
-                        // this is okay, ignoring it
-                    }
-                }
-                case RENAME -> {
-                    retryWhileException(e -> e instanceof NoSuchFileException || e instanceof FileAlreadyExistsException, () -> {
-                        final var oldName = randomValueFromCollection(fileContentRegistry.keySet());
-
-                        if (oldName != null) {
-                            final var newName = fileNameGenerator.peekName(roundIdx, threadIdx, it);
-                            dir.rename(oldName, newName);
-                            final var oldContent = fileContentRegistry.remove(oldName);
-                            assertNotNull("Empty content for new file " + oldName, oldContent);
-                            fileNameGenerator.nameHasBeenUsed(newName);
-                            fileContentRegistry.put(newName, oldContent);
+                    if (interruptAfterMillis <= 0) {
+                        for (Future<?> f : futures) {
+                            try {
+                                f.get();
+                            } catch (InterruptedException | ExecutionException e) {
+                                throw new RuntimeException(e);
+                            }
                         }
-                    });
-                }
-                case DELETE -> retryWhileException(e -> e instanceof NoSuchFileException, () -> {
-                    final var fileName = randomValueFromCollection(fileContentRegistry.keySet());
-                    if (fileName != null) {
-                        dir.deleteFile(fileName);
-                        fileContentRegistry.remove(fileName);
+                    } else {
+                        sleep(interruptAfterMillis);
+                        for (Future<?> f : futures) {
+                            f.cancel(true);
+                        }
                     }
-                });
+
+                    expectedDirContent = dirWrapper.getContent();
+                    performedOperations = dirWrapper.getOperationLog();
+                    if (interruptAfterMillis <= 0) {
+                        actualDirContent = getDirectoryContent(dir);
+                    } else {
+                        // it's unsafe to do this
+                        actualDirContent = null;
+                    }
+                }
+
+                final Map<String, byte[]> dirContentAfterReopen;
+                // repeat the check once again on a freshly opened directory
+                try (var dir = getDirectory(fileDir)) {
+                    dirContentAfterReopen = getDirectoryContent(dir);
+                }
+
+                dirContentVerifier.verify(expectedDirContent, actualDirContent, dirContentAfterReopen);
+                opsVerifier.verify(performedOperations);
             }
         }
     }
 
-    private static void retryWhileException(Predicate<Exception> retryOn, IORunnable runnable) throws IOException {
+    interface DirContentVerifier {
+        void verify(
+                Map<String, byte[]> expectedDirContent,
+                Map<String, byte[]> actualDirContent,
+                Map<String, byte[]> actualAfterReopen
+        );
+
+        DirContentVerifier SHOULD_EQUAL =
+                (expectedDirContent, actualDirContent, actualAfterReopen) -> {
+                    checkDirContent(expectedDirContent, actualDirContent, 0);
+                    checkDirContent(expectedDirContent, actualAfterReopen, 0);
+                };
+
+        DirContentVerifier DIR_CAN_CONTAIN_MORE =
+                (expectedDirContent, actualDirContent, actualAfterReopen) -> {
+                    logSizeMismatch(expectedDirContent, actualDirContent, actualAfterReopen);
+
+                    checkDirContent(expectedDirContent, actualDirContent, -1);
+                    checkDirContent(actualDirContent, actualAfterReopen, -1);
+                };
+
+        DirContentVerifier DIR_CAN_CONTAIN_LESS =
+                (expectedDirContent, actualDirContent, actualAfterReopen) -> {
+                    logSizeMismatch(expectedDirContent, actualDirContent, actualAfterReopen);
+
+                    checkDirContent(expectedDirContent, actualDirContent, 1);
+                    checkDirContent(actualDirContent, actualAfterReopen, 1);
+                };
+
+        private static void logSizeMismatch(Map<String, byte[]> expectedDirContent, Map<String, byte[]> actualDirContent, Map<String, byte[]> actualAfterReopen) {
+            if (expectedDirContent.size() != actualAfterReopen.size() ||
+                    actualDirContent.size() != actualAfterReopen.size()) {
+                log.info("expected: {}, actual: {}, after reopen: {}", expectedDirContent.size(), actualDirContent.size(), actualAfterReopen.size());
+            }
+        }
+    }
+
+    interface DirOperationsVerifier {
+        void verify(List<DirOperation> operations);
+
+        @SafeVarargs
+        static DirOperationsVerifier match(Predicate<DirOperation>... opMatchers) {
+            return ops -> {
+                final var errorMessage = "Operations on dir do not match the expected: " + ops;
+                assertEquals(errorMessage, opMatchers.length, ops.size());
+                for (Predicate<DirOperation> opMatcher : opMatchers) {
+                    assertTrue(errorMessage, ops.stream().anyMatch(opMatcher));
+                }
+            };
+        }
+
+        DirOperationsVerifier IGNORE = ops -> {
+        };
+    }
+
+    interface DirectoryWork {
+        void run(
+                DirectoryWrapper dir,
+                FileNameGenerator fileNameGenerator,
+                int roundId,
+                int threadId,
+                int iterationId
+        ) throws IOException;
+    }
+
+    private void randomScenariosTest(
+            Map<DirOperationType, Double> opDistribution,
+            Supplier<FileNameGenerator> fileNameGenerator,
+            int numOfRounds,
+            int numOfInitialFiles,
+            int numOfThreads,
+            int numOfIterationsPerThread
+    ) throws IOException {
+        multiThreadedTest(
+                numOfRounds, numOfThreads, numOfIterationsPerThread, fileNameGenerator,
+                (dir) -> dir.createNFiles("initial_", numOfInitialFiles),
+                (dir, fileNameGen, r, t, i) -> {
+                    executeRandomAction(opDistribution, dir, fileNameGen, r, t, i);
+                },
+                -1,
+                DirContentVerifier.SHOULD_EQUAL,
+                DirOperationsVerifier.IGNORE
+        );
+    }
+
+    private void randomScenariosCrashTest(
+            Map<DirOperationType, Double> opDistribution,
+            Supplier<FileNameGenerator> fileNameGenerator,
+            int numOfRounds,
+            int numOfInitialFiles,
+            int numOfThreads,
+            int numOfIterationsPerThread,
+            int interruptAfterMillis,
+            DirContentVerifier dirContentVerifier
+    ) throws IOException {
+        multiThreadedTest(
+                numOfRounds, numOfThreads, numOfIterationsPerThread, fileNameGenerator,
+                (dir) -> dir.createNFiles("initial_", numOfInitialFiles),
+                (dir, fileNameGen, r, t, i) -> {
+                    executeRandomAction(opDistribution, dir, fileNameGen, r, t, i);
+                },
+                interruptAfterMillis,
+                dirContentVerifier,
+                DirOperationsVerifier.IGNORE
+        );
+    }
+
+    private static void executeRandomAction(Map<DirOperationType, Double> opDistribution, DirectoryWrapper dir, FileNameGenerator fileNameGen, int r, int t, int i) throws IOException {
+        // choose an operation based on opDistribution probabilities
+        switch (randomValueFromDistribution(opDistribution)) {
+            case CREATE -> {
+                try {
+                    final var fileName = fileNameGen.peekName(r, t, i);
+                    dir.createFile(fileName);
+                    fileNameGen.nameHasBeenUsed(fileName);
+                } catch (FileAlreadyExistsException e) {
+                    // this is okay, ignoring it
+                }
+            }
+            case RENAME -> retryOnFileException(() -> {
+                final var oldName = randomValueFromCollection(dir.fileNames());
+
+                if (oldName != null) {
+                    final var newName = fileNameGen.peekName(r, t, i);
+                    dir.renameFile(oldName, newName);
+                    fileNameGen.nameHasBeenUsed(newName);
+                }
+            });
+
+            case DELETE -> retryOnFileException(() -> {
+                final var fileName = randomValueFromCollection(dir.fileNames());
+                if (fileName != null) {
+                    dir.deleteFile(fileName);
+                }
+            });
+        }
+    }
+
+    private void simpleScenarioTest(
+            int numOfRounds,
+            int numOfThreads,
+            IOConsumer<DirectoryWrapper> dirInitializer,
+            DirectoryWork work,
+            DirOperationsVerifier operationsVerifier
+    ) throws IOException {
+        multiThreadedTest(
+                numOfRounds, numOfThreads, 1, UniqueFileNameGenerator::new,
+                dirInitializer, work, -1, DirContentVerifier.SHOULD_EQUAL, operationsVerifier
+        );
+    }
+
+    private static void retryOnFileException(IORunnable runnable) throws IOException {
         boolean retry = true;
         while (retry) {
             retry = false;
             try {
                 runnable.run();
             } catch (Exception e) {
-                if (retryOn.test(e)) {
+                if (e instanceof FileAlreadyExistsException || e instanceof NoSuchFileException) {
                     retry = true;
                 } else {
                     throw e;
                 }
             }
+        }
+    }
+
+    private static void sleep(long maxSleep) {
+        try {
+            Thread.sleep(RandomUtils.nextLong(0, maxSleep));
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private static void ignoreFileException(IORunnable runnable) throws IOException {
+        try {
+            runnable.run();
+        } catch (Exception e) {
+            if (e instanceof FileAlreadyExistsException || e instanceof NoSuchFileException) {
+                return;
+            }
+            throw e;
         }
     }
 
@@ -647,27 +669,50 @@ public abstract class XodusDirectoryBaseTest extends BaseDirectoryTestCase {
         );
     }
 
-    private static void validateDirectoryContent(
-            Directory dir,
-            Map<String, byte[]> expectedContent
-    ) throws IOException {
-        final var fileNames = Set.of(dir.listAll());
+    private static Map<String, byte[]> getDirectoryContent(Directory dir) throws IOException {
+        final var dirContent = new HashMap<String, byte[]>();
+        for (String fileName : dir.listAll()) {
 
-        assertEquals(
-                expectedContent.keySet().stream().sorted().toList(),
-                fileNames.stream().sorted().toList()
-        );
-
-        for (String fileName : expectedContent.keySet()) {
-            final var expectedBytes = expectedContent.get(fileName);
             try (var i = dir.openInput(fileName, newIOContext(random()))) {
 
-                assertEquals(expectedBytes.length, i.length());
+                final var fileBytes = new byte[(int) i.length()];
+                i.readBytes(fileBytes, 0, fileBytes.length);
 
-                final var actualBytes = new byte[expectedBytes.length];
-                i.readBytes(actualBytes, 0, actualBytes.length);
+                dirContent.put(fileName, fileBytes);
+            }
+        }
 
-                assertArrayEquals(expectedBytes, actualBytes);
+        return Collections.unmodifiableMap(dirContent);
+    }
+
+    private static void checkDirContent(
+            Map<String, byte[]> left,
+            Map<String, byte[]> right,
+            int comparison
+    ) {
+
+        if (comparison < 0) {
+            final Set<String> leftNames = new HashSet<>(left.keySet());
+            // left < right
+            leftNames.removeAll(right.keySet());
+            assertTrue(leftNames.isEmpty());
+        } else if (comparison > 0) {
+            final Set<String> rightNames = new HashSet<>(right.keySet());
+
+            // left > right
+            rightNames.removeAll(left.keySet());
+            assertTrue(rightNames.isEmpty());
+        } else {
+            assertEquals(left.keySet(), right.keySet());
+        }
+
+        for (var e : left.entrySet()) {
+
+            final var leftName = e.getKey();
+            final var leftBytes = e.getValue();
+            final var rightBytes = right.get(leftName);
+            if (rightBytes != null) {
+                assertArrayEquals(leftBytes, rightBytes);
             }
         }
     }
@@ -688,7 +733,7 @@ public abstract class XodusDirectoryBaseTest extends BaseDirectoryTestCase {
         throw new IllegalArgumentException("Distribution is invalid");
     }
 
-    private interface FileNameGenerator {
+    interface FileNameGenerator {
         String peekName(int roundIdx, int threadIdx, int iterationIdx);
 
         void nameHasBeenUsed(String name);
@@ -716,14 +761,10 @@ public abstract class XodusDirectoryBaseTest extends BaseDirectoryTestCase {
 
         @Override
         public void nameHasBeenUsed(String name) {
-            final var oldName = namesPool.remove();
-
-            // looks like this check breaks rename tests, and this scenario is valid.
-//            if (!name.equals(oldName)) {
-//                throw new IllegalArgumentException("This generator is being used in a not-correct way, names mismatch: " + oldName + " vs. " + name);
-//            }
+            namesPool.remove();
         }
     }
+
 
     class RandomNameGenerator implements FileNameGenerator {
         private final String prefix;
@@ -746,7 +787,6 @@ public abstract class XodusDirectoryBaseTest extends BaseDirectoryTestCase {
     }
 
     static class UniqueFileNameGenerator implements FileNameGenerator {
-        private final Set<String> usedNames = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
         @Override
         public String peekName(int roundIdx, int threadIdx, int iterationIdx) {
@@ -758,31 +798,107 @@ public abstract class XodusDirectoryBaseTest extends BaseDirectoryTestCase {
         }
     }
 
-    @Test
-    public void testMMapDir() throws IOException {
-        final var fileDir = createTempDir();
-        try (var dir = getDirectory(fileDir)) {
-            final var bytes1 = RandomUtils.nextBytes(32 * 1024);
-            final var bytes2 = RandomUtils.nextBytes(32 * 1024);
+    static class DirectoryWrapper {
+        private final Directory dir;
+        private final Map<String, byte[]> dirState = new ConcurrentHashMap<>();
+        private volatile boolean collectLog = false;
+        private final Queue<DirOperation> operationLog = new ConcurrentLinkedQueue<>();
 
-            try (var out = dir.createOutput("file1", newIOContext(random()))) {
-                out.writeBytes(bytes1, bytes1.length);
+        DirectoryWrapper(Directory dir) {
+            this.dir = dir;
+        }
 
-                try (var in1 = dir.openInput("file1", newIOContext(random()))) {
-                    final var bytes = new byte[((int) in1.length())];
-                    in1.readBytes(bytes, 0, bytes.length);
-                    assertArrayEquals(bytes1, bytes);
-                }
+        Map<String, byte[]> getContent() {
+            return dirState;
+        }
 
-                out.writeBytes(bytes2, bytes2.length);
+        public void enableCollectingLog() {
+            this.collectLog = true;
+        }
 
-                try (var in2 = dir.openInput("file1", newIOContext(random()))) {
-                    final var bytes =  new byte[((int) in2.length())];
-                    in2.readBytes(bytes, 0, bytes.length);
-                    assertArrayEquals(ArrayUtils.addAll(bytes1, bytes2), bytes);
-                }
+        public List<DirOperation> getOperationLog() {
+            return operationLog.stream().toList();
+        }
+
+        void createNFiles(String prefix, int n) throws IOException {
+            for (int i = 0; i < n; i++) {
+                createFile(prefix + i);
             }
+        }
 
+        void createFile(String name) throws IOException {
+            dirState.put(name, randomFileOfSize(dir, name, 10, 100));
+            logOperation(DirOperation.create(name));
+        }
+
+        void renameFile(String oldName, String newName) throws IOException {
+
+            dir.rename(oldName, newName);
+            final var oldContent = dirState.remove(oldName);
+            assertNotNull("Empty content for new file " + oldName, oldContent);
+            dirState.put(newName, oldContent);
+            logOperation(DirOperation.rename(oldName, newName));
+        }
+
+        void deleteFile(String fileName) throws IOException {
+            dir.deleteFile(fileName);
+            dirState.remove(fileName);
+            logOperation(DirOperation.delete(fileName));
+        }
+
+        private void logOperation(DirOperation op) {
+            if (collectLog) {
+                operationLog.add(op);
+            }
+        }
+
+        Set<String> fileNames() {
+            return dirState.keySet();
+        }
+    }
+
+    enum DirOperationType {CREATE, RENAME, DELETE}
+
+    record DirOperation(
+            DirOperationType type,
+            String name,
+            String oldName
+    ) {
+        static DirOperation create(String name) {
+            return new DirOperation(DirOperationType.CREATE, name, null);
+        }
+
+        static DirOperation rename(String oldName, String newName) {
+            return new DirOperation(DirOperationType.RENAME, newName, oldName);
+        }
+
+        static DirOperation delete(String name) {
+            return new DirOperation(DirOperationType.DELETE, name, null);
+        }
+
+        private static Predicate<DirOperation> match(
+                DirOperationType type,
+                Predicate<String> nameMatch,
+                Predicate<String> oldNameMatch
+        ) {
+            return p -> p.type == type &&
+                    nameMatch.test(p.name) &&
+                    oldNameMatch.test(p.oldName);
+        }
+
+        static Predicate<DirOperation> isRename(
+                Predicate<String> oldNameMatch,
+                Predicate<String> nameMatch
+        ) {
+            return match(DirOperationType.RENAME, nameMatch, oldNameMatch);
+        }
+
+        static Predicate<DirOperation> isDelete(Predicate<String> nameMatch) {
+            return match(DirOperationType.DELETE, nameMatch, Objects::isNull);
+        }
+
+        static Predicate<DirOperation> isCreate(Predicate<String> nameMatch) {
+            return match(DirOperationType.CREATE, nameMatch, Objects::isNull);
         }
     }
 }

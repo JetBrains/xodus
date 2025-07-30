@@ -344,7 +344,9 @@ public class XodusNonXodusDirectory extends Directory implements CacheDataProvid
             final var sourceMetadataPath = metadataPath(source);
 
             Files.copy(sourceMetadataPath, destMetadataPath);
+            DirectoryFileNamesRegistry.checkInterrupted();
             DirUtil.tryMoveAtomically(sourcePath, destPath);
+            DirectoryFileNamesRegistry.checkInterrupted();
             Files.delete(sourceMetadataPath);
         });
     }
