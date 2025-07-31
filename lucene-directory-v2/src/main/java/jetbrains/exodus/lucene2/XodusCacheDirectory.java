@@ -27,6 +27,7 @@ import jetbrains.exodus.log.SharedLogCache;
 import jetbrains.exodus.util.IOUtil;
 import org.apache.lucene.index.IndexFileNames;
 import org.apache.lucene.store.*;
+import org.apache.lucene.util.IORunnable;
 import org.apache.lucene.util.IOUtils;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
@@ -45,8 +46,8 @@ import java.util.function.Consumer;
 
 import static jetbrains.exodus.lucene2.DirUtil.listFilesInDir;
 
-public class XodusNonXodusDirectory extends Directory implements CacheDataProvider {
-    private static final Logger logger = LoggerFactory.getLogger(XodusNonXodusDirectory.class);
+public class XodusCacheDirectory extends Directory implements CacheDataProvider {
+    private static final Logger logger = LoggerFactory.getLogger(XodusCacheDirectory.class);
     private static final VarHandle SHORT_VAR_HANDLE = MethodHandles.byteArrayViewVarHandle(short[].class, ByteOrder.LITTLE_ENDIAN);
     private static final VarHandle INT_VAR_HANDLE = MethodHandles.byteArrayViewVarHandle(int[].class, ByteOrder.LITTLE_ENDIAN);
     private static final VarHandle LONG_VAR_HANDLE = MethodHandles.byteArrayViewVarHandle(long[].class, ByteOrder.LITTLE_ENDIAN);
@@ -70,7 +71,7 @@ public class XodusNonXodusDirectory extends Directory implements CacheDataProvid
 
     private final ConcurrentHashMap<String, Long> pendingDeletes = new ConcurrentHashMap<>();
 
-    private final DirectoryFileNamesRegistry fileNameRegistry = new DirectoryFileNamesRegistry();
+    private final DirectoryFileNamesRegistry fileNameRegistry;
 
     private final AtomicInteger opsSinceLastDelete = new AtomicInteger();
 
@@ -83,41 +84,47 @@ public class XodusNonXodusDirectory extends Directory implements CacheDataProvid
     private final IvGenerator ivGenerator;
 
     private final Closeable underlyingCloseable;
+    private final IORunnable betweenFileOperations;
 
     private volatile boolean closed = false;
 
-    public static XodusNonXodusDirectory fromXodusEnv(Environment env) throws IOException {
-        return fromXodusEnv(env, null, null);
+    public static XodusCacheDirectory fromXodusEnv(Environment env) throws IOException {
+        return fromXodusEnv(env, null, null, null);
     }
 
-    static XodusNonXodusDirectory fromXodusEnv(
+    static XodusCacheDirectory fromXodusEnv(
             Environment env,
             Consumer<Path> cleanupListener,
-            Consumer<Long> ivGenListener
+            Consumer<Long> ivGenListener,
+            IORunnable betweenFileOperations
     ) throws IOException {
 
         final EnvironmentImpl environment = (EnvironmentImpl) env;
         var log = environment.getLog();
         var logConfig = log.getConfig();
 
-        return new XodusNonXodusDirectory(
+        return new XodusCacheDirectory(
                 Path.of(log.getLocation()),
                 ((SharedLogCache) log.cache),
                 log.getCachePageSize(),
                 logConfig.getCipherProvider(),
                 logConfig.getCipherKey(),
-                env, cleanupListener, ivGenListener
+                env, cleanupListener, ivGenListener, betweenFileOperations
         );
     }
 
-    public XodusNonXodusDirectory(
+    public XodusCacheDirectory(
             Path rootPath, SharedLogCache sharedLogCache, int cachePageSize,
             StreamCipherProvider cipherProvider, byte[] cipherKey,
             Closeable underlyingCloseable,
             Consumer<Path> cleanupListener,
-            Consumer<Long> ivGenListener
+            Consumer<Long> ivGenListener,
+            IORunnable betweenFileOperations
     ) throws IOException {
         this.underlyingCloseable = underlyingCloseable;
+        this.betweenFileOperations = betweenFileOperations == null ?
+                () -> {
+                } : betweenFileOperations;
 
         if (!Files.isDirectory(rootPath)) {
             throw new ExodusException("Path " + rootPath + " does not exist in file system.");
@@ -155,6 +162,7 @@ public class XodusNonXodusDirectory extends Directory implements CacheDataProvid
         var maxAddressSize = -1L;
         var maxIv = -1L;
 
+        fileNameRegistry = new DirectoryFileNamesRegistry(this.betweenFileOperations);
         for (var e : luceneFiles.entrySet()) {
             final var fileName = e.getKey();
             final var filePath = e.getValue();
@@ -343,11 +351,13 @@ public class XodusNonXodusDirectory extends Directory implements CacheDataProvid
             final var sourcePath = filePath(source);
             final var sourceMetadataPath = metadataPath(source);
 
+            betweenFileOperations.run();
             Files.copy(sourceMetadataPath, destMetadataPath);
-            DirectoryFileNamesRegistry.checkInterrupted();
+            betweenFileOperations.run();
             DirUtil.tryMoveAtomically(sourcePath, destPath);
-            DirectoryFileNamesRegistry.checkInterrupted();
+            betweenFileOperations.run();
             Files.delete(sourceMetadataPath);
+            betweenFileOperations.run();
         });
     }
 
@@ -372,7 +382,9 @@ public class XodusNonXodusDirectory extends Directory implements CacheDataProvid
 
         final var address = fileNameRegistry.remove(name);
 
+        betweenFileOperations.run();
         pendingDeletes.put(name, address);
+        betweenFileOperations.run();
         privateDeleteFile(name);
 
         maybeDeletePendingFiles();
@@ -423,7 +435,9 @@ public class XodusNonXodusDirectory extends Directory implements CacheDataProvid
                     cache.removeFile(filePath(fileName).toFile());
                 }
 
+                betweenFileOperations.run();
                 Files.deleteIfExists(filePath(fileName));
+                betweenFileOperations.run();
                 Files.deleteIfExists(metadataPath(fileName));
 
                 return null;
@@ -572,6 +586,7 @@ public class XodusNonXodusDirectory extends Directory implements CacheDataProvid
                 Files.move(outputFilePath, filePath(indexName));
             }
 
+            betweenFileOperations.run();
             saveMetadataFile(
                     metadataPath(indexName),
                     fileAddress,
@@ -773,7 +788,7 @@ public class XodusNonXodusDirectory extends Directory implements CacheDataProvid
 
         private void readPageIfNeeded(long pageAddress) {
             if (this.page == null || this.pageAddress != pageAddress) {
-                this.page = sharedLogCache.getPage(XodusNonXodusDirectory.this, pageAddress, fileAddress
+                this.page = sharedLogCache.getPage(XodusCacheDirectory.this, pageAddress, fileAddress
                 );
                 this.pageAddress = pageAddress;
             }

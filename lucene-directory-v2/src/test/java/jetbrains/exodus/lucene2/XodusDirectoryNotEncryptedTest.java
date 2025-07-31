@@ -36,6 +36,7 @@ public class XodusDirectoryNotEncryptedTest extends XodusDirectoryBaseTest {
         config.setLogCachePageSize(1024);
         config.removeSetting(EnvironmentConfig.CIPHER_ID);
         config.removeSetting(EnvironmentConfig.CIPHER_KEY);
+        config.setPrintInitMessage(false);
 
         return config;
     }

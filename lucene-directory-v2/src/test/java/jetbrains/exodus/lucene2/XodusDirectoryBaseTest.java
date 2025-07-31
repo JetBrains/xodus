@@ -29,6 +29,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.io.InterruptedIOException;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
@@ -58,20 +59,21 @@ public abstract class XodusDirectoryBaseTest extends BaseDirectoryTestCase {
     protected Directory getDirectory(
             Path path,
             Consumer<Path> cleanupListener,
-            Consumer<Long> ivGenListener
+            Consumer<Long> ivGenListener,
+            IORunnable beforeFileOperations
     ) throws IOException {
-        return XodusNonXodusDirectory.fromXodusEnv(
+        return XodusCacheDirectory.fromXodusEnv(
                 Environments.newInstance(
                         path.toFile(),
                         getEnvironmentConfig()
                 ),
-                cleanupListener, ivGenListener
+                cleanupListener, ivGenListener, beforeFileOperations
         );
     }
 
     @Override
     protected Directory getDirectory(Path path) throws IOException {
-        return getDirectory(path, null, null);
+        return getDirectory(path, null, null, null);
     }
 
     @Test
@@ -347,10 +349,7 @@ public abstract class XodusDirectoryBaseTest extends BaseDirectoryTestCase {
                 DEFAULT_THREADS,
                 10000,
                 DEFAULT_INTERRUPTION_INTERVAL,
-                (expected, ignore, actual) -> {
-                    if (!expected.keySet().equals(actual.keySet())) {
-                        log.info("expected and actual mismatch. that is okay");
-                    }
+                (expected, actual) -> {
                     assertEquals(expected.size(), actual.size());
                     for (byte[] expectedValue : expected.values()) {
                         assertTrue(
@@ -372,15 +371,23 @@ public abstract class XodusDirectoryBaseTest extends BaseDirectoryTestCase {
             DirContentVerifier dirContentVerifier,
             DirOperationsVerifier opsVerifier
     ) throws IOException {
+        final var testName = name.getMethodName();
+        log.info(
+                "Rounds: {}, threads: {}, iterationsPerThread: {}",
+                numOfRounds, numOfThreads, numOfIterationsPerThread
+        );
+
         try (var executor = Executors.newFixedThreadPool(numOfThreads)) {
             for (int r = 0; r < numOfRounds; r++) {
                 final Map<String, byte[]> expectedDirContent;
                 final Map<String, byte[]> actualDirContent;
                 final List<DirOperation> performedOperations;
-                final var fileDir = createTempDir(name.getMethodName() + "_" + r);
+                final var fileDir = createTempDir(testName + "_" + r);
                 final var fileNameGen = fileNameGenerator.get();
 
-                try (var dir = getDirectory(fileDir)) {
+                try (var dir = getDirectory(
+                        fileDir, null, null, XodusDirectoryBaseTest::checkThreadInterrupted
+                )) {
                     final var dirWrapper = new DirectoryWrapper(dir);
                     dirInitializer.accept(dirWrapper);
 
@@ -399,7 +406,9 @@ public abstract class XodusDirectoryBaseTest extends BaseDirectoryTestCase {
                                     work.run(dirWrapper, fileNameGen, roundId, threadId, i);
                                 }
                             } catch (Exception e) {
-//                                log.error(e.getMessage(), e);
+                                if (!(e instanceof InterruptedException) && !(e instanceof InterruptedIOException)) {
+                                    log.error("Unexpected exception", e);
+                                }
                                 throw new RuntimeException(e);
                             }
                         }));
@@ -430,51 +439,69 @@ public abstract class XodusDirectoryBaseTest extends BaseDirectoryTestCase {
                     }
                 }
 
+                final ArrayList<Path> cleanedFiles = new ArrayList<>();
                 final Map<String, byte[]> dirContentAfterReopen;
                 // repeat the check once again on a freshly opened directory
-                try (var dir = getDirectory(fileDir)) {
+                try (var dir = getDirectory(fileDir, cleanedFiles::add, null, null)) {
                     dirContentAfterReopen = getDirectoryContent(dir);
                 }
+                if (!cleanedFiles.isEmpty()) {
+                    if (interruptAfterMillis <= 0) {
+                        fail("No cleanup was expected, but some files were cleaned up: " + cleanedFiles);
+                    }
+                }
 
-                dirContentVerifier.verify(expectedDirContent, actualDirContent, dirContentAfterReopen);
+                if (interruptAfterMillis <= 0) {
+                    dirContentVerifier.verify(expectedDirContent, actualDirContent);
+                    dirContentVerifier.verify(actualDirContent, dirContentAfterReopen);
+                } else {
+                    dirContentVerifier.verify(expectedDirContent, dirContentAfterReopen);
+
+                }
                 opsVerifier.verify(performedOperations);
+
+                // in case of interruption, some files could be cleaned up and the directory state might have
+                // changed in theory. we want to check it once again to be 100% sure
+                if (interruptAfterMillis > 0) {
+                    final ArrayList<Path> cleanedFiles2 = new ArrayList<>();
+                    try (var dir = getDirectory(fileDir, cleanedFiles2::add, null, null)) {
+                        DirContentVerifier.SHOULD_EQUAL.verify(dirContentAfterReopen, getDirectoryContent(dir));
+                        assertTrue(
+                                "No more cleanup expected, but some files were cleaned: " + cleanedFiles2,
+                                cleanedFiles2.isEmpty()
+                        );
+                    }
+                }
             }
         }
     }
 
     interface DirContentVerifier {
         void verify(
-                Map<String, byte[]> expectedDirContent,
-                Map<String, byte[]> actualDirContent,
-                Map<String, byte[]> actualAfterReopen
+                Map<String, byte[]> expected,
+                Map<String, byte[]> actual
         );
 
-        DirContentVerifier SHOULD_EQUAL =
-                (expectedDirContent, actualDirContent, actualAfterReopen) -> {
-                    checkDirContent(expectedDirContent, actualDirContent, 0);
-                    checkDirContent(expectedDirContent, actualAfterReopen, 0);
-                };
+        DirContentVerifier SHOULD_EQUAL = (expected, actual) -> {
+            checkDirContent(expected, actual, 0);
+        };
 
-        DirContentVerifier DIR_CAN_CONTAIN_MORE =
-                (expectedDirContent, actualDirContent, actualAfterReopen) -> {
-                    logSizeMismatch(expectedDirContent, actualDirContent, actualAfterReopen);
+        DirContentVerifier DIR_CAN_CONTAIN_MORE = (expected, actual) -> {
+            logSizeMismatch(expected, actual);
+            checkDirContent(expected, actual, -1);
+        };
 
-                    checkDirContent(expectedDirContent, actualDirContent, -1);
-                    checkDirContent(actualDirContent, actualAfterReopen, -1);
-                };
+        DirContentVerifier DIR_CAN_CONTAIN_LESS = (expected, actual) -> {
+            logSizeMismatch(expected, actual);
+            checkDirContent(expected, actual, 1);
+        };
 
-        DirContentVerifier DIR_CAN_CONTAIN_LESS =
-                (expectedDirContent, actualDirContent, actualAfterReopen) -> {
-                    logSizeMismatch(expectedDirContent, actualDirContent, actualAfterReopen);
-
-                    checkDirContent(expectedDirContent, actualDirContent, 1);
-                    checkDirContent(actualDirContent, actualAfterReopen, 1);
-                };
-
-        private static void logSizeMismatch(Map<String, byte[]> expectedDirContent, Map<String, byte[]> actualDirContent, Map<String, byte[]> actualAfterReopen) {
-            if (expectedDirContent.size() != actualAfterReopen.size() ||
-                    actualDirContent.size() != actualAfterReopen.size()) {
-                log.info("expected: {}, actual: {}, after reopen: {}", expectedDirContent.size(), actualDirContent.size(), actualAfterReopen.size());
+        private static void logSizeMismatch(
+                Map<String, byte[]> expected,
+                Map<String, byte[]> actual
+        ) {
+            if (expected.size() != actual.size()) {
+                log.info("expected: {}, after reopen: {}", expected.size(), actual.size());
             }
         }
     }
@@ -646,7 +673,7 @@ public abstract class XodusDirectoryBaseTest extends BaseDirectoryTestCase {
             int numOfPages
     ) throws IOException {
         return createFile(dir, fileName, fn -> {
-            final var pageContentSize = ((XodusNonXodusDirectory) dir).getPageSize() - Long.BYTES;
+            final var pageContentSize = ((XodusCacheDirectory) dir).getPageSize() - Long.BYTES;
 
             final var minContentSize = (numOfPages - 1) * pageContentSize + 1;
             final var maxContentSize = numOfPages * pageContentSize;
@@ -899,6 +926,12 @@ public abstract class XodusDirectoryBaseTest extends BaseDirectoryTestCase {
 
         static Predicate<DirOperation> isCreate(Predicate<String> nameMatch) {
             return match(DirOperationType.CREATE, nameMatch, Objects::isNull);
+        }
+    }
+
+    private static void checkThreadInterrupted() throws InterruptedIOException {
+        if (Thread.currentThread().isInterrupted()) {
+            throw new InterruptedIOException();
         }
     }
 }

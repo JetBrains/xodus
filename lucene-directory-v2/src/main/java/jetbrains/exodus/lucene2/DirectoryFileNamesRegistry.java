@@ -20,7 +20,6 @@ import org.apache.lucene.util.IOFunction;
 import org.apache.lucene.util.IORunnable;
 
 import java.io.IOException;
-import java.io.InterruptedIOException;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.NoSuchFileException;
 import java.util.Map;
@@ -34,14 +33,19 @@ class DirectoryFileNamesRegistry {
     private final ConcurrentHashMap<String, Long> name2addr = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<Long, String> addr2name = new ConcurrentHashMap<>();
 
+    private final IORunnable betweenFileOperations;
     private final AtomicLong tempAddresses = new AtomicLong(-1);
+
+    DirectoryFileNamesRegistry(IORunnable beforeFileOperations) {
+        this.betweenFileOperations = beforeFileOperations;
+    }
 
     public void register(String fileName, long address) throws IOException {
         materializeAddress(fileName, occupyName(fileName), address);
     }
 
     public long occupyName(String fileName) throws IOException {
-        checkInterrupted();
+        betweenFileOperations.run();
         final var tempAddr = tempAddresses.getAndDecrement();
 
         updateAddr2Name(tempAddr, prevName -> {
@@ -53,6 +57,7 @@ class DirectoryFileNamesRegistry {
                 throw new FileAlreadyExistsException(fileName);
             }
 
+            betweenFileOperations.run();
             return fileName;
         });
 
@@ -60,7 +65,7 @@ class DirectoryFileNamesRegistry {
     }
 
     public void materializeAddress(String fileName, long tempAddress, long realAddress) throws IOException {
-        checkInterrupted();
+        betweenFileOperations.run();
         if (realAddress < 0) {
             throw new IllegalArgumentException("Address cannot be negative: " + realAddress);
         }
@@ -80,6 +85,7 @@ class DirectoryFileNamesRegistry {
                 return realAddress;
             });
 
+            betweenFileOperations.run();
             return fileName;
         });
 
@@ -109,10 +115,11 @@ class DirectoryFileNamesRegistry {
     }
 
     public long remove(String fileName) throws IOException {
-        checkInterrupted();
+        betweenFileOperations.run();
         final var address = addressByName(fileName);
 
         updateAddr2Name(address, existingName -> {
+            betweenFileOperations.run();
             if (!Objects.equals(fileName, existingName)) {
                 // has already been removed or renamed
                 throw new NoSuchFileException(fileName);
@@ -122,6 +129,7 @@ class DirectoryFileNamesRegistry {
                 throw new NoSuchFileException(fileName);
             }
 
+            betweenFileOperations.run();
             return null;
 
         });
@@ -134,7 +142,7 @@ class DirectoryFileNamesRegistry {
             String destName,
             IORunnable fileMoveAction
     ) throws IOException {
-        checkInterrupted();
+        betweenFileOperations.run();
         if (Objects.equals(sourceName, destName)) {
             return;
         }
@@ -149,12 +157,14 @@ class DirectoryFileNamesRegistry {
             if (name2addr.putIfAbsent(destName, address) != null) {
                 throw new FileAlreadyExistsException(destName);
             }
+            betweenFileOperations.run();
             if (name2addr.remove(sourceName) == null) {
                 // already removed in parallel thread
-                name2addr.remove(destName, address); // is it safe ?
+                name2addr.remove(destName, address);
                 throw new NoSuchFileException("File " + destName + " does not exist");
             }
 
+            betweenFileOperations.run();
             fileMoveAction.run();
             return destName;
         });
@@ -165,12 +175,6 @@ class DirectoryFileNamesRegistry {
                 .stream()
                 .filter(e -> e.getValue() >= 0)
                 .map(Map.Entry::getKey);
-    }
-
-    public static void checkInterrupted() throws InterruptedIOException {
-        if (Thread.currentThread().isInterrupted()) {
-            throw new InterruptedIOException();
-        }
     }
 
     private void updateAddr2Name(long address, IOFunction<String, String> action) throws IOException {

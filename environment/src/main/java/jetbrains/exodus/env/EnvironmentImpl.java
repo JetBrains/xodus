@@ -205,7 +205,9 @@ public class EnvironmentImpl implements Environment {
 
             gc.fetchExpiredLoggables(expired);
 
-            loggerInfo("Exodus environment created: " + logLocation);
+            if (ec.getPrintInitMessage()) {
+                loggerInfo("Exodus environment created: " + logLocation);
+            }
         } catch (Exception e) {
             logger.error("Error during opening the environment " + log.getLocation(), e);
 

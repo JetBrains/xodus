@@ -33,7 +33,7 @@ import java.io.StringReader
 open class XodusLuceneTests : XodusLuceneTestsBase() {
 
     override fun tearDown() {
-        println("Cache hit rate ${(directory as XodusNonXodusDirectory).hitRate()}")
+        println("Cache hit rate ${(directory as XodusCacheDirectory).hitRate()}")
 
         super.tearDown()
     }

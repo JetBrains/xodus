@@ -33,6 +33,7 @@ public class XodusDirectoryEncryptedTest extends XodusDirectoryBaseTest {
         config.setLogCachePageSize(1024);
         config.setCipherId("jetbrains.exodus.crypto.streamciphers.JBChaChaStreamCipherProvider");
         config.setCipherKey("000102030405060708090a0b0c0d0e0f000102030405060708090a0b0c0d0e0f");
+        config.setPrintInitMessage(false);
         config.setCipherBasicIV(314159262718281828L);
 
         return config;
@@ -48,7 +49,7 @@ public class XodusDirectoryEncryptedTest extends XodusDirectoryBaseTest {
         for (int numOfPages : List.of(1, 2, 5)) {
 
             final var ivs = new ArrayList<Long>();
-            try (var dir = getDirectory(fileDir, null, ivs::add)) {
+            try (var dir = getDirectory(fileDir, null, ivs::add, null)) {
                 for (int i = 0; i < totalFiles; i++) {
                     randomFileOfNPages(dir, "file_" + numOfPages + "_" + i, numOfPages);
                 }
@@ -68,7 +69,7 @@ public class XodusDirectoryEncryptedTest extends XodusDirectoryBaseTest {
         final var fileDir = createTempDir("testIvRecycling");
 
         final var ivs1 = new ArrayList<Long>();
-        try (var dir = getDirectory(fileDir, null, ivs1::add)) {
+        try (var dir = getDirectory(fileDir, null, ivs1::add, null)) {
             for (int i = 0; i <= 98; i++) {
                 randomFileOfNPages(dir, "file_" + i, 1);
             }
@@ -83,7 +84,7 @@ public class XodusDirectoryEncryptedTest extends XodusDirectoryBaseTest {
         }
 
         final var ivs2 = new ArrayList<Long>();
-        try (var dir = getDirectory(fileDir, null, ivs2::add)) {
+        try (var dir = getDirectory(fileDir, null, ivs2::add, null)) {
             randomFileOfNPages(dir, "file_99", 1);
 
             assertEquals(1, ivs2.size());
@@ -97,7 +98,7 @@ public class XodusDirectoryEncryptedTest extends XodusDirectoryBaseTest {
         final var prevMaxIv = ivs1.get(39);
 
         final var ivs3 = new ArrayList<Long>();
-        try (var dir = getDirectory(fileDir, null, ivs3::add)) {
+        try (var dir = getDirectory(fileDir, null, ivs3::add, null)) {
             for (int i = 100; i <= 109; i++) {
                 randomFileOfNPages(dir, "file_" + i, 1);
             }
