@@ -19,6 +19,7 @@ import com.jetbrains.youtrack.db.api.DatabaseSession
 import com.jetbrains.youtrack.db.api.record.Direction
 import com.jetbrains.youtrack.db.api.record.Vertex
 import com.jetbrains.youtrack.db.api.schema.SchemaClass
+import com.jetbrains.youtrack.db.internal.core.db.DatabaseSessionEmbedded
 import jetbrains.exodus.entitystore.youtrackdb.YTDBVertexEntity.Companion.edgeClassName
 import jetbrains.exodus.entitystore.youtrackdb.getTargetLocalEntityIds
 import jetbrains.exodus.entitystore.youtrackdb.setTargetLocalEntityIds
@@ -43,7 +44,8 @@ internal class IndicesCreator(
                 appendLine("creating indices if absent:")
                 for ((ownerVertexName, indices) in indicesByOwnerVertexName) {
                     val dbClass =
-                        dbSession.schema.getClass(ownerVertexName) ?: throw IllegalStateException("$ownerVertexName not found")
+                        dbSession.schema.getClass(ownerVertexName)
+                            ?: throw IllegalStateException("$ownerVertexName not found")
                     appendLine("${dbClass.name}:")
                     withPadding {
                         for ((_, indexName, properties, unique) in indices) {
@@ -51,7 +53,15 @@ internal class IndicesCreator(
                             if (!dbSession.schema.indexExists(indexName)) {
                                 val indexType =
                                     if (unique) SchemaClass.INDEX_TYPE.UNIQUE else SchemaClass.INDEX_TYPE.NOTUNIQUE
-                                dbClass.createIndex(indexName, indexType, *properties.toTypedArray())
+                                if (dbSession.isTxActive) {
+                                    val sessionCopy = (dbSession as DatabaseSessionEmbedded).copy()
+                                    sessionCopy.use {
+                                        val copySessionClass = sessionCopy.schema.getClass(ownerVertexName)
+                                        copySessionClass.createIndex(indexName, indexType, *properties.toTypedArray())
+                                    }
+                                } else {
+                                    dbClass.createIndex(indexName, indexType, *properties.toTypedArray())
+                                }
                                 appendLine(", created")
                             } else {
                                 appendLine(", already created")
