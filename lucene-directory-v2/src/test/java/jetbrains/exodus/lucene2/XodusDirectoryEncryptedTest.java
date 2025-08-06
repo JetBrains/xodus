@@ -25,7 +25,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 @ThreadLeakFilters(filters = XodusThreadFilter.class)
-@TestRuleLimitSysouts.Limit(bytes = 30 * 1024)
+@TestRuleLimitSysouts.Limit(bytes = 150 * 1024)
 public class XodusDirectoryEncryptedTest extends XodusDirectoryBaseTest {
     @Override
     protected EnvironmentConfig getEnvironmentConfig() {

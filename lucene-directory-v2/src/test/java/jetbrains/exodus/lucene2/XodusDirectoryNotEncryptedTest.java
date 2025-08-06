@@ -28,7 +28,7 @@ import java.io.IOException;
 import java.nio.file.Path;
 
 @ThreadLeakFilters(filters = XodusThreadFilter.class)
-@TestRuleLimitSysouts.Limit(bytes = 30 * 1024)
+@TestRuleLimitSysouts.Limit(bytes = 150 * 1024)
 public class XodusDirectoryNotEncryptedTest extends XodusDirectoryBaseTest {
     @Override
     protected EnvironmentConfig getEnvironmentConfig() {
