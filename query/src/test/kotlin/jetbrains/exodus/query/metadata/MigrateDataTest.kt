@@ -19,15 +19,17 @@ package jetbrains.exodus.query.metadata
 
 import com.jetbrains.youtrack.db.api.record.Vertex
 import com.jetbrains.youtrack.db.internal.core.db.DatabaseSessionInternal
-import com.jetbrains.youtrack.db.internal.core.record.impl.RecordBytes
 import jetbrains.exodus.bindings.ComparableSet
 import jetbrains.exodus.bindings.StringBinding
 import jetbrains.exodus.entitystore.PersistentEntityStore
 import jetbrains.exodus.entitystore.StoreTransaction
 import jetbrains.exodus.entitystore.XodusTestDB
-import jetbrains.exodus.entitystore.youtrackdb.*
+import jetbrains.exodus.entitystore.youtrackdb.YTDBVertexEntity
 import jetbrains.exodus.entitystore.youtrackdb.YTDBVertexEntity.Companion.CLASS_ID_SEQUENCE_NAME
 import jetbrains.exodus.entitystore.youtrackdb.YTDBVertexEntity.Companion.localEntityIdSequenceName
+import jetbrains.exodus.entitystore.youtrackdb.createVertexClassWithClassId
+import jetbrains.exodus.entitystore.youtrackdb.requireClassId
+import jetbrains.exodus.entitystore.youtrackdb.requireLocalEntityId
 import jetbrains.exodus.entitystore.youtrackdb.testutil.InMemoryYouTrackDB
 import jetbrains.exodus.util.ByteArraySizedInputStream
 import jetbrains.exodus.util.LightOutputStream
@@ -355,6 +357,29 @@ class MigrateDataTest {
             tx.assertOrientContainsAllTheEntities(entities)
         }
     }
+
+    @Test
+    fun `both string anb blobString property in xodus`() {
+        xodus.withTx { tx ->
+            val e = tx.newEntity("TestStringBlob")
+            e.setProperty("description", "The entity")
+            e.setBlobString("description", "The blob description")
+            e
+        }
+
+        migrateAndCheckData(xodus.store, youTrackDB)
+
+        youTrackDB.store.executeInTransaction { ytdbTX ->
+            xodus.withTx {
+                val ytdbEntity = ytdbTX.getAll("TestStringBlob").firstOrNull()
+                Assert.assertNotNull(ytdbEntity)
+                ytdbEntity!!
+                Assert.assertEquals("The blob description", ytdbEntity.getBlobString("description"))
+                Assert.assertTrue(ytdbEntity.propertyNames.isEmpty())
+            }
+        }
+    }
+
 
     @Test
     fun `copy links`() {
