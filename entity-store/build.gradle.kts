@@ -4,8 +4,15 @@ val ktorVersion = "3.1.3"
 dependencies {
     api(project(":xodus-openAPI"))
     api("io.youtrackdb:youtrackdb-core:$ytdbVersion")
+    implementation("io.youtrackdb:youtrackdb-tools:$ytdbVersion") {
+        exclude("io.youtrackdb", "youtrackdb-core")
+        exclude("io.youtrackdb", "youtrackdb-client")
+    }
     api("io.youtrackdb:youtrackdb-server:$ytdbVersion") {
         exclude("org.slf4j", "slf4j-jdk14")
+        exclude("io.youtrackdb", "youtrackdb-core")
+        exclude("io.youtrackdb", "youtrackdb-client")
+        exclude("io.youtrackdb", "youtrackdb-tools")
     }
 
     implementation(project(":xodus-utils"))
@@ -21,6 +28,7 @@ dependencies {
     testImplementation("io.ktor:ktor-client-core:$ktorVersion")
     testImplementation("io.ktor:ktor-client-java:$ktorVersion")
     testImplementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.8.1")
+    testImplementation("io.youtrackdb:youtrackdb-client:$ytdbVersion")
 }
 
 val testArtifacts: Configuration by configurations.creating
