@@ -69,7 +69,7 @@ class YTDBPersistentEntityStore(
 
         val session = databaseProvider.acquireSession()
 
-        currentTx = YTDBStoreTransactionImpl(
+        currentTx = YTDBGremlinStoreTransactionImpl(
             session,
             store = this,
             schemaBuddy,
@@ -126,7 +126,7 @@ class YTDBPersistentEntityStore(
         executeInTransaction(executable)
 
     override fun <T : Any?> computeInTransaction(computable: StoreTransactionalComputable<T>): T {
-        val tx = beginTransaction() as YTDBStoreTransactionImpl
+        val tx = beginTransaction()
         try {
             val result = computable.compute(tx)
             tx.commit()

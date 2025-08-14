@@ -2,7 +2,7 @@ package jetbrains.exodus.query
 
 import jetbrains.exodus.entitystore.Entity
 import jetbrains.exodus.entitystore.youtrackdb.gremlin.GremlinEntityIterable
-import jetbrains.exodus.entitystore.youtrackdb.gremlin.GremlinQuery
+import jetbrains.exodus.entitystore.youtrackdb.gremlin.GremlinBlock
 import jetbrains.exodus.query.metadata.ModelMetaData
 
 class GremlinBinaryNode(
@@ -10,13 +10,13 @@ class GremlinBinaryNode(
     private val right: NodeBase,
     commutative: Boolean,
     private val shortName: String,
-    private val combineQuery: (GremlinQuery, GremlinQuery) -> GremlinQuery,
+    private val combineQuery: (GremlinBlock, GremlinBlock) -> GremlinBlock,
     private val combineInMem: ((Iterable<Entity>, Iterable<Entity>) -> Iterable<Entity>)? = null
 ) : BinaryOperator(left, right, commutative), GremlinNode {
 
-    override fun getQuery(): GremlinQuery? {
-        val leftQ = (left as? GremlinNode)?.getQuery()
-        val rightQ = (right as? GremlinNode)?.getQuery()
+    override fun getBlock(): GremlinBlock? {
+        val leftQ = (left as? GremlinNode)?.getBlock()
+        val rightQ = (right as? GremlinNode)?.getBlock()
 
         return if (leftQ == null || rightQ == null) null
         else combineQuery(leftQ, rightQ)
@@ -28,8 +28,9 @@ class GremlinBinaryNode(
         metaData: ModelMetaData?,
         context: InstantiateContext?
     ): Iterable<Entity> =
-        query?.let {
-            GremlinEntityIterable.create(
+        block?.let {
+            // todo: We should operate with GremlinQueries, not blocks at this level
+            GremlinEntityIterable.where(
                 entityType,
                 queryEngine.oStore.requireActiveTransaction(),
                 it

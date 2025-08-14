@@ -18,7 +18,9 @@ package jetbrains.exodus.query;
 
 import jetbrains.exodus.core.dataStructures.NanoSet;
 import jetbrains.exodus.entitystore.Entity;
+import jetbrains.exodus.entitystore.youtrackdb.gremlin.GremlinEntityIterable;
 import jetbrains.exodus.entitystore.youtrackdb.gremlin.GremlinEntityIterableImpl;
+import jetbrains.exodus.entitystore.youtrackdb.gremlin.GremlinBlock;
 import jetbrains.exodus.entitystore.youtrackdb.gremlin.GremlinQuery;
 import jetbrains.exodus.query.metadata.ModelMetaData;
 
@@ -27,35 +29,35 @@ import java.util.Objects;
 
 public class GremlinLeaf extends NodeBase implements GremlinNode {
 
-    private final GremlinQuery query;
+    private final GremlinBlock block;
 
-    public GremlinLeaf(GremlinQuery query) {
-        this.query = query;
+    public GremlinLeaf(GremlinBlock query) {
+        this.block = query;
     }
 
     @Override
     @Nonnull
-    public GremlinQuery getQuery() {
-        return query;
+    public GremlinBlock getBlock() {
+        return block;
     }
 
     @Override
     public Iterable<Entity> instantiate(String entityType, QueryEngine queryEngine, ModelMetaData metaData, InstantiateContext context) {
-        return new GremlinEntityIterableImpl(
+        return GremlinEntityIterable.where(
+                entityType,
                 queryEngine.getOStore().requireActiveTransaction(),
-                query.andThen(new GremlinQuery.HasLabel(entityType))
-//                new GremlinQuery.HasLabel(entityType).and(query)
+                block
         );
     }
 
     @Override
     public NodeBase getClone() {
-        return new GremlinLeaf(query);
+        return new GremlinLeaf(block);
     }
 
     @Override
     public String getSimpleName() {
-        return query.getShortName();
+        return block.getShortName();
     }
 
     @Override
@@ -65,7 +67,7 @@ public class GremlinLeaf extends NodeBase implements GremlinNode {
 
     @Override
     public void optimize(Sorts sorts, OptimizationPlan rules) {
-        final var simplified = query.simplify();
+        final var simplified = block.simplify();
         if (simplified != null) {
             getParent().replaceChild(this, new GremlinLeaf(simplified));
         }
@@ -79,12 +81,12 @@ public class GremlinLeaf extends NodeBase implements GremlinNode {
     @Override
     public StringBuilder getHandle(StringBuilder s) {
         // todo: think of this. if this needed at all
-        return query.describe(s);
+        return block.describe(s);
     }
 
     @Override
     public String toString() {
-        return query.describe(new StringBuilder()).toString();
+        return block.describe(new StringBuilder()).toString();
     }
 
     @Override
@@ -93,11 +95,11 @@ public class GremlinLeaf extends NodeBase implements GremlinNode {
         if (o == null || getClass() != o.getClass()) return false;
         if (!super.equals(o)) return false;
         GremlinLeaf that = (GremlinLeaf) o;
-        return Objects.equals(query, that.query);
+        return Objects.equals(block, that.block);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hashCode(query);
+        return Objects.hashCode(block);
     }
 }
