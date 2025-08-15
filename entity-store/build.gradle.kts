@@ -6,6 +6,9 @@ dependencies {
     api("io.youtrackdb:youtrackdb-core:$ytdbVersion") {
         exclude("org.slf4j", "slf4j-jdk14")
     }
+    api("io.youtrackdb:youtrackdb-client:$ytdbVersion") {
+        exclude("io.youtrackdb", "youtrackdb-core")
+    }
     implementation("io.youtrackdb:youtrackdb-tools:$ytdbVersion") {
         exclude("org.slf4j", "slf4j-jdk14")
         exclude("io.youtrackdb", "youtrackdb-core")
