@@ -15,6 +15,9 @@
  */
 package jetbrains.exodus.query
 
+import jetbrains.exodus.entitystore.youtrackdb.gremlin.GremlinBlock
+import jetbrains.exodus.entitystore.youtrackdb.gremlin.GremlinEntityIterableImpl
+import jetbrains.exodus.entitystore.youtrackdb.gremlin.GremlinQuery
 import jetbrains.exodus.entitystore.youtrackdb.iterate.YTDBEntityOfTypeIterable
 import jetbrains.exodus.entitystore.youtrackdb.testutil.*
 import jetbrains.exodus.query.metadata.entity
@@ -42,8 +45,8 @@ class OBinaryOperationsWithSortTest : OTestMixin {
         val engine = QueryEngine(model, youTrackDb.store)
         engine.sortEngine = SortEngine()
         youTrackDb.withStoreTx { txn ->
-            val users = YTDBEntityOfTypeIterable(txn, User.CLASS)
-            val agents = YTDBEntityOfTypeIterable(txn, Agent.CLASS)
+            val users = GremlinEntityIterableImpl(txn, GremlinQuery.all.andThen(GremlinBlock.HasLabel(User.CLASS)))
+            val agents = GremlinEntityIterableImpl(txn, GremlinQuery.all.andThen(GremlinBlock.HasLabel(Agent.CLASS)))
             val union = engine.union(users, agents)
             val sorted = engine.query(union, BaseUser.CLASS, SortByProperty(null, "name", true))
             assertContentEquals(

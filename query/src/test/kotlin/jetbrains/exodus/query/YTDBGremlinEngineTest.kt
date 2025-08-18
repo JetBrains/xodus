@@ -36,6 +36,7 @@ import org.junit.Rule
 import org.junit.Test
 
 
+// todo: parameterized
 //@RunWith(Parameterized::class)
 class YTDBGremlinEngineTest(
 //    val iterableGetter: ((QueryEngine, YTDBStoreTransaction) -> (EntityIterable?)),

@@ -32,12 +32,15 @@ import jetbrains.exodus.entitystore.youtrackdb.YTDBVertexEntity.Companion.LOCAL_
 import jetbrains.exodus.entitystore.youtrackdb.gremlin.GremlinEntityIterable
 import jetbrains.exodus.entitystore.youtrackdb.gremlin.GremlinBlock
 import jetbrains.exodus.entitystore.youtrackdb.gremlin.GremlinBlock.SortDirection
+import jetbrains.exodus.entitystore.youtrackdb.gremlin.GremlinEntityIterableImpl
 import jetbrains.exodus.entitystore.youtrackdb.gremlin.GremlinQuery
 import jetbrains.exodus.entitystore.youtrackdb.iterate.link.*
 import jetbrains.exodus.entitystore.youtrackdb.iterate.property.*
 import jetbrains.exodus.entitystore.youtrackdb.query.YTDBQueryCancellingPolicy
 import jetbrains.exodus.env.ReadonlyTransactionException
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource
+
+internal typealias TransactionEventHandler = (DatabaseSession, YTDBStoreTransaction) -> Unit
 
 class YTDBGremlinStoreTransactionImpl(
     private val session: DatabaseSession,
@@ -360,10 +363,10 @@ class YTDBGremlinStoreTransactionImpl(
 
         return GremlinEntityIterable.query(
             this,
-            GremlinQuery
-                .where(GremlinBlock.PropEqual(LOCAL_ENTITY_ID_PROPERTY_NAME, entity.id.localId))
-                .follow(GremlinQuery.LinkDirection.IN, linkName)
-                .labeled(entityType)
+            GremlinQuery.all
+                .andThen(GremlinBlock.PropEqual(LOCAL_ENTITY_ID_PROPERTY_NAME, entity.id.localId))
+                .andThen(GremlinBlock.InLink(linkName))
+                .andThen(GremlinBlock.HasLabel(entityType))
         )
     }
 
@@ -377,8 +380,8 @@ class YTDBGremlinStoreTransactionImpl(
         return GremlinEntityIterable.query(
             this,
             entityQuery
-                .follow(GremlinQuery.LinkDirection.IN, linkName)
-                .labeled(entityType)
+                .andThen(GremlinBlock.InLink(linkName))
+                .andThen(GremlinBlock.HasLabel(entityType))
         )
     }
 
