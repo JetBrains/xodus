@@ -17,6 +17,7 @@ package jetbrains.exodus.query
 
 import jetbrains.exodus.entitystore.Entity
 import jetbrains.exodus.entitystore.youtrackdb.YTDBEntityId
+import jetbrains.exodus.entitystore.youtrackdb.gremlin.GremlinBlock
 import jetbrains.exodus.entitystore.youtrackdb.gremlin.GremlinBlock.*
 import jetbrains.exodus.entitystore.youtrackdb.gremlin.GremlinBlock.Or
 import java.util.stream.Collectors
@@ -83,10 +84,10 @@ object NodeFactory {
         GremlinUnaryNode(nodeBase, "not", ::Not)
 
     fun sortBy(propName: String, direction: SortDirection) =
-        GremlinLeaf(SortBy(propName, direction))
+        GremlinLeaf(Sort(GremlinBlock.Sort.ByProp(propName), direction))
 
     fun sortByLinked(linkName: String, propName: String, direction: SortDirection) =
-        GremlinLeaf(SortByLinked(linkName, propName, direction))
+        GremlinLeaf(Sort(GremlinBlock.Sort.ByLinked(linkName, propName), direction))
 
     private fun intersectTwoIts(it1: Iterable<Entity>, it2: Iterable<Entity>): Iterable<Entity> {
         val s1 = StreamSupport.stream(it1.spliterator(), false)

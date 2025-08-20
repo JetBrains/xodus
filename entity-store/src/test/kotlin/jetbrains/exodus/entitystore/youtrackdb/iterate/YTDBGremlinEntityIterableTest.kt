@@ -24,8 +24,11 @@ import jetbrains.exodus.entitystore.youtrackdb.gremlin.GremlinEntityIterable
 import jetbrains.exodus.entitystore.youtrackdb.iterate.property.YTDBInstanceOfIterable
 import jetbrains.exodus.entitystore.youtrackdb.query.buildSql
 import jetbrains.exodus.entitystore.youtrackdb.testutil.*
+import org.apache.tinkerpop.gremlin.process.traversal.Order
 import org.apache.tinkerpop.gremlin.process.traversal.P
+import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__
+import org.apache.tinkerpop.gremlin.structure.Vertex
 import org.junit.Rule
 import org.junit.Test
 import kotlin.test.assertContentEquals
@@ -499,8 +502,11 @@ class YTDBGremlinEntityIterableTest : OTestMixin {
 
         // When
         withStoreTx { tx ->
+
             val reversedByName =
                 tx.sort(Issues.CLASS, "name", true).reverse()
+            val reversedTwice =
+                reversedByName.reverse()
 
             // Then
             // todo
@@ -509,6 +515,7 @@ class YTDBGremlinEntityIterableTest : OTestMixin {
 //                expectedSql = "SELECT FROM Issue ORDER BY name DESC"
 //            )
             assertNamesExactlyInOrder(reversedByName, "issue3", "issue2", "issue1")
+            assertNamesExactlyInOrder(reversedTwice, "issue1", "issue2", "issue3")
         }
     }
 

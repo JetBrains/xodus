@@ -18,9 +18,11 @@ package jetbrains.exodus.entitystore.youtrackdb.gremlin
 import com.jetbrains.youtrack.db.api.gremlin.YTDBVertex
 import com.jetbrains.youtrack.db.api.record.RID
 import jetbrains.exodus.entitystore.youtrackdb.YTDBVertexEntity
+import jetbrains.exodus.entitystore.youtrackdb.gremlin.GremlinBlock.SortDirection
 import org.apache.commons.lang3.StringUtils
 import org.apache.tinkerpop.gremlin.process.traversal.Order
 import org.apache.tinkerpop.gremlin.process.traversal.P
+import org.apache.tinkerpop.gremlin.process.traversal.Scope
 import org.apache.tinkerpop.gremlin.process.traversal.TextP
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource
@@ -31,15 +33,37 @@ typealias YT = GraphTraversal<*, YTDBVertex>
 sealed class GremlinQuery {
 
     companion object {
-
-        val all = Condition(GremlinBlock.All)
-
-        private fun isSlice(block: GremlinBlock) =
-            block is GremlinBlock.Limit || block is GremlinBlock.Skip || block is GremlinBlock.Tail
-
-        private fun isOrder(block: GremlinBlock) =
-            block is GremlinBlock.SortBy || block is GremlinBlock.SortByLinked || block is GremlinBlock.Reverse || block is GremlinBlock.Dedup
+        @JvmStatic
+        val all = Where(GremlinBlock.All)
     }
+
+    fun then(block: GremlinBlock): GremlinQuery = when {
+        block is GremlinBlock.All -> this
+        block.type == BlockType.SLICE -> Slice.of(this, block)
+        block.type == BlockType.ORDER -> Order.of(this, block)
+        block is GremlinBlock.HasLabel -> Labeled.of(this, block.entityType)
+        block is GremlinBlock.InLink -> FollowLink(this, LinkDirection.IN, block.linkName)
+        block is GremlinBlock.OutLink -> FollowLink(this, LinkDirection.OUT, block.linkName)
+
+        block is GremlinBlock.AndThen -> throw IllegalArgumentException("Nested andThen is not allowed")
+        block is GremlinBlock.Reverse -> when (this) {
+            is SortBy -> this.reverseOrder()
+            is ReversedOrder -> this.inner
+            else -> ReversedOrder(this)
+        }
+
+        else -> when (this) {
+            is Where -> Where(this.block.andThen(block))
+            is ByIds -> Where(this.toWhere().block.andThen(block))
+            is Labeled -> Labeled(this.inner.then(block), this.label)
+            is AndThen -> AndThen(this.inner, this.block.andThen(block))
+            else -> AndThen(this, block)
+        }
+    }
+
+    fun start(gs: GraphTraversalSource): YT = startTraversal(gs).traversal
+
+    abstract fun shortName(): String
 
     protected data class YTBuilder(val traversal: YT, val counter: Int) {
         companion object {
@@ -53,45 +77,38 @@ sealed class GremlinQuery {
         fun combine(block: (YT) -> YT) = YTBuilder(block(traversal), counter)
     }
 
-    fun start(gs: GraphTraversalSource): YT = startTraversal(gs).traversal
-
     protected abstract fun startTraversal(gs: GraphTraversalSource): YTBuilder
     protected abstract fun continueTraversal(t: YT, paramCounter: Int, ignoreSort: Boolean): YTBuilder
 
-    fun andThen(block: GremlinBlock): GremlinQuery = when {
-        block is GremlinBlock.All -> this
-        isSlice(block) -> Slice.from(this, block)
-        isOrder(block) -> Order.from(this, block)
-        block is GremlinBlock.HasLabel -> Labeled.from(this, block.entityType)
-        block is GremlinBlock.InLink -> FollowLink(this, LinkDirection.IN, block.linkName)
-        block is GremlinBlock.OutLink -> FollowLink(this, LinkDirection.OUT, block.linkName)
+    sealed class ConditionCombiner(
+        val combineBlocks: (GremlinBlock, GremlinBlock) -> GremlinBlock,
+        val combineIds: (List<RID>, List<RID>) -> List<RID>
+    ) {
+        data object Intersect : ConditionCombiner(
+            combineBlocks = GremlinBlock::And,
+            combineIds = { a, b -> a.filter(b::contains) }
+        )
 
-        block is GremlinBlock.AndThen -> throw IllegalArgumentException("Nested andThen is not allowed")
+        data object Union : ConditionCombiner(
+            combineBlocks = GremlinBlock::Or,
+            combineIds = { a, b -> a + b.filter { !a.contains(it) } }
+        )
 
-        else -> when (this) {
-            is Condition -> Condition(this.block.andThen(block))
-            is Labeled -> Labeled(this.inner.andThen(block), this.label)
-            is AndThen -> AndThen(this.inner, this.block.andThen(block))
-            else -> AndThen(this, block)
-        }
+        data object Difference : ConditionCombiner(
+            combineBlocks = { b1, b2 -> GremlinBlock.And(b1, GremlinBlock.Not(b2)) },
+            combineIds = { a, b -> a.filter { !b.contains(it) } }
+        )
+
     }
 
-    //
-//    // this is a too low-level method
-//    fun andThen(block: GremlinBlock): GremlinQuery = when (this) {
-//        is Condition -> Condition(this.block.andThen(block))
-//        is Labeled -> Labeled(this.inner.andThen(block), this.label)
-//        is AndThen -> AndThen(this.inner, this.block.andThen(block))
-//        is UnionAll, is FollowLink, is Aggregate -> AndThen(this, block)
-//    }
-//
+    // todo: handle SortBy here too
     private fun combineEfficient(
         other: GremlinQuery,
-        condCombiner: (GremlinBlock, GremlinBlock) -> GremlinBlock
+        condCombiner: ConditionCombiner
     ): GremlinQuery? {
         fun extractLabel(q: GremlinQuery): String? = if (q is Labeled) q.label else null
         fun extractCondition(q: GremlinQuery): GremlinBlock? = when (q) {
-            is Condition -> q.block
+            is Where -> q.block
             is Labeled -> extractCondition(q.inner)
             else -> null
         }
@@ -103,6 +120,10 @@ sealed class GremlinQuery {
             return null
         }
 
+        if (this is ByIds && other is ByIds) {
+            return ByIds(condCombiner.combineIds(this.ids, other.ids))
+        }
+
         val thisCondition = extractCondition(this)
         val otherCondition = extractCondition(other)
 
@@ -111,32 +132,53 @@ sealed class GremlinQuery {
         }
 
         val label = thisLabel ?: otherLabel
-        val combinedCondition = Condition(condCombiner(thisCondition, otherCondition))
+        val combinedCondition = Where.of(condCombiner.combineBlocks(thisCondition, otherCondition))
 
-        return if (label != null) Labeled(combinedCondition, label) else combinedCondition
+        return if (label != null) Labeled.of(combinedCondition, label) else combinedCondition
     }
 
     fun union(other: GremlinQuery): GremlinQuery =
-        combineEfficient(other, GremlinBlock::Or)
-            ?: this.unionAll(other).andThen(GremlinBlock.Dedup)
+        combineEfficient(other, ConditionCombiner.Union)
+            ?: this.unionAll(other).then(GremlinBlock.Dedup)
 
     fun intersect(other: GremlinQuery): GremlinQuery =
-        combineEfficient(other, GremlinBlock::And)
+        combineEfficient(other, ConditionCombiner.Intersect)
             ?: Aggregate(this, other) { P.within(it) }
 
     fun difference(other: GremlinQuery): GremlinQuery =
-        combineEfficient(other) { a, b -> GremlinBlock.And(a, GremlinBlock.Not(b)) }
+        combineEfficient(other, ConditionCombiner.Difference)
             ?: Aggregate(this, other) { P.without(it) }
 
     fun unionAll(vararg queries: GremlinQuery) = UnionAll(listOf(this, *queries))
 
-    data class Condition(
-        val block: GremlinBlock
-    ) : GremlinQuery() {
-
-        override fun startTraversal(gs: GraphTraversalSource): YTBuilder = YTBuilder.of(gs.V(), block)
+    sealed class Condition(private val _block: GremlinBlock) : GremlinQuery() {
+        override fun startTraversal(gs: GraphTraversalSource): YTBuilder = YTBuilder.of(gs.V(), _block)
         override fun continueTraversal(t: YT, paramCounter: Int, ignoreSort: Boolean): YTBuilder =
-            YTBuilder.of(t.V(), block, paramCounter)
+            YTBuilder.of(t.V(), _block, paramCounter)
+
+        override fun shortName(): String = _block.shortName
+
+        fun combineBinary(other: Condition, combiner: (GremlinBlock, GremlinBlock) -> GremlinBlock): Condition =
+            Where.of(combiner(_block, other._block))
+
+        fun combineUnary(combiner: (GremlinBlock) -> GremlinBlock): Condition =
+            Where.of(combiner(_block))
+    }
+
+    data class Where(val block: GremlinBlock) : Condition(block) {
+
+        companion object {
+            fun of(block: GremlinBlock): Where {
+                require(block.type == BlockType.CONDITION || block.type == BlockType.NOOP || block.type == BlockType.COMBINE)
+                return Where(block)
+            }
+        }
+    }
+
+    // todo: think how to preserve the order of the parameters
+    // todo: handle Take & Skip differently too
+    data class ByIds(val ids: List<RID>) : Condition(GremlinBlock.IdWithin(ids)) {
+        fun toWhere(): Where = Where.of(GremlinBlock.IdWithin(ids))
     }
 
     sealed class Chained(
@@ -152,13 +194,17 @@ sealed class GremlinQuery {
         override fun continueTraversal(t: YT, paramCounter: Int, ignoreSort: Boolean): YTBuilder =
             _inner
                 .continueTraversal(t, paramCounter, ignoreSort && !dependsOnOrder)
-                .combine(if (isOrder && ignoreSort) _block else GremlinBlock.All)
+                // todo: this optimization obviously brings some errors
+                // .combine(if (isOrder && ignoreSort) GremlinBlock.All else _block)
+                .combine(_block)
+
+        override fun shortName(): String = _block.shortName
     }
 
     data class Labeled(val inner: GremlinQuery, val label: String) :
         Chained(inner, GremlinBlock.HasLabel(label)) {
         companion object {
-            fun from(query: GremlinQuery, label: String): GremlinQuery =
+            fun of(query: GremlinQuery, label: String): GremlinQuery =
                 Labeled((query as? Labeled)?.inner ?: query, label)
         }
     }
@@ -172,8 +218,8 @@ sealed class GremlinQuery {
     ) : Chained(inner, sliceBlock, dependsOnOrder = true) {
 
         companion object {
-            fun from(query: GremlinQuery, sliceBlock: GremlinBlock): GremlinQuery {
-                require(isSlice(sliceBlock))
+            fun of(query: GremlinQuery, sliceBlock: GremlinBlock): GremlinQuery {
+                require(sliceBlock.type == BlockType.SLICE)
                 return Slice(
                     inner = (query as? Slice)?.inner ?: query,
                     sliceBlock = ((query as? Slice)?.sliceBlock ?: GremlinBlock.All).andThen(sliceBlock)
@@ -221,6 +267,8 @@ sealed class GremlinQuery {
             val subi = subtraversals(0, ignoreSort)
             return YTBuilder.of(t.union(*subi.first), counter = subi.second)
         }
+
+        override fun shortName(): String = "unionAll"
     }
 
     data class Aggregate(val left: GremlinQuery, val right: GremlinQuery, val fn: (String) -> P<String>) :
@@ -244,14 +292,32 @@ sealed class GremlinQuery {
                 )
                 .combine { it.where(fn(rightSetName)) }
         }
+
+        override fun shortName(): String = "aggregate"
     }
+
+    data class SortBy(val inner: GremlinQuery, val sortBlock: GremlinBlock.Sort) :
+        Chained(inner, sortBlock, dependsOnOrder = false, isOrder = true) {
+        companion object {
+            fun of(query: GremlinQuery, sortBlock: GremlinBlock.Sort): GremlinQuery = SortBy(query, sortBlock)
+        }
+
+        fun reverseOrder(): SortBy = this.copy(
+            inner = inner, sortBlock = sortBlock.copy(
+                by = sortBlock.by,
+                direction = if (sortBlock.direction == SortDirection.ASC) SortDirection.DESC else SortDirection.ASC
+            )
+        )
+    }
+
+    data class ReversedOrder(val inner: GremlinQuery) : Chained(inner, GremlinBlock.Reverse)
 
     data class Order(val inner: GremlinQuery, val orderBlock: GremlinBlock) :
         Chained(inner, orderBlock, isOrder = true) {
 
         companion object {
-            fun from(query: GremlinQuery, orderBlock: GremlinBlock): GremlinQuery {
-                require(isOrder(orderBlock))
+            fun of(query: GremlinQuery, orderBlock: GremlinBlock): GremlinQuery {
+                require(orderBlock.type == BlockType.ORDER)
                 return Order(
                     inner = (query as? Order)?.inner ?: query,
                     orderBlock = ((query as? Order)?.orderBlock ?: GremlinBlock.All).andThen(orderBlock)
@@ -261,7 +327,17 @@ sealed class GremlinQuery {
     }
 }
 
-sealed class GremlinBlock(val shortName: String) {
+enum class BlockType {
+    NOOP,
+    SLICE,
+    ORDER,
+    LINK,
+    CONDITION,
+    COMBINE,
+    COMPOSE
+}
+
+sealed class GremlinBlock(val shortName: String, val type: BlockType) {
 
     abstract fun traverse(g: YT): YT
 
@@ -271,9 +347,6 @@ sealed class GremlinBlock(val shortName: String) {
 
     open fun simplify(): GremlinBlock? = null
 
-    abstract class GremlinUnaryOp(shortName: String) : GremlinBlock(shortName)
-    abstract class GremlinBinaryOp(shortName: String) : GremlinBlock(shortName)
-
     // TODO: not stack safe potentially?
     fun andThen(query: GremlinBlock) =
         if (this is All) query
@@ -281,7 +354,7 @@ sealed class GremlinBlock(val shortName: String) {
         else AndThen(this, query)
 
     // todo: make this private, don't expose it to the outside. users should
-    data class AndThen(val left: GremlinBlock, val right: GremlinBlock) : GremlinBinaryOp("andThen") {
+    data class AndThen(val left: GremlinBlock, val right: GremlinBlock) : GremlinBlock("andThen", BlockType.COMPOSE) {
         override fun traverse(g: YT): YT {
             val h = left.traverse(g)
             val i = right.traverse(h)
@@ -302,7 +375,7 @@ sealed class GremlinBlock(val shortName: String) {
             }
     }
 
-    data class Or(val left: GremlinBlock, val right: GremlinBlock) : GremlinBinaryOp("or") {
+    data class Or(val left: GremlinBlock, val right: GremlinBlock) : GremlinBlock("or", BlockType.COMBINE) {
         override fun traverse(g: YT): YT =
             g.or(
                 left.traverse(`__`.start<Any>().asYT()),
@@ -323,7 +396,7 @@ sealed class GremlinBlock(val shortName: String) {
             else null
     }
 
-    data class And(val left: GremlinBlock, val right: GremlinBlock) : GremlinBinaryOp("and") {
+    data class And(val left: GremlinBlock, val right: GremlinBlock) : GremlinBlock("and", BlockType.COMBINE) {
         override fun traverse(g: YT): YT =
             g.and(
                 left.traverse(`__`.start<Any>().asYT()),
@@ -347,7 +420,7 @@ sealed class GremlinBlock(val shortName: String) {
             }
     }
 
-    data class Not(val query: GremlinBlock) : GremlinUnaryOp("not") {
+    data class Not(val query: GremlinBlock) : GremlinBlock("not", BlockType.COMBINE) {
         override fun traverse(g: YT): YT = g.not(query.traverse(`__`.start<Any>().asYT()))
         override fun describeGremlin(s: StringBuilder): StringBuilder {
             s.appendLine(".not(")
@@ -364,7 +437,7 @@ sealed class GremlinBlock(val shortName: String) {
             }
     }
 
-    data object All : GremlinBlock("all") {
+    data object All : GremlinBlock("all", BlockType.NOOP) {
         override fun traverse(g: YT): YT = g
         override fun describe(s: StringBuilder): java.lang.StringBuilder = s.append("*")
         override fun describeGremlin(s: StringBuilder): StringBuilder {
@@ -372,7 +445,7 @@ sealed class GremlinBlock(val shortName: String) {
         }
     }
 
-    data object Dedup : GremlinBlock("dedup") {
+    data object Dedup : GremlinBlock("dedup", BlockType.ORDER) {
         override fun traverse(g: YT): YT = g.dedup()
         override fun describe(s: StringBuilder): StringBuilder = s.append(".dedup()")
         override fun describeGremlin(s: StringBuilder): StringBuilder {
@@ -380,14 +453,14 @@ sealed class GremlinBlock(val shortName: String) {
         }
     }
 
-    data class HasLabel(val entityType: String) : GremlinBlock("hl") {
+    data class HasLabel(val entityType: String) : GremlinBlock("hl", BlockType.CONDITION) {
         override fun traverse(g: YT): YT = g.hasLabel(entityType).asYT()
         override fun describe(s: StringBuilder): StringBuilder = s.append(".hasLabel(").append(entityType).append(")")
         override fun describeGremlin(s: StringBuilder): StringBuilder =
             s.append(".hasLabel(").append(entityType).append(")")
     }
 
-    data class Limit(val limit: Long) : GremlinBlock("lim") {
+    data class Limit(val limit: Long) : GremlinBlock("lim", BlockType.SLICE) {
         init {
             require(limit > 0) { "Limit must be positive" }
         }
@@ -396,7 +469,7 @@ sealed class GremlinBlock(val shortName: String) {
         override fun describeGremlin(s: StringBuilder): StringBuilder = s.append(".limit(").append(limit).append(")")
     }
 
-    data class Skip(val skip: Long) : GremlinBlock("skp") {
+    data class Skip(val skip: Long) : GremlinBlock("skp", BlockType.SLICE) {
         init {
             require(skip >= 0) { "Skip must be non-negative" }
         }
@@ -407,7 +480,7 @@ sealed class GremlinBlock(val shortName: String) {
         }
     }
 
-    data class Tail(val tail: Long) : GremlinBlock("tail") {
+    data class Tail(val tail: Long) : GremlinBlock("tail", BlockType.SLICE) {
         init {
             require(tail >= 0) { "Skip must be non-negative" }
         }
@@ -417,7 +490,7 @@ sealed class GremlinBlock(val shortName: String) {
         override fun describeGremlin(s: StringBuilder): StringBuilder = s.append(".tail(").append(tail).append(")")
     }
 
-    data class PropEqual(val property: String, val value: Any?) : GremlinBlock("eq") {
+    data class PropEqual(val property: String, val value: Any?) : GremlinBlock("eq", BlockType.CONDITION) {
         override fun traverse(g: YT): YT = g.has(property, value)
         override fun describe(s: StringBuilder): StringBuilder = s.append(property).append("=").append(value)
         override fun describeGremlin(s: StringBuilder): StringBuilder {
@@ -425,7 +498,7 @@ sealed class GremlinBlock(val shortName: String) {
         }
     }
 
-    data class PropNull(val property: String) : GremlinBlock("nul") {
+    data class PropNull(val property: String) : GremlinBlock("nul", BlockType.CONDITION) {
         override fun traverse(g: YT): YT = g.hasNot(property)
         override fun describe(s: StringBuilder): StringBuilder = s.append(property).append(" IS NULL")
         override fun describeGremlin(s: StringBuilder): StringBuilder {
@@ -433,7 +506,7 @@ sealed class GremlinBlock(val shortName: String) {
         }
     }
 
-    data class PropNotNull(val property: String) : GremlinBlock("nn") {
+    data class PropNotNull(val property: String) : GremlinBlock("nn", BlockType.CONDITION) {
         override fun traverse(g: YT): YT = g.has(property)
         override fun describe(s: StringBuilder): StringBuilder = s.append(property).append(" IS NOT NULL")
         override fun describeGremlin(s: StringBuilder): StringBuilder {
@@ -441,28 +514,20 @@ sealed class GremlinBlock(val shortName: String) {
         }
     }
 
-    data object Reverse : GremlinBlock("rev") {
-        override fun traverse(g: YT): YT = g.reverse()
-        override fun describe(s: StringBuilder): StringBuilder = s.append(".reverse()")
-        override fun describeGremlin(s: StringBuilder): StringBuilder {
-            return s.append(".reverse()")
-        }
-    }
-
-    data class OutLink(val linkName: String) : GremlinBlock("olnk") {
+    data class OutLink(val linkName: String) : GremlinBlock("olnk", BlockType.LINK) {
         override fun traverse(g: YT): YT = g.out(YTDBVertexEntity.edgeClassName(linkName)).asYT()
         override fun describe(s: StringBuilder): StringBuilder = s.append(".out(").append(linkName).append(")")
         override fun describeGremlin(s: StringBuilder): StringBuilder = s.append(".out(").append(linkName).append(")")
     }
 
-    data class InLink(val linkName: String) : GremlinBlock("ilnk") {
+    data class InLink(val linkName: String) : GremlinBlock("ilnk", BlockType.LINK) {
         override fun traverse(g: YT): YT = g.`in`(YTDBVertexEntity.edgeClassName(linkName)).asYT()
         override fun describe(s: StringBuilder): StringBuilder = s.append(".in(").append(linkName).append(")")
         override fun describeGremlin(s: StringBuilder): StringBuilder = s.append(".in(").append(linkName).append(")")
     }
 
     data class HasSubstring(val property: String, val substring: String?, val caseSensitive: Boolean) :
-        GremlinBlock("hsub") {
+        GremlinBlock("hsub", BlockType.CONDITION) {
         override fun traverse(g: YT): YT =
             if (caseSensitive) g.has(property, TextP.containing(substring))
             else g.where(
@@ -486,7 +551,8 @@ sealed class GremlinBlock(val shortName: String) {
         override fun simplify(): GremlinBlock? = if (StringUtils.isEmpty(substring)) All else null
     }
 
-    data class HasPrefix(val property: String, val prefix: String, val caseSensitive: Boolean) : GremlinBlock("hp") {
+    data class HasPrefix(val property: String, val prefix: String, val caseSensitive: Boolean) :
+        GremlinBlock("hp", BlockType.CONDITION) {
         override fun traverse(g: YT): YT =
             if (caseSensitive) g.has(property, TextP.startingWith(prefix))
             else g.where(
@@ -509,7 +575,7 @@ sealed class GremlinBlock(val shortName: String) {
         override fun simplify(): GremlinBlock? = if (StringUtils.isEmpty(prefix)) All else null
     }
 
-    data class HasElement(val property: String, val value: Any) : GremlinBlock("he") {
+    data class HasElement(val property: String, val value: Any) : GremlinBlock("he", BlockType.CONDITION) {
         override fun traverse(g: YT): YT =
             g.where(
                 `__`
@@ -527,7 +593,7 @@ sealed class GremlinBlock(val shortName: String) {
         override fun describe(s: StringBuilder): StringBuilder = s.append(property).append(" hasElement ").append(value)
     }
 
-    data class HasLinkTo(val linkName: String, val rid: RID) : GremlinBlock("hlt") {
+    data class HasLinkTo(val linkName: String, val rid: RID) : GremlinBlock("hlt", BlockType.CONDITION) {
         override fun traverse(g: YT): YT =
             g.where(
                 `__`
@@ -547,7 +613,7 @@ sealed class GremlinBlock(val shortName: String) {
             s.append("hasLinkTo(").append(linkName).append(", ").append(rid).append(")")
     }
 
-    data class HasLink(val linkName: String) : GremlinBlock("hl") {
+    data class HasLink(val linkName: String) : GremlinBlock("hl", BlockType.CONDITION) {
         override fun traverse(g: YT): YT =
             g.where(`__`.out(YTDBVertexEntity.edgeClassName(linkName)))
 
@@ -561,7 +627,7 @@ sealed class GremlinBlock(val shortName: String) {
             s.append("hasLink(").append(linkName).append(")")
     }
 
-    data class HasNoLink(val linkName: String) : GremlinBlock("hnl") {
+    data class HasNoLink(val linkName: String) : GremlinBlock("hnl", BlockType.CONDITION) {
         override fun traverse(g: YT): YT =
             g.not(`__`.out(YTDBVertexEntity.edgeClassName(linkName)))
 
@@ -575,7 +641,8 @@ sealed class GremlinBlock(val shortName: String) {
             s.append("hasNoLink(").append(linkName).append(")")
     }
 
-    data class PropInRange(val propName: String, val min: Comparable<*>, val max: Comparable<*>) : GremlinBlock("pb") {
+    data class PropInRange(val propName: String, val min: Comparable<*>, val max: Comparable<*>) :
+        GremlinBlock("pb", BlockType.CONDITION) {
         override fun traverse(g: YT): YT =
             g.has(propName, P.gte(min).and(P.lte(max)))
         override fun describe(s: StringBuilder): StringBuilder = s.append(min).append(" <= ").append(propName).append(" <= ").append(max)
@@ -583,34 +650,75 @@ sealed class GremlinBlock(val shortName: String) {
             s.append("has(").append(propName).append(", gte(").append(min).append(") and lte(").append(max).append("))")
     }
 
+    data class PropWithin(val propName: String, val within: Collection<*>) : GremlinBlock("pw", BlockType.CONDITION) {
+        override fun traverse(g: YT): YT =
+            g.has(propName, P.within<Any>(within))
+
+        override fun describe(s: StringBuilder): StringBuilder =
+            s.append(propName).append(" within ").append(within)
+
+        override fun describeGremlin(s: StringBuilder): StringBuilder =
+            s.append("has(").append(propName).append(", within(").append(within).append("))")
+    }
+
+    data class IdEqual(val rid: RID) : GremlinBlock("ide", BlockType.CONDITION) {
+        override fun traverse(g: YT): YT =
+            g.hasId(rid)
+
+        override fun describe(s: StringBuilder): StringBuilder =
+            s.append("id=").append(rid)
+
+        override fun describeGremlin(s: StringBuilder): StringBuilder =
+            s.append("hasId(").append(rid).append(")")
+    }
+
+    data class IdWithin(val within: Collection<RID>) : GremlinBlock("idw", BlockType.CONDITION) {
+        override fun traverse(g: YT): YT = g.hasId(P.within(within))
+
+        override fun describe(s: StringBuilder): StringBuilder = s.append("id within ").append(within)
+
+        override fun describeGremlin(s: StringBuilder): StringBuilder =
+            s.append("hasId(within(").append(within).append("))")
+    }
+
     enum class SortDirection {
         ASC, DESC
     }
 
-    data class SortBy(val propName: String, val direction: SortDirection) : GremlinBlock("sb") {
-        override fun traverse(g: YT): YT = g.order().by(
-            propName, when (direction) {
+
+    data class Sort(val by: By, val direction: SortDirection) : GremlinBlock("sb", BlockType.ORDER) {
+        sealed interface By
+        class ByProp(val propName: String) : By
+        class ByLinked(val linkName: String, val propName: String) : By
+
+        override fun traverse(g: YT): YT {
+            val order = when (direction) {
                 SortDirection.ASC -> Order.asc
                 SortDirection.DESC -> Order.desc
             }
-        )
+
+            return when (by) {
+                is ByProp -> g.order().by(by.propName, order)
+                is ByLinked -> g.order().by(
+                    `__`.out(YTDBVertexEntity.edgeClassName(by.linkName)).values<Any>(by.propName),
+                    order
+                )
+            }
+        }
 
         override fun describe(s: StringBuilder): StringBuilder =
-            s.append(".sortBy(").append(propName).append(", ").append(direction).append(")")
+            s.append(".sortBy(").append(by).append(", ").append(direction).append(")")
 
         override fun describeGremlin(s: StringBuilder): StringBuilder =
-            s.append(".order().by(").append(propName).append(", ").append(direction.name.lowercase()).append(")")
+            s.append(".order().by(").append(by).append(", ").append(direction.name.lowercase()).append(")")
     }
 
-    data class SortByLinked(val linkName: String, val propName: String, val direction: SortDirection) :
-        GremlinBlock("sbl") {
-        override fun traverse(g: YT): YT = g.order().by(
-            `__`.out(YTDBVertexEntity.edgeClassName(linkName)).values<Any>(propName),
-            when (direction) {
-                SortDirection.ASC -> Order.asc
-                SortDirection.DESC -> Order.desc
-            }
-        )
+    data object Reverse : GremlinBlock("rev", BlockType.ORDER) {
+        override fun traverse(g: YT): YT = g
+            .fold().index<Any>().unfold<Any>()
+            .order().by(`__`.tail<Any>(Scope.local, 1), Order.desc)
+            .limit<Any>(Scope.local, 1)
+            .asYT()
 
         override fun describe(s: StringBuilder): StringBuilder {
             TODO("Not yet implemented")
@@ -618,30 +726,6 @@ sealed class GremlinBlock(val shortName: String) {
 
         override fun describeGremlin(s: StringBuilder): StringBuilder {
             TODO("Not yet implemented")
-        }
-    }
-
-    // todo: is this even used?
-    data class Union(val first: GremlinBlock, val second: GremlinBlock) : GremlinBlock("union") {
-        override fun traverse(g: YT): YT = g.union(
-            traverseInner(first),
-            traverseInner(second)
-        )
-
-        private fun traverseInner(inner: GremlinBlock): YT = inner.traverse(`__`.start<Any>().asYT())
-
-        override fun describe(s: StringBuilder): StringBuilder {
-            s.append("UNION(")
-            first.describe(s).append(", ")
-            return second.describe(s).append(")")
-        }
-
-        override fun describeGremlin(s: StringBuilder): StringBuilder {
-            s.appendLine(".union(")
-            first.describeGremlin(s.append("V()")).appendLine(",")
-            second.describeGremlin(s.append("V()")).appendLine()
-            s.appendLine(")")
-            return s
         }
     }
 }

@@ -21,14 +21,13 @@ import jetbrains.exodus.entitystore.PersistentEntityStore
 import jetbrains.exodus.entitystore.StoreTransaction
 import jetbrains.exodus.entitystore.iterate.EntityIdSet
 import jetbrains.exodus.entitystore.iterate.SingleEntityIterable
-import jetbrains.exodus.entitystore.youtrackdb.YTDBEntityIterable
+import jetbrains.exodus.entitystore.util.EntityIdSetFactory
+import jetbrains.exodus.entitystore.youtrackdb.YTDBEntityId
 import jetbrains.exodus.entitystore.youtrackdb.YTDBEntityStore
 import jetbrains.exodus.entitystore.youtrackdb.YTDBStoreTransaction
-import jetbrains.exodus.entitystore.youtrackdb.iterate.YTDBEntityIterableBase
-import jetbrains.exodus.entitystore.youtrackdb.iterate.binop.YTDBIntersectionEntityIterable
-import jetbrains.exodus.entitystore.youtrackdb.iterate.link.YTDBMultipleEntitiesIterable
-import jetbrains.exodus.entitystore.util.EntityIdSetFactory
 import jetbrains.exodus.entitystore.youtrackdb.gremlin.GremlinEntityIterable
+import jetbrains.exodus.entitystore.youtrackdb.gremlin.GremlinQuery
+import jetbrains.exodus.entitystore.youtrackdb.iterate.YTDBEntityIterableBase
 import jetbrains.exodus.kotlin.notNull
 import jetbrains.exodus.query.metadata.ModelMetaData
 import mu.KLogging
@@ -203,26 +202,26 @@ open class QueryEngine(val modelMetaData: ModelMetaData?, val persistentStore: P
         val sequence: Sequence<Entity>
 
         val txn = persistentStore.andCheckCurrentTransaction
-        if (left is YTDBEntityIterable) {
+        if (left is GremlinEntityIterable) {
             //May be rewrite it. Constant from nowhere
-            val rightValues = right.take(20)
-            if (rightValues.size < 20) {
-                return YTDBIntersectionEntityIterable(
+            val rightIds = right.asSequence().map { e -> (e.id as YTDBEntityId).asOId() }.take(20).toList()
+            if (rightIds.size < 20) {
+                return GremlinEntityIterable.query(
                     txn as YTDBStoreTransaction,
-                    left,
-                    YTDBMultipleEntitiesIterable(txn, rightValues.toList())
+                    left.query.intersect(
+                        GremlinQuery.ByIds(rightIds)
+                    )
                 )
             } else {
                 ids = getAsEntityIdSet(left)
                 sequence = right.asSequence()
             }
-        } else if (right is YTDBEntityIterable) {
-            val leftValues = left.take(20)
+        } else if (right is GremlinEntityIterable) {
+            val leftValues = left.asSequence().map { e -> (e.id as YTDBEntityId).asOId() }.take(20).toList()
             if (leftValues.size < 20) {
-                return YTDBIntersectionEntityIterable(
+                return GremlinEntityIterable.query(
                     txn as YTDBStoreTransaction,
-                    right,
-                    YTDBMultipleEntitiesIterable(txn, leftValues.toList())
+                    GremlinQuery.ByIds(leftValues).intersect(right.query)
                 )
             } else {
                 ids = getAsEntityIdSet(left)

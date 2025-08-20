@@ -15,26 +15,11 @@
  */
 package jetbrains.exodus.query
 
-import com.google.common.truth.Truth.assertThat
-import io.mockk.every
-import io.mockk.mockk
-import jetbrains.exodus.entitystore.Entity
 import jetbrains.exodus.entitystore.EntityIterable
 import jetbrains.exodus.entitystore.youtrackdb.YTDBStoreTransaction
-import jetbrains.exodus.entitystore.youtrackdb.iterate.YTDBEntityIterableBase
-import jetbrains.exodus.entitystore.youtrackdb.iterate.link.YTDBMultipleEntitiesIterable
-import jetbrains.exodus.entitystore.youtrackdb.testutil.*
-import jetbrains.exodus.query.metadata.EntityMetaData
-import jetbrains.exodus.query.metadata.ModelMetaData
-import jetbrains.exodus.query.metadata.PropertyMetaData
-import jetbrains.exodus.query.metadata.PropertyType
-import org.junit.Assert
-import org.junit.Ignore
+import jetbrains.exodus.entitystore.youtrackdb.testutil.InMemoryYouTrackDB
+import jetbrains.exodus.entitystore.youtrackdb.testutil.OTestMixin
 import org.junit.Rule
-import org.junit.Test
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
-import kotlin.test.assertEquals
 
 
 class YTDBQueryEngineTest(

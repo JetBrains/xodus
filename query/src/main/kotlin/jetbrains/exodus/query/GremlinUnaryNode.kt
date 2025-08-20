@@ -18,6 +18,7 @@ package jetbrains.exodus.query
 import jetbrains.exodus.entitystore.Entity
 import jetbrains.exodus.entitystore.youtrackdb.gremlin.GremlinEntityIterable
 import jetbrains.exodus.entitystore.youtrackdb.gremlin.GremlinBlock
+import jetbrains.exodus.entitystore.youtrackdb.gremlin.GremlinQuery
 import jetbrains.exodus.query.metadata.ModelMetaData
 
 class GremlinUnaryNode(
@@ -25,9 +26,14 @@ class GremlinUnaryNode(
     val shortName: String,
     val op: (GremlinBlock) -> GremlinBlock
 ) : UnaryNode(child), GremlinNode {
+    override fun getQuery(): GremlinQuery? {
+        val childNode = (child as? GremlinNode) ?: return null
 
-    override fun getBlock(): GremlinBlock? =
-        (child as? GremlinNode)?.block?.let { op(it) }
+        val condition = childNode.query as? GremlinQuery.Condition
+            ?: throw IllegalArgumentException("Only Condition instances can be used in the chain")
+
+        return condition.combineUnary(op)
+    }
 
     override fun instantiate(
         entityType: String,
@@ -35,15 +41,13 @@ class GremlinUnaryNode(
         metaData: ModelMetaData?,
         context: InstantiateContext?
     ): Iterable<Entity> {
-        val newQuery = block ?: run {
+        val newQuery = query ?: run {
             throw IllegalStateException("Only GremlinNode instances can be used in the chain")
         }
 
-        // todo: We should operate with GremlinQueries, not blocks at this level
-        return GremlinEntityIterable.where(
-            entityType,
+        return GremlinEntityIterable.query(
             queryEngine.oStore.requireActiveTransaction(),
-            newQuery
+            newQuery.then(GremlinBlock.HasLabel(entityType))
         )
     }
 

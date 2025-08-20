@@ -23,7 +23,9 @@ import jetbrains.exodus.entitystore.asGremlinIterable
 import jetbrains.exodus.entitystore.youtrackdb.YTDBEntityId
 import jetbrains.exodus.entitystore.youtrackdb.YTDBEntityStore
 import jetbrains.exodus.entitystore.youtrackdb.YTDBStoreTransaction
+import org.apache.tinkerpop.gremlin.process.traversal.P
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal
+import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__
 
 interface GremlinEntityIterable : EntityIterable {
 
@@ -33,8 +35,8 @@ interface GremlinEntityIterable : EntityIterable {
             query(
                 tx,
                 GremlinQuery.all
-                    .andThen(condition)
-                    .andThen(GremlinBlock.HasLabel(entityType))
+                    .then(condition)
+                    .then(GremlinBlock.HasLabel(entityType))
             )
 
         @JvmStatic
@@ -59,7 +61,7 @@ class GremlinEntityIterableImpl(
     private var cachedSize: Long = -1
 
     private fun modify(block: GremlinBlock): GremlinEntityIterableImpl =
-        GremlinEntityIterableImpl(tx, this.query.andThen(block))
+        GremlinEntityIterableImpl(tx, this.query.then(block))
 
     private fun iterator(traversal: GraphTraversal<*, YTDBVertex>): GremlinEntityIterator =
         GremlinEntityIterator(
@@ -184,7 +186,7 @@ class GremlinEntityIterableImpl(
             entities
                 .asGremlinIterable()
                 .query
-                .andThen(GremlinBlock.InLink(linkName))
+                .then(GremlinBlock.InLink(linkName))
         )
             .distinct()
     }

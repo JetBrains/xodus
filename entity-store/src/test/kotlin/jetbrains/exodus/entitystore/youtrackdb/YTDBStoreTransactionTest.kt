@@ -21,6 +21,7 @@ import com.jetbrains.youtrack.db.api.record.Direction
 import com.jetbrains.youtrack.db.api.record.Vertex
 import jetbrains.exodus.entitystore.EntityRemovedInDatabaseException
 import jetbrains.exodus.entitystore.PersistentEntityId
+import jetbrains.exodus.entitystore.youtrackdb.gremlin.GremlinEntityIterable
 import jetbrains.exodus.entitystore.youtrackdb.iterate.YTDBEntityIterableBase
 import jetbrains.exodus.entitystore.youtrackdb.iterate.YTDBEntityOfTypeIterable
 import jetbrains.exodus.entitystore.youtrackdb.iterate.link.YTDBLinkToEntityIterable
@@ -276,8 +277,8 @@ class YTDBStoreTransactionTest : OTestMixin {
         // When
         withStoreTx { tx ->
             // Sorted by project then by type in ascending order
-            val sortedByProject = tx.findWithPropSortedByValue(Issues.CLASS, "project")
-            val issues = tx.sort(Issues.CLASS, "type", sortedByProject, true)
+            val sortedByProject = tx.findWithPropSortedByValue(Issues.CLASS, "type")
+            val issues = tx.sort(Issues.CLASS, "project", sortedByProject, true)
 
             // Then
             // Apple -> Appointment -> 3
@@ -514,7 +515,7 @@ class YTDBStoreTransactionTest : OTestMixin {
 
         // When
         withStoreTx { tx ->
-            val issues = tx.getAll(Issues.CLASS) as YTDBEntityIterableBase
+            val issues = tx.getAll(Issues.CLASS) as GremlinEntityIterable
             val boards = issues.selectMany(Issues.Links.ON_BOARD)
 
             // Then
@@ -536,7 +537,7 @@ class YTDBStoreTransactionTest : OTestMixin {
 
         // When
         withStoreTx { tx ->
-            val issues = tx.getAll(Issues.CLASS) as YTDBEntityIterableBase
+            val issues = tx.getAll(Issues.CLASS)
             val boards = issues.selectDistinct(Issues.Links.ON_BOARD)
 
             // Then
@@ -556,7 +557,7 @@ class YTDBStoreTransactionTest : OTestMixin {
 
         // When
         withStoreTx { tx ->
-            val issues = tx.findIds(Issues.CLASS, 2, 100) as YTDBEntityIterableBase
+            val issues = tx.findIds(Issues.CLASS, 2, 100)
             // Then
             assertNamesExactly(
                 issues,

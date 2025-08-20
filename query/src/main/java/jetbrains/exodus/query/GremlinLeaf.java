@@ -29,35 +29,38 @@ import java.util.Objects;
 
 public class GremlinLeaf extends NodeBase implements GremlinNode {
 
-    private final GremlinBlock block;
+    private final GremlinQuery query;
 
-    public GremlinLeaf(GremlinBlock query) {
-        this.block = query;
+    public GremlinLeaf(GremlinQuery query) {
+        this.query = query;
+    }
+
+    public GremlinLeaf(GremlinBlock block) {
+        this(GremlinQuery.getAll().then(block));
     }
 
     @Override
     @Nonnull
-    public GremlinBlock getBlock() {
-        return block;
+    public GremlinQuery getQuery() {
+        return query;
     }
 
     @Override
     public Iterable<Entity> instantiate(String entityType, QueryEngine queryEngine, ModelMetaData metaData, InstantiateContext context) {
-        return GremlinEntityIterable.where(
-                entityType,
+        return GremlinEntityIterable.query(
                 queryEngine.getOStore().requireActiveTransaction(),
-                block
+                query.then(new GremlinBlock.HasLabel(entityType))
         );
     }
 
     @Override
     public NodeBase getClone() {
-        return new GremlinLeaf(block);
+        return new GremlinLeaf(query);
     }
 
     @Override
     public String getSimpleName() {
-        return block.getShortName();
+        return query.shortName();
     }
 
     @Override
@@ -67,10 +70,11 @@ public class GremlinLeaf extends NodeBase implements GremlinNode {
 
     @Override
     public void optimize(Sorts sorts, OptimizationPlan rules) {
-        final var simplified = block.simplify();
-        if (simplified != null) {
-            getParent().replaceChild(this, new GremlinLeaf(simplified));
-        }
+        // todo: optimize
+//        final var simplified = block.simplify();
+//        if (simplified != null) {
+//            getParent().replaceChild(this, new GremlinLeaf(simplified));
+//        }
     }
 
     @Override
@@ -81,12 +85,14 @@ public class GremlinLeaf extends NodeBase implements GremlinNode {
     @Override
     public StringBuilder getHandle(StringBuilder s) {
         // todo: think of this. if this needed at all
-        return block.describe(s);
+        // return block.describe(s);
+        return new StringBuilder(getSimpleName());
     }
 
     @Override
     public String toString() {
-        return block.describe(new StringBuilder()).toString();
+        // todo:
+        return getSimpleName();
     }
 
     @Override
@@ -95,11 +101,11 @@ public class GremlinLeaf extends NodeBase implements GremlinNode {
         if (o == null || getClass() != o.getClass()) return false;
         if (!super.equals(o)) return false;
         GremlinLeaf that = (GremlinLeaf) o;
-        return Objects.equals(block, that.block);
+        return Objects.equals(query, that.query);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hashCode(block);
+        return Objects.hashCode(query);
     }
 }
