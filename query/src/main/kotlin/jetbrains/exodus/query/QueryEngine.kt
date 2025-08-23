@@ -25,6 +25,7 @@ import jetbrains.exodus.entitystore.util.EntityIdSetFactory
 import jetbrains.exodus.entitystore.youtrackdb.YTDBEntityId
 import jetbrains.exodus.entitystore.youtrackdb.YTDBEntityStore
 import jetbrains.exodus.entitystore.youtrackdb.YTDBStoreTransaction
+import jetbrains.exodus.entitystore.youtrackdb.gremlin.GremlinBlock
 import jetbrains.exodus.entitystore.youtrackdb.gremlin.GremlinEntityIterable
 import jetbrains.exodus.entitystore.youtrackdb.gremlin.GremlinQuery
 import jetbrains.exodus.entitystore.youtrackdb.iterate.YTDBEntityIterableBase
@@ -44,17 +45,17 @@ open class QueryEngine(val modelMetaData: ModelMetaData?, val persistentStore: P
             _sortEngine = value.notNull.apply { queryEngine = this@QueryEngine }
         }
 
-    open fun queryGetAll(entityType: String): EntityIterable = query(null, entityType, NodeFactory.all_old())
+    open fun queryGetAll(entityType: String): EntityIterable = query(null, entityType, NodeFactory.all())
 
     open fun query(entityType: String, tree: NodeBase): EntityIterable = query(null, entityType, tree)
 
     open fun query(instance: Iterable<Entity>?, entityType: String, tree: NodeBase): EntityIterable {
         return when {
-            modelMetaData != null && modelMetaData.getEntityMetaData(entityType) == null -> YTDBEntityIterableBase.EMPTY
+            modelMetaData != null && modelMetaData.getEntityMetaData(entityType) == null -> GremlinEntityIterable.EMPTY
             instance == null -> tree.instantiate(entityType, this, modelMetaData, NodeBase.InstantiateContext()) as EntityIterable
             instance is EntityIterable -> {
-                if (tree is Sort) {
-                    val sorted = tree.applySort(entityType, instance, sortEngine!!)
+                if (tree is GremlinLeaf && tree.query is GremlinQuery.SortBy) {
+                    val sorted = applySort(tree, entityType, instance)
                     sorted as? EntityIterable ?: InMemoryEntityIterable(sorted, txn = persistentStore.andCheckCurrentTransaction, this)
                 } else {
                     instance.intersect(
@@ -68,8 +69,8 @@ open class QueryEngine(val modelMetaData: ModelMetaData?, val persistentStore: P
                 }
             }
             else -> {
-                if (tree is Sort) {
-                    val sorted = tree.applySort(entityType, instance, sortEngine!!)
+                if (tree is GremlinLeaf && tree.query is GremlinQuery.SortBy) {
+                    val sorted = applySort(tree, entityType, instance)
                     InMemoryEntityIterable(sorted, txn = persistentStore.andCheckCurrentTransaction, this)
                 } else {
                     intersect(
@@ -81,12 +82,42 @@ open class QueryEngine(val modelMetaData: ModelMetaData?, val persistentStore: P
         }
     }
 
+    private fun applySort(
+        tree: GremlinLeaf,
+        entityType: String,
+        instance: Iterable<Entity>
+    ): Iterable<Entity> {
+        val sb = tree.query as GremlinQuery.SortBy
+        val sbBlock = sb.sortBlock
+        val sorted = when (val by = sbBlock.by) {
+            is GremlinBlock.Sort.ByProp ->
+                sortEngine!!.sort(
+                    entityType,
+                    by.propName,
+                    instance,
+                    sbBlock.direction == GremlinBlock.SortDirection.ASC
+                )
+
+            is GremlinBlock.Sort.ByLinked ->
+                // todo: first parameter is not used
+                sortEngine!!.sort(
+                    "",
+                    by.propName,
+                    entityType,
+                    by.linkName,
+                    instance,
+                    sbBlock.direction == GremlinBlock.SortDirection.ASC
+                )
+        }
+        return sorted
+    }
+
     open fun intersect(left: Iterable<Entity>, right: Iterable<Entity>): Iterable<Entity> {
         if (left === right) {
             return left
         }
         if (left.isEmpty || right.isEmpty) {
-            return YTDBEntityIterableBase.EMPTY
+            return GremlinEntityIterable.EMPTY
         }
         return if (left is EntityIterable && right is EntityIterable) {
             @Suppress("USELESS_CAST")
@@ -132,7 +163,7 @@ open class QueryEngine(val modelMetaData: ModelMetaData?, val persistentStore: P
 
     open fun exclude(left: Iterable<Entity>, right: Iterable<Entity>): Iterable<Entity> {
         if (left.isEmpty || left === right) {
-            return YTDBEntityIterableBase.EMPTY
+            return GremlinEntityIterable.EMPTY
         }
         if (right.isEmpty) {
             return left
@@ -149,7 +180,7 @@ open class QueryEngine(val modelMetaData: ModelMetaData?, val persistentStore: P
         return if (it is EntityIterable) {
             it.selectDistinct(linkName)
         } else {
-            it?.let { inMemorySelectDistinct(it, linkName) } ?: YTDBEntityIterableBase.EMPTY
+            it?.let { inMemorySelectDistinct(it, linkName) } ?: GremlinEntityIterable.EMPTY
         }
 
     }
@@ -158,7 +189,7 @@ open class QueryEngine(val modelMetaData: ModelMetaData?, val persistentStore: P
         return if (it is EntityIterable) {
             it.selectManyDistinct(linkName)
         } else {
-            return it?.let { inMemorySelectManyDistinct(it, linkName) } ?: YTDBEntityIterableBase.EMPTY
+            return it?.let { inMemorySelectManyDistinct(it, linkName) } ?: GremlinEntityIterable.EMPTY
         }
     }
 
@@ -264,7 +295,7 @@ open class QueryEngine(val modelMetaData: ModelMetaData?, val persistentStore: P
 
 private val Iterable<Entity>?.isEmpty: Boolean
     get() {
-        return this == null || this === YTDBEntityIterableBase.EMPTY
+        return this == null || this === GremlinEntityIterable.EMPTY
     }
 
 private val Iterable<Entity>?.isPersistent: Boolean

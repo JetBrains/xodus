@@ -367,7 +367,7 @@ class YTDBGremlinStoreTransactionImpl(
         return GremlinEntityIterable.query(
             this,
             GremlinQuery.all
-                .then(GremlinBlock.PropEqual(LOCAL_ENTITY_ID_PROPERTY_NAME, entity.id.localId))
+                .then(GremlinBlock.IdEqual((entity.id as YTDBEntityId).asOId()))
                 .then(GremlinBlock.InLink(linkName))
                 .then(GremlinBlock.HasLabel(entityType))
         )
@@ -435,6 +435,46 @@ class YTDBGremlinStoreTransactionImpl(
                 .then(
                     GremlinBlock.Sort(
                         GremlinBlock.Sort.ByProp(propertyName),
+                        if (ascending) SortDirection.ASC else SortDirection.DESC
+                    )
+                )
+        )
+    }
+
+    fun sortLinked(
+        entityType: String,
+        linkName: String,
+        propertyName: String,
+        ascending: Boolean
+    ): EntityIterable {
+        requireActiveTransaction()
+        return GremlinEntityIterable.query(
+            this,
+            GremlinQuery.all
+                .then(GremlinBlock.HasLabel(entityType))
+                .then(
+                    GremlinBlock.Sort(
+                        GremlinBlock.Sort.ByLinked(linkName, propertyName),
+                        if (ascending) SortDirection.ASC else SortDirection.DESC
+                    )
+                )
+        )
+    }
+
+    fun sortLinked(
+        entityType: String,
+        linkName: String,
+        propertyName: String,
+        rightOrder: EntityIterable,
+        ascending: Boolean
+    ): EntityIterable {
+        requireActiveTransaction()
+        return GremlinEntityIterableImpl(
+            this,
+            rightOrder.asGremlinIterable().query
+                .then(
+                    GremlinBlock.Sort(
+                        GremlinBlock.Sort.ByLinked(linkName, propertyName),
                         if (ascending) SortDirection.ASC else SortDirection.DESC
                     )
                 )

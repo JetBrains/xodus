@@ -22,20 +22,29 @@ import jetbrains.exodus.entitystore.EntityId
 import jetbrains.exodus.entitystore.EntityIterator
 import jetbrains.exodus.entitystore.youtrackdb.YTDBEntityStore
 import jetbrains.exodus.entitystore.youtrackdb.YTDBVertexEntity
+import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal
 import java.lang.AutoCloseable
 
 class GremlinEntityIterator(
-    private val gremlinVertices: Iterator<YTDBVertex>,
-    private val store: YTDBEntityStore,
+    private val gremlinVertices: Iterator<YTDBVertexEntity>,
     private var closed: Boolean = false,
     private val disposeResources: () -> Unit = {},
 ) : EntityIterator, AutoCloseable {
 
     companion object {
-        fun vertexToEntity(vertex: YTDBVertex, store: YTDBEntityStore) = YTDBVertexEntity(
-            (vertex as YTDBVertexInternal).rawEntity,
-            store
+        val EMPTY = GremlinEntityIterator(emptyList<YTDBVertexEntity>().iterator(), closed = true)
+
+        fun of(traversal: GraphTraversal<*, YTDBVertex>, store: YTDBEntityStore) = GremlinEntityIterator(
+            gremlinVertices = traversal.iterator().asSequence().map {
+                YTDBVertexEntity(
+                    (it as YTDBVertexInternal).rawEntity,
+                    store
+                )
+            }.iterator(),
+            closed = false,
+            disposeResources = { traversal.close() }
         )
+
     }
 
     override fun skip(number: Int): Boolean {
@@ -72,7 +81,7 @@ class GremlinEntityIterator(
     };
 
     // todo: special TimeoutException handling?
-    override fun next(): Entity = vertexToEntity(gremlinVertices.next(), store)
+    override fun next(): Entity = gremlinVertices.next();
 
     override fun close() {
         dispose()

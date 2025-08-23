@@ -18,7 +18,6 @@ package jetbrains.exodus.query
 import jetbrains.exodus.entitystore.youtrackdb.gremlin.GremlinBlock
 import jetbrains.exodus.entitystore.youtrackdb.gremlin.GremlinEntityIterableImpl
 import jetbrains.exodus.entitystore.youtrackdb.gremlin.GremlinQuery
-import jetbrains.exodus.entitystore.youtrackdb.iterate.YTDBEntityOfTypeIterable
 import jetbrains.exodus.entitystore.youtrackdb.testutil.*
 import jetbrains.exodus.query.metadata.entity
 import jetbrains.exodus.query.metadata.oModel
@@ -99,7 +98,6 @@ class OBinaryOperationsWithSortTest : OTestMixin {
                 sorted.toList().map { it.getProperty("name") })
         }
     }
-
 
     private fun givenModel() = oModel(youTrackDb.provider) {
         entity(BaseUser.CLASS)

@@ -18,6 +18,7 @@ package jetbrains.exodus.query;
 
 import jetbrains.exodus.entitystore.Entity;
 import jetbrains.exodus.entitystore.EntityId;
+import jetbrains.exodus.entitystore.youtrackdb.gremlin.GremlinEntityIterable;
 import jetbrains.exodus.entitystore.youtrackdb.iterate.YTDBEntityIterableBase;
 import jetbrains.exodus.entitystore.youtrackdb.iterate.property.YTDBPropertyEqualIterable;
 import jetbrains.exodus.query.metadata.ModelMetaData;
@@ -44,7 +45,7 @@ public class GetLinks extends NodeBase {
             var txn = queryEngine.getOStore().requireActiveTransaction();
             return new YTDBPropertyEqualIterable(txn, entityType, linkName, id);
         }
-        return YTDBEntityIterableBase.Companion.getEMPTY();
+        return GremlinEntityIterable.Companion.getEMPTY();
     }
 
     @Override

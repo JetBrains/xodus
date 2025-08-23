@@ -16,8 +16,8 @@
 package jetbrains.exodus.query
 
 import jetbrains.exodus.entitystore.Entity
-import jetbrains.exodus.entitystore.youtrackdb.gremlin.GremlinEntityIterable
 import jetbrains.exodus.entitystore.youtrackdb.gremlin.GremlinBlock
+import jetbrains.exodus.entitystore.youtrackdb.gremlin.GremlinEntityIterable
 import jetbrains.exodus.entitystore.youtrackdb.gremlin.GremlinQuery
 import jetbrains.exodus.query.metadata.ModelMetaData
 
@@ -39,9 +39,9 @@ class GremlinBinaryNode(
         }
 
         val leftCondition = (leftNode.query as? GremlinQuery.Condition)
-            ?: throw IllegalArgumentException("Only Condition instances can be used in the chain. Found: $leftNode")
+            ?: throw IllegalArgumentException("Only Condition instances can be used in the chain. Found: ${leftNode.query}")
         val rightCondition = (rightNode.query as? GremlinQuery.Condition)
-            ?: throw IllegalArgumentException("Only Condition instances can be used in the chain. Found: $rightNode")
+            ?: throw IllegalArgumentException("Only Condition instances can be used in the chain. Found: ${rightNode.query}")
 
         return leftCondition.combineBinary(rightCondition, combineQuery)
     }
@@ -70,4 +70,15 @@ class GremlinBinaryNode(
         GremlinBinaryNode(getLeft().clone, getRight().clone, commutative, shortName, combineQuery, combineInMem)
 
     override fun getSimpleName(): String = shortName
+
+    override fun equals(other: Any?): Boolean {
+        if (other === this) {
+            return true
+        }
+        if (other == null) {
+            return false
+        }
+//        checkWildcard(other)
+        return other is GremlinBinaryNode && other.shortName == this.shortName && super.equals(other)
+    }
 }
