@@ -48,7 +48,7 @@ abstract class XodusLuceneTestsBase : EnvironmentTestsBase() {
     @Throws(Exception::class)
     override fun setUp() {
         super.setUp()
-        directory = XodusDirectory(environment)
+        directory = XodusCacheDirectory.fromXodusEnv(environment)
         createAnalyzer()
         createIndexWriter()
     }

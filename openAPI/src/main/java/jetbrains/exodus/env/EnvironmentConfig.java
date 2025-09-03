@@ -463,6 +463,13 @@ public class EnvironmentConfig extends AbstractConfig {
     public static final String ENV_CLOSE_FORCEDLY = "exodus.env.closeForcedly";
 
     /**
+     * Enables printing the "environment created" message. {@code true} by default, but setting it to {@code false}
+     * can be useful in tests that create many Environment instances if we don't want to get flooded by
+     * redundant log messages.
+     */
+    public static final String ENV_PRINT_INIT_MESSAGE = "exodus.env.skipInitMessage";
+
+    /**
      * If is set to {@code true} then {@linkplain Environment} performs check of consistency of
      * datastructures stored in backup files. Default value is {@code false}. Mutable at runtime: no
      */
@@ -859,6 +866,7 @@ public class EnvironmentConfig extends AbstractConfig {
                 new Pair(ENV_STOREGET_CACHE_MIN_TREE_SIZE, 200),
                 new Pair(ENV_STOREGET_CACHE_MAX_VALUE_SIZE, 200),
                 new Pair(ENV_CLOSE_FORCEDLY, false),
+                new Pair(ENV_PRINT_INIT_MESSAGE, true),
                 new Pair(ENV_TXN_REPLAY_TIMEOUT, 2000L),
                 new Pair(ENV_TXN_QUERY_OPTIMIZED_CONTAINS, false),
                 new Pair(ENV_TXN_REPLAY_MAX_COUNT, 2),
@@ -1980,6 +1988,19 @@ public class EnvironmentConfig extends AbstractConfig {
      */
     public boolean getEnvCloseForcedly() {
         return (Boolean) getSetting(ENV_CLOSE_FORCEDLY);
+    }
+
+    /**
+     * Enables printing the "environment created" message. {@code true} by default, but setting it to {@code false}
+     * can be useful in tests that create many Environment instances if we don't want to get flooded by
+     * redundant log messages.
+     */
+    public boolean getPrintInitMessage() {
+        return (Boolean) getSetting(ENV_PRINT_INIT_MESSAGE);
+    }
+
+    public void setPrintInitMessage(boolean printInitMessage) {
+        setSetting(ENV_PRINT_INIT_MESSAGE, printInitMessage);
     }
 
     /**
