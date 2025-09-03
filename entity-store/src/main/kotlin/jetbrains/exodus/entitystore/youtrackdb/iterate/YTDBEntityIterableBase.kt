@@ -239,7 +239,7 @@ abstract class YTDBEntityIterableBase(tx: YTDBStoreTransaction) : YTDBEntityIter
         }
     }
 
-    override fun unwrap() = this
+    override fun unwrap(): EntityIterable = this
 
     override fun isEmpty(): Boolean {
         val iter = iterator()

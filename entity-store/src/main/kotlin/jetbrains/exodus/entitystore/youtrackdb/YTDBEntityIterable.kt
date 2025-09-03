@@ -22,5 +22,5 @@ interface YTDBEntityIterable : EntityIterable {
 
     fun query(): YTDBSelect
 
-    override fun unwrap() = this
+    override fun unwrap(): EntityIterable = this
 }
