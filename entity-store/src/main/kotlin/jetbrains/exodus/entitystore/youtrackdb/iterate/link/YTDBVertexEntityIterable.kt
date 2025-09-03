@@ -113,7 +113,7 @@ class YTDBVertexEntityIterable(
 
     override fun asSortResult() = this
 
-    override fun unwrap() = asQueryIterable()
+    override fun unwrap(): EntityIterable = asQueryIterable()
 
     override fun findLinks(entities: EntityIterable, linkName: String): EntityIterable {
         return asQueryIterable().findLinks(entities, linkName)
