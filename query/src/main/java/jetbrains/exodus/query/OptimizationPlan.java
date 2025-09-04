@@ -20,7 +20,7 @@ import java.util.List;
 
 public class OptimizationPlan {
 
-    private static final NodeBase ALL = NodeFactory.all();
+    private static final NodeBase ALL = NodeFactory.all_old();
     private static final NodeBase PE2PNN = new PropertyEqualToPropertyNoNull(0);
     private static final NodeBase LE2LNN = new LinkEqualToLinkNotNull(0);
     private static final NodeBase MPR = new MergePropertyRanges(0);
@@ -134,7 +134,7 @@ public class OptimizationPlan {
         // amount of commutative nodes
         int n = 0;
         for (NodeBase node : source.getDescendants()) {
-            if (node instanceof CommutativeOperator) {
+            if (node instanceof BinaryOperator && ((BinaryOperator) node).getCommutative()) {
                 n++;
             }
         }
@@ -142,9 +142,9 @@ public class OptimizationPlan {
             Root root = new Root(source.getClone());
             int j = 0;
             for (NodeBase node : root.getDescendants()) {
-                if (node instanceof CommutativeOperator) {
+                if (node instanceof BinaryOperator && ((BinaryOperator) node).getCommutative()) {
                     if ((i & 1 << j) != 0) {
-                        ((CommutativeOperator) node).flipChildren();
+                        ((BinaryOperator) node).flipChildren();
                     }
                     j++;
                 }

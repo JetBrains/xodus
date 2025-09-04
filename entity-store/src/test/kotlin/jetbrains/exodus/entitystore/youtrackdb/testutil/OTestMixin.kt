@@ -20,8 +20,8 @@ import com.google.common.truth.Truth.assertThat
 import com.jetbrains.youtrack.db.api.DatabaseSession
 import jetbrains.exodus.entitystore.Entity
 import jetbrains.exodus.entitystore.youtrackdb.YTDBEntity
+import jetbrains.exodus.entitystore.youtrackdb.YTDBGremlinStoreTransactionImpl
 import jetbrains.exodus.entitystore.youtrackdb.YTDBStoreTransaction
-import jetbrains.exodus.entitystore.youtrackdb.YTDBStoreTransactionImpl
 import jetbrains.exodus.entitystore.youtrackdb.YTDBVertexEntity
 
 interface OTestMixin {
@@ -36,9 +36,9 @@ interface OTestMixin {
         assertNamesExactly(result, *names).inOrder()
     }
 
-    fun beginTransaction(): YTDBStoreTransactionImpl {
+    fun beginTransaction(): YTDBGremlinStoreTransactionImpl {
         val store = youTrackDb.store
-        return store.beginTransaction() as YTDBStoreTransactionImpl
+        return store.beginTransaction() as YTDBGremlinStoreTransactionImpl
     }
 
     fun <R> withStoreTx(block: (YTDBStoreTransaction) -> R): R {

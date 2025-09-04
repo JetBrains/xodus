@@ -18,6 +18,7 @@ package jetbrains.exodus.entitystore
 import jetbrains.exodus.entitystore.youtrackdb.YTDBEntityIterable
 import jetbrains.exodus.entitystore.youtrackdb.YTDBEntityStore
 import jetbrains.exodus.entitystore.youtrackdb.YTDBStoreTransaction
+import jetbrains.exodus.entitystore.youtrackdb.gremlin.GremlinEntityIterable
 
 
 /**
@@ -29,6 +30,11 @@ fun StoreTransaction.asOStoreTransaction(): YTDBStoreTransaction {
 
 fun EntityIterable.asOQueryIterable(): YTDBEntityIterable {
     require(this is YTDBEntityIterable) { "Only OEntityIterableBase is supported, but was ${this.javaClass.simpleName}" }
+    return this
+}
+
+fun EntityIterable.asGremlinIterable(): GremlinEntityIterable {
+    require(this is GremlinEntityIterable) { "Only GremlinEntityIterable is supported, but was ${this.javaClass.simpleName}" }
     return this
 }
 

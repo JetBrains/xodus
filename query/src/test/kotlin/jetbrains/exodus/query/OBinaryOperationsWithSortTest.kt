@@ -15,7 +15,9 @@
  */
 package jetbrains.exodus.query
 
-import jetbrains.exodus.entitystore.youtrackdb.iterate.YTDBEntityOfTypeIterable
+import jetbrains.exodus.entitystore.youtrackdb.gremlin.GremlinBlock
+import jetbrains.exodus.entitystore.youtrackdb.gremlin.GremlinEntityIterableImpl
+import jetbrains.exodus.entitystore.youtrackdb.gremlin.GremlinQuery
 import jetbrains.exodus.entitystore.youtrackdb.testutil.*
 import jetbrains.exodus.query.metadata.entity
 import jetbrains.exodus.query.metadata.oModel
@@ -42,10 +44,10 @@ class OBinaryOperationsWithSortTest : OTestMixin {
         val engine = QueryEngine(model, youTrackDb.store)
         engine.sortEngine = SortEngine()
         youTrackDb.withStoreTx { txn ->
-            val users = YTDBEntityOfTypeIterable(txn, User.CLASS)
-            val agents = YTDBEntityOfTypeIterable(txn, Agent.CLASS)
+            val users = GremlinEntityIterableImpl(txn, GremlinQuery.all.then(GremlinBlock.HasLabel(User.CLASS)))
+            val agents = GremlinEntityIterableImpl(txn, GremlinQuery.all.then(GremlinBlock.HasLabel(Agent.CLASS)))
             val union = engine.union(users, agents)
-            val sorted = engine.query(union, BaseUser.CLASS, SortByProperty(null, "name", true))
+            val sorted = engine.query(union, BaseUser.CLASS, NodeFactory.sortBy("name", GremlinBlock.SortDirection.ASC))
             assertContentEquals(
                 listOf("u1", "u2"),
                 sorted.skip(2).take(2).toList().map { it.getProperty("name") })
@@ -65,10 +67,11 @@ class OBinaryOperationsWithSortTest : OTestMixin {
             txn.createUser(Agent.CLASS, "u1")
         }
         youTrackDb.withStoreTx { txn ->
-            val users = engine.query(User.CLASS, PropertyEqual("name", "u1"))
-            val all = engine.query(BaseUser.CLASS, PropertyEqual("name", "u1"))
+            val users = engine.query(User.CLASS, NodeFactory.propEqual("name", "u1"))
+            val all = engine.query(BaseUser.CLASS, NodeFactory.propEqual("name", "u1"))
             val intersect = engine.intersect(users, all)
-            val sorted = engine.query(intersect, BaseUser.CLASS, SortByProperty(null, "name", true))
+            val sorted =
+                engine.query(intersect, BaseUser.CLASS, NodeFactory.sortBy("name", GremlinBlock.SortDirection.ASC))
             Assert.assertEquals(2, all.size())
             assertContentEquals(
                 listOf("u1"),
@@ -85,17 +88,16 @@ class OBinaryOperationsWithSortTest : OTestMixin {
         val engine = QueryEngine(model, youTrackDb.store)
         engine.sortEngine = SortEngine()
         youTrackDb.withStoreTx { txn ->
-            val users = YTDBEntityOfTypeIterable(txn, User.CLASS)
-            val u1 = engine.query(BaseUser.CLASS, PropertyEqual("name", "u1"))
+            val users = engine.query(User.CLASS, NodeFactory.all())
+            val u1 = engine.query(BaseUser.CLASS, NodeFactory.propEqual("name", "u1"))
             val minus = engine.exclude(users, u1)
-            val sorted = engine.query(minus, BaseUser.CLASS, SortByProperty(null, "name", true))
+            val sorted = engine.query(minus, BaseUser.CLASS, NodeFactory.sortBy("name", GremlinBlock.SortDirection.ASC))
             Assert.assertEquals(1, minus.count())
             assertContentEquals(
                 listOf("u2"),
                 sorted.toList().map { it.getProperty("name") })
         }
     }
-
 
     private fun givenModel() = oModel(youTrackDb.provider) {
         entity(BaseUser.CLASS)

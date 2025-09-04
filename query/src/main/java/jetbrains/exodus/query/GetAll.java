@@ -31,7 +31,7 @@ public class GetAll extends NodeBase {
 
     @Override
     public NodeBase getClone() {
-        return NodeFactory.all();
+        return NodeFactory.all_old();
     }
 
     @Override

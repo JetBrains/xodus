@@ -19,6 +19,7 @@ import jetbrains.exodus.entitystore.Entity
 import jetbrains.exodus.entitystore.EntityIterable
 import jetbrains.exodus.entitystore.youtrackdb.YTDBEntityId
 import jetbrains.exodus.entitystore.youtrackdb.YTDBStoreTransaction
+import jetbrains.exodus.entitystore.youtrackdb.gremlin.GremlinEntityIterable.Companion.EMPTY
 import jetbrains.exodus.entitystore.youtrackdb.iterate.YTDBEntityIterableBase
 import jetbrains.exodus.entitystore.youtrackdb.query.YTDBRecordIdSelect
 import jetbrains.exodus.entitystore.youtrackdb.query.YTDBSelect

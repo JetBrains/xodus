@@ -15,17 +15,12 @@
  */
 package jetbrains.exodus.query;
 
+import jetbrains.exodus.entitystore.youtrackdb.gremlin.GremlinBlock;
+import jetbrains.exodus.entitystore.youtrackdb.gremlin.GremlinQuery;
 
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nullable;
 
-public abstract class CommutativeOperator extends BinaryOperator {
-    CommutativeOperator(@NotNull final NodeBase left, @NotNull final NodeBase right) {
-        super(left, right);
-    }
-
-    public void flipChildren() {
-        NodeBase _left = getLeft();
-        setLeft(getRight());
-        setRight(_left);
-    }
+public interface GremlinNode {
+    @Nullable
+    GremlinQuery getQuery();
 }

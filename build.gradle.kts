@@ -65,6 +65,7 @@ allprojects {
     repositories {
         mavenCentral()
         maven { url = uri("https://packages.jetbrains.team/maven/p/xodus/youtrackdb-daily") }
+        maven { url = uri("https://repository.apache.org/snapshots") }
     }
 }
 

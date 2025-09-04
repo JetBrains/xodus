@@ -15,8 +15,8 @@
  */
 package jetbrains.exodus.query
 
-import jetbrains.exodus.entitystore.youtrackdb.iterate.YTDBEntityIterableBase
-import jetbrains.exodus.entitystore.youtrackdb.iterate.YTDBEntityOfTypeIterable
+import jetbrains.exodus.entitystore.youtrackdb.gremlin.GremlinBlock
+import jetbrains.exodus.entitystore.youtrackdb.gremlin.GremlinEntityIterable
 import jetbrains.exodus.entitystore.youtrackdb.testutil.*
 import jetbrains.exodus.query.metadata.entity
 import jetbrains.exodus.query.metadata.oModel
@@ -44,12 +44,12 @@ class OperationsWithEmptyIterableTest : OTestMixin {
         val engine = QueryEngine(model, youTrackDb.store)
         engine.sortEngine = SortEngine()
         youTrackDb.withStoreTx { txn ->
-            val users = YTDBEntityOfTypeIterable(txn, User.CLASS)
-            assertEquals(YTDBEntityIterableBase.EMPTY, users.intersect(YTDBEntityIterableBase.EMPTY))
-            assertEquals(YTDBEntityIterableBase.EMPTY, users.intersectSavingOrder(YTDBEntityIterableBase.EMPTY))
-            assertEquals(users, users.concat(YTDBEntityIterableBase.EMPTY))
-            assertEquals(users, users.union(YTDBEntityIterableBase.EMPTY))
-            assertEquals(users, users.minus(YTDBEntityIterableBase.EMPTY))
+            val users = GremlinEntityIterable.where(User.CLASS, txn, GremlinBlock.All)
+            assertEquals(GremlinEntityIterable.EMPTY, users.intersect(GremlinEntityIterable.EMPTY))
+            assertEquals(GremlinEntityIterable.EMPTY, users.intersectSavingOrder(GremlinEntityIterable.EMPTY))
+            assertEquals(users, users.concat(GremlinEntityIterable.EMPTY))
+            assertEquals(users, users.union(GremlinEntityIterable.EMPTY))
+            assertEquals(users, users.minus(GremlinEntityIterable.EMPTY))
         }
     }
 

@@ -15,11 +15,7 @@
  */
 package jetbrains.exodus.entitystore.youtrackdb
 
-import com.jetbrains.youtrack.db.api.record.Direction
-import com.jetbrains.youtrack.db.api.record.Edge
-import com.jetbrains.youtrack.db.api.record.Identifiable
-import com.jetbrains.youtrack.db.api.record.RID
-import com.jetbrains.youtrack.db.api.record.Vertex
+import com.jetbrains.youtrack.db.api.record.*
 import com.jetbrains.youtrack.db.api.schema.SchemaClass
 import com.jetbrains.youtrack.db.internal.core.db.DatabaseSessionInternal
 import com.jetbrains.youtrack.db.internal.core.db.record.TrackedMultiValue
@@ -34,11 +30,12 @@ import jetbrains.exodus.entitystore.EntityRemovedInDatabaseException
 import jetbrains.exodus.entitystore.youtrackdb.YTDBVertexEntity.Companion.CLASS_ID_CUSTOM_PROPERTY_NAME
 import jetbrains.exodus.entitystore.youtrackdb.YTDBVertexEntity.Companion.LOCAL_ENTITY_ID_PROPERTY_NAME
 import jetbrains.exodus.entitystore.youtrackdb.YTDBVertexEntity.Companion.linkTargetEntityIdPropertyName
-import jetbrains.exodus.entitystore.youtrackdb.iterate.link.YTDBLinksFromEntityIterable
+import jetbrains.exodus.entitystore.youtrackdb.gremlin.GremlinBlock
+import jetbrains.exodus.entitystore.youtrackdb.gremlin.GremlinEntityIterable
+import jetbrains.exodus.entitystore.youtrackdb.gremlin.GremlinQuery
 import jetbrains.exodus.entitystore.youtrackdb.iterate.link.YTDBVertexEntityIterable
 import jetbrains.exodus.util.LightByteArrayOutputStream
 import jetbrains.exodus.util.UTFUtil
-import jnr.ffi.types.nlink_t
 import mu.KLogging
 import java.io.ByteArrayInputStream
 import java.io.File
@@ -508,16 +505,16 @@ open class YTDBVertexEntity(vertex: Vertex, private val store: YTDBEntityStore) 
         return if (linkNames.size == 1) {
             getLinks(linkNames.first())
         } else {
-            linkNames.drop(1)
-                .fold(
-                    YTDBLinksFromEntityIterable(
-                        tx,
-                        linkNames.first(),
-                        this.oEntityId
-                    ) as EntityIterable
-                ) { res, edgeName ->
-                    res.union(YTDBLinksFromEntityIterable(tx, edgeName, this.oEntityId))
-                }
+            // todo: Gremlin supports querying multiple links at once, rewrite this query
+            GremlinEntityIterable.query(
+                tx,
+                linkNames.asSequence()
+                    .map { ln ->
+                        GremlinQuery.ByIds(listOf(this.oEntityId.asOId()))
+                            .then(GremlinBlock.OutLink(ln))
+                    }
+                    .reduce { acc, it -> acc.union(it) }
+            )
         }
     }
 

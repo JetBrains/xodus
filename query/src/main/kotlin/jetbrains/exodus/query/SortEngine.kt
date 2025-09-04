@@ -19,7 +19,10 @@ import jetbrains.exodus.entitystore.ComparableGetter
 import jetbrains.exodus.entitystore.Entity
 import jetbrains.exodus.entitystore.EntityIterable
 import jetbrains.exodus.entitystore.youtrackdb.YTDBEntityIterable
+import jetbrains.exodus.entitystore.youtrackdb.YTDBGremlinStoreTransactionImpl
 import jetbrains.exodus.entitystore.youtrackdb.YTDBVertexEntity
+import jetbrains.exodus.entitystore.youtrackdb.gremlin.GremlinEntityIterable
+import jetbrains.exodus.entitystore.youtrackdb.gremlin.GremlinQuery
 import jetbrains.exodus.entitystore.youtrackdb.iterate.YTDBEntityIterableBase
 import jetbrains.exodus.entitystore.youtrackdb.iterate.link.YTDBMultipleEntitiesIterable
 import jetbrains.exodus.query.metadata.ModelMetaData
@@ -47,11 +50,11 @@ open class SortEngine {
                 val i = queryEngine.toEntityIterable(source)
                 if (queryEngine.isPersistentIterable(i)) {
                     val it = (i as EntityIterable).unwrap()
-                    if (it === YTDBEntityIterableBase.EMPTY) {
-                        YTDBEntityIterableBase.EMPTY
+                    if (it === GremlinEntityIterable.EMPTY) {
+                        GremlinEntityIterable.EMPTY
                     }
                     return if (it.roughCount == 0L && it.count() == 0L) {
-                        YTDBEntityIterableBase.EMPTY
+                        GremlinEntityIterable.EMPTY
                     } else {
                         txn.sort(entityType, propertyName, (source as EntityIterable).unwrap(), asc)
                     }
@@ -69,9 +72,12 @@ open class SortEngine {
         source: Iterable<Entity>,
         asc: Boolean
     ): Iterable<Entity> {
-        if (source is YTDBEntityIterable && source !is YTDBMultipleEntitiesIterable) {
+        // todo: validate this logic
+        if (source is GremlinEntityIterable && source.query !is GremlinQuery.ByIds) {
             val txn = queryEngine.persistentStore.andCheckCurrentTransaction
-            return txn.sort(entityType, "${YTDBVertexEntity.edgeClassName(linkName)}.$propName", source.unwrap(), asc)
+            return (txn as YTDBGremlinStoreTransactionImpl).sortLinked(
+                entityType, linkName, propName, source, asc
+            )
         } else {
             val mmd = queryEngine.modelMetaData!!
             val emd = mmd.getEntityMetaData(entityType)!!
@@ -122,7 +128,7 @@ open class SortEngine {
         queryEngine.assertOperational()
         val emd = mmd?.getEntityMetaData(entityType)
         var it = if (emd != null && emd.isAbstract)
-            YTDBEntityIterableBase.EMPTY
+            GremlinEntityIterable.EMPTY
         else
             queryEngine.instantiateGetAll(entityType)
         if (emd != null) {

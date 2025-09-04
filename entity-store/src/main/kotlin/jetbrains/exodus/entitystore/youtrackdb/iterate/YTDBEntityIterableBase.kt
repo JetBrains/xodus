@@ -28,6 +28,7 @@ import jetbrains.exodus.entitystore.youtrackdb.iterate.link.YTDBLinkSelectEntity
 import jetbrains.exodus.entitystore.youtrackdb.iterate.link.YTDBMultipleEntitiesIterable
 import jetbrains.exodus.entitystore.youtrackdb.query.*
 import jetbrains.exodus.entitystore.util.unsupported
+import jetbrains.exodus.entitystore.youtrackdb.gremlin.GremlinEntityIterable.Companion.EMPTY
 
 abstract class YTDBEntityIterableBase(tx: YTDBStoreTransaction) : YTDBEntityIterable {
 
@@ -35,35 +36,6 @@ abstract class YTDBEntityIterableBase(tx: YTDBStoreTransaction) : YTDBEntityIter
 
     companion object {
 
-        val EMPTY = object : YTDBEntityIterable {
-
-            override fun iterator(): EntityIterator = YTDBQueryEntityIterator.EMPTY
-            override fun query(): YTDBSelect = unsupported { "Should never be called" }
-            override fun getTransaction(): StoreTransaction = unsupported { "Should never be called" }
-            override fun isEmpty(): Boolean = true
-            override fun indexOf(entity: Entity): Int = -1
-            override fun contains(entity: Entity): Boolean = false
-            override fun isSortResult(): Boolean = true
-            override fun asSortResult(): EntityIterable = this
-            override fun findLinks(entities: EntityIterable, linkName: String): EntityIterable = this
-            override fun size() = 0L
-            override fun getRoughSize() = 0L
-            override fun count() = 0L
-            override fun getRoughCount() = 0L
-            override fun union(right: EntityIterable) = right
-            override fun concat(right: EntityIterable) = right
-            override fun skip(number: Int): EntityIterable = this
-            override fun take(number: Int): EntityIterable = this
-            override fun intersect(right: EntityIterable) = this
-            override fun intersectSavingOrder(right: EntityIterable): EntityIterable = this
-            override fun distinct() = this
-            override fun minus(right: EntityIterable) = this
-            override fun selectManyDistinct(linkName: String) = this
-            override fun getFirst(): Entity? = null
-            override fun getLast(): Entity? = null
-            override fun reverse(): EntityIterable = this
-            override fun selectDistinct(linkName: String) = this
-        }
     }
 
     override fun iterator(): EntityIterator {

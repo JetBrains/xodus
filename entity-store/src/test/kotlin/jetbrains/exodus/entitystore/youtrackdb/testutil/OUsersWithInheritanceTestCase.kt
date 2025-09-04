@@ -15,7 +15,7 @@
  */
 package jetbrains.exodus.entitystore.youtrackdb.testutil
 
-import jetbrains.exodus.entitystore.youtrackdb.YTDBStoreTransactionImpl
+import jetbrains.exodus.entitystore.youtrackdb.YTDBGremlinStoreTransactionImpl
 import jetbrains.exodus.entitystore.youtrackdb.YTDBVertexEntity
 import jetbrains.exodus.entitystore.youtrackdb.getOrCreateVertexClass
 
@@ -47,7 +47,7 @@ class OUsersWithInheritanceTestCase(youTrackDB: InMemoryYouTrackDB) {
             subclasses.forEach { it.addSuperClass(baseClass) }
         }
 
-        val tx = youTrackDB.store.beginTransaction() as YTDBStoreTransactionImpl
+        val tx = youTrackDB.store.beginTransaction() as YTDBGremlinStoreTransactionImpl
         user1 = tx.createUser(User.CLASS, "u1")
         user2 = tx.createUser(User.CLASS, "u2")
 

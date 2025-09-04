@@ -20,7 +20,7 @@ import jetbrains.exodus.entitystore.EntityIterable
 import jetbrains.exodus.query.metadata.ModelMetaData
 
 @Suppress("EqualsOrHashCode")
-class Or(left: NodeBase, right: NodeBase) : CommutativeOperator(left, right) {
+class Or(left: NodeBase, right: NodeBase) : BinaryOperator(left, right, true) {
 
     companion object {
 
@@ -42,8 +42,8 @@ class Or(left: NodeBase, right: NodeBase) : CommutativeOperator(left, right) {
         metaData: ModelMetaData?,
         context: InstantiateContext
     ): Iterable<Entity> {
-        val leftInstance = left.instantiate(entityType, queryEngine, metaData, context);
-        val rightInstance = right.instantiate(entityType, queryEngine, metaData, context);
+        val leftInstance = getLeft().instantiate(entityType, queryEngine, metaData, context);
+        val rightInstance = getRight().instantiate(entityType, queryEngine, metaData, context);
         if (leftInstance is EntityIterable && rightInstance is EntityIterable){
             return leftInstance.union(rightInstance)
         } else {
@@ -63,7 +63,7 @@ class Or(left: NodeBase, right: NodeBase) : CommutativeOperator(left, right) {
     }
 
     override fun getClone(): NodeBase {
-        return Or(left.clone, right.clone)
+        return Or(getLeft().clone, getRight().clone)
     }
 
     override fun getSimpleName(): String {

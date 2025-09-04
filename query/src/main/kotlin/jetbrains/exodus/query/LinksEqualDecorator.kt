@@ -16,12 +16,16 @@
 package jetbrains.exodus.query
 
 import jetbrains.exodus.entitystore.Entity
-import jetbrains.exodus.entitystore.youtrackdb.iterate.YTDBEntityOfTypeIterable
+import jetbrains.exodus.entitystore.EntityIterable
+import jetbrains.exodus.entitystore.youtrackdb.gremlin.GremlinBlock
+import jetbrains.exodus.entitystore.youtrackdb.gremlin.GremlinEntityIterable
+import jetbrains.exodus.entitystore.youtrackdb.gremlin.GremlinQuery
 import jetbrains.exodus.query.Utils.safe_equals
 import jetbrains.exodus.query.metadata.ModelMetaData
 
 @Suppress("EqualsOrHashCode")
-class LinksEqualDecorator(val linkName: String, var decorated: NodeBase, val linkEntityType: String) : NodeBase() {
+class LinksEqualDecorator(val linkName: String, var decorated: NodeBase, val linkEntityType: String) : NodeBase(),
+    GremlinNode {
 
     override fun instantiate(
         entityType: String,
@@ -30,24 +34,47 @@ class LinksEqualDecorator(val linkName: String, var decorated: NodeBase, val lin
         context: InstantiateContext
     ): Iterable<Entity> {
         val txn = queryEngine.oStore.requireActiveTransaction()
-        return YTDBEntityOfTypeIterable(txn, entityType).findLinks(
-            decorated.instantiate(linkEntityType, queryEngine, metaData, context), linkName
-        )
+        return query
+            ?.let { GremlinEntityIterable.query(txn, it.then(GremlinBlock.HasLabel(entityType))) }
+            ?: throw IllegalStateException("Only GremlinNode instances can be used in the chain")
     }
+
+    override fun getQuery(): GremlinQuery? =
+        (decorated as GremlinNode).query?.let {
+            val condition = it as? GremlinQuery.Where
+                ?: throw IllegalStateException("Only Where instances can be used in the chain")
+            GremlinQuery.all
+                .then(GremlinBlock.OutLink(linkName))
+                .then(condition.block)
+        }
 
     override fun getClone(): NodeBase = LinksEqualDecorator(linkName, decorated.clone, linkEntityType)
 
     override fun optimize(sorts: Sorts, rules: OptimizationPlan) {
-        if (decorated is LinkEqual) {
-            val linkEqual = decorated as LinkEqual
-            if (linkEqual.toId == null) {
-                decorated = Minus(NodeFactory.all(), LinkNotNull(linkEqual.name))
-            }
-        } else if (decorated is PropertyEqual) {
-            val propEqual = decorated as PropertyEqual
-            if (propEqual.value == null) {
-                decorated = Minus(NodeFactory.all(), PropertyNotNull(propEqual.name))
-            }
+        if (decorated !is GremlinLeaf) {
+            return
+        }
+        val query = (decorated as GremlinLeaf).query
+        if (query !is GremlinQuery.Where) {
+            return
+        }
+
+
+        if (query.block is GremlinBlock.HasNoLink) {
+            val hnl = query.block as GremlinBlock.HasNoLink
+            // todo: does this even make sense now?
+            decorated = GremlinLeaf(
+                GremlinQuery.all.difference(
+                    GremlinQuery.all.then(GremlinBlock.HasLink(hnl.linkName))
+                )
+            )
+        } else if (query.block is GremlinBlock.PropNull) {
+            val pn = query.block as GremlinBlock.PropNull
+            decorated = GremlinLeaf(
+                GremlinQuery.all.difference(
+                    GremlinQuery.all.then(GremlinBlock.PropNotNull(pn.property))
+                )
+            )
         }
     }
 
