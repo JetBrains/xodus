@@ -1,3 +1,8 @@
+## !Warning!
+
+This project is entering its **SUNSET** stage as we embark on an exciting migration to our new [YouTrackDB](https://github.com/youtrackdb/youtrackdb) graph database. Stay tuned for upcoming announcements, detailed plans, and migration guidelines as the YTDB project unfolds.
+
+
 # <a href="https://github.com/JetBrains/xodus/wiki"><img src="https://raw.githubusercontent.com/wiki/jetbrains/xodus/xodus.png" width=160></a>
 
 [![official JetBrains project](https://jb.gg/badges/official.svg)](https://confluence.jetbrains.com/display/ALL/JetBrains+on+GitHub)
