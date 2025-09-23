@@ -7,8 +7,10 @@ plugins {
     id("org.jetbrains.dokka")
     id("com.github.hierynomus.license")
     id("io.codearte.nexus-staging")
+    id("com.gradleup.shadow") version "9.1.0"
 }
 
+val isShaded: Boolean = project.hasProperty("publishShaded")
 val xodusVersion: String? by project
 val dailyBuild: String? by project
 val mavenPublishUrl: String? by project
@@ -49,7 +51,7 @@ fun shouldApplyDokka(project: Project): Boolean {
 }
 
 tasks.wrapper {
-    gradleVersion = "8.10"
+    gradleVersion = "8.11"
 }
 
 defaultTasks("assemble")
@@ -74,6 +76,7 @@ subprojects {
     apply(plugin = "signing")
     apply(plugin = "org.jetbrains.dokka")
     apply(plugin = "maven-publish")
+    apply(plugin = "com.gradleup.shadow")
 
     tasks.withType<JavaCompile> {
         options.encoding = "UTF-8"
@@ -208,6 +211,13 @@ subprojects {
         extra["signing.secretKeyRingFile"] = providedSigningSecretKeyRingFile
     }
 
+    tasks.shadowJar {
+        archiveClassifier.set("shaded")
+        configurations = emptyList() // not including the dependencies
+
+        relocate("jetbrains.exodus", "jetbrains.shaded.exodus")
+    }
+
     afterEvaluate {
         if (shouldDeploy(this)) {
             configure<PublishingExtension> {
@@ -221,47 +231,68 @@ subprojects {
                     }
                 }
                 publications {
-                    create<MavenPublication>("mavenJava") {
-                        artifactId = project.name
-                        groupId = project.group.toString()
-                        version = project.version.toString()
-                        from(components["java"])
-                        pom {
-                            name.set("Xodus")
-                            description.set("Xodus is pure Java transactional schema-less embedded database")
-                            packaging = "jar"
-                            url.set("https://github.com/JetBrains/xodus")
-                            scm {
-                                url.set("https://github.com/JetBrains/xodus")
-                                connection.set("scm:git:https://github.com/JetBrains/xodus.git")
-                                developerConnection.set("scm:git:https://github.com/JetBrains/xodus.git")
-                            }
+                    if (isShaded) {
+                        create<MavenPublication>("mavenShaded") {
+                            from(components["java"])
 
-                            licenses {
-                                license {
-                                    name.set("The Apache Software License, Version 2.0")
-                                    url.set("https://www.apache.org/licenses/LICENSE-2.0.txt")
-                                    distribution.set("repo")
-                                }
-                            }
+                            version = "${project.version}-shaded"
 
-                            developers {
-                                developer {
-                                    id.set("JetBrains")
-                                    name.set("JetBrains Team")
-                                    organization.set("JetBrains s.r.o")
-                                    organizationUrl.set("https://www.jetbrains.com")
-                                }
-                            }
+                            // not publishing standard arti
+                            artifacts.clear()
+                            artifact(tasks.named("shadowJar"))
                         }
+                    } else {
+                        create<MavenPublication>("mavenJava") {
+                            artifactId = project.name
+                            groupId = project.group.toString()
+                            version = project.version.toString()
+                            from(components["java"])
+                            pom {
+                                name.set("Xodus")
+                                description.set("Xodus is pure Java transactional schema-less embedded database")
+                                packaging = "jar"
+                                url.set("https://github.com/JetBrains/xodus")
+                                scm {
+                                    url.set("https://github.com/JetBrains/xodus")
+                                    connection.set("scm:git:https://github.com/JetBrains/xodus.git")
+                                    developerConnection.set("scm:git:https://github.com/JetBrains/xodus.git")
+                                }
 
+                                licenses {
+                                    license {
+                                        name.set("The Apache Software License, Version 2.0")
+                                        url.set("https://www.apache.org/licenses/LICENSE-2.0.txt")
+                                        distribution.set("repo")
+                                    }
+                                }
+
+                                developers {
+                                    developer {
+                                        id.set("JetBrains")
+                                        name.set("JetBrains Team")
+                                        organization.set("JetBrains s.r.o")
+                                        organizationUrl.set("https://www.jetbrains.com")
+                                    }
+                                }
+                            }
+
+                        }
                     }
                 }
+
             }
 
-            configure<SigningExtension> {
-                isRequired = !isSnapshot && providedSigningKeyId.isNotEmpty()
-                sign(the<PublishingExtension>().publications["mavenJava"])
+            if (isShaded) {
+                // Disable gradle module metadata file generation, because it gives us
+                // troubles with shadow configuration.
+                tasks.named("generateMetadataFileForMavenShadedPublication") {
+                    enabled = false
+                }
+            } else {
+                configure<SigningExtension> {
+                    isRequired = !isSnapshot && providedSigningKeyId.isNotEmpty()
+                    sign(the<PublishingExtension>().publications["mavenJava"])
+                }
             }
         }
     }
