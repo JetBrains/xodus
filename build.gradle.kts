@@ -216,6 +216,7 @@ subprojects {
         configurations = emptyList() // not including the dependencies
 
         relocate("jetbrains.exodus", "jetbrains.shaded.exodus")
+        enabled = isShaded
     }
 
     afterEvaluate {
@@ -237,9 +238,11 @@ subprojects {
 
                             version = "${project.version}-shaded"
 
-                            // not publishing standard arti
+                            // not publishing standard artifacts
                             artifacts.clear()
-                            artifact(tasks.named("shadowJar"))
+                            artifact(tasks.named("shadowJar")) {
+                                classifier = ""
+                            }
                         }
                     } else {
                         create<MavenPublication>("mavenJava") {
