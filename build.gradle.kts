@@ -216,6 +216,7 @@ subprojects {
         configurations = emptyList() // not including the dependencies
 
         relocate("jetbrains.exodus", "jetbrains.shaded.exodus")
+        exclude("META-INF/*.kotlin_module")
         enabled = isShaded
     }
 

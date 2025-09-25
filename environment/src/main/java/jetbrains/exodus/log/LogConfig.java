@@ -367,15 +367,12 @@ public class LogConfig {
         if (readerWriterProviderInstance == null && readerWriterProvider != null) {
             readerWriterProviderInstance = DataReaderWriterProvider.getProvider(readerWriterProvider);
             if (readerWriterProviderInstance == null) {
-                switch (readerWriterProvider) {
-                    case DataReaderWriterProvider.DEFAULT_READER_WRITER_PROVIDER:
-                        readerWriterProviderInstance = new AsyncFileDataReaderWriterProvider();
-                        break;
-                    case DataReaderWriterProvider.IN_MEMORY_READER_WRITER_PROVIDER:
-                        readerWriterProviderInstance = new MemoryDataReaderWriterProvider();
-                        break;
-                    default:
-                        throw new InvalidSettingException("Unknown DataReaderWriterProvider: " + readerWriterProvider);
+                if (DataReaderWriterProvider.DEFAULT_READER_WRITER_PROVIDER.equals(readerWriterProvider)) {
+                    readerWriterProviderInstance = new AsyncFileDataReaderWriterProvider();
+                } else if (DataReaderWriterProvider.IN_MEMORY_READER_WRITER_PROVIDER.equals(readerWriterProvider)) {
+                    readerWriterProviderInstance = new MemoryDataReaderWriterProvider();
+                } else {
+                    throw new InvalidSettingException("Unknown DataReaderWriterProvider: " + readerWriterProvider);
                 }
             }
         }
