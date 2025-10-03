@@ -52,6 +52,7 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
     private val openStoresCache = IntHashMap<StoreImpl>()
 
     private var lastBrokenMessage = 0L
+    private var errorsSinceStart = 0L
 
     init {
         environment.log.addBlockListener(object : AbstractBlockListener() {
@@ -272,12 +273,13 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
         val isTxnExclusive = txn.isExclusive
         try {
             val started = System.currentTimeMillis()
+            errorsSinceStart = 0
 
             while (sortedFilesIterator.hasNext()) {
                 val file = sortedFilesIterator.next()
 
                 DataCorruptionException.executeUnsafe {
-                    cleanSingleFile(file, txn)
+                    cleanSingleFile(file, txn, started)
                 }
 
                 cleanedFiles.add(file)
@@ -378,7 +380,7 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
      * @param fileAddress address of the file to clean
      * @param txn         transaction
      */
-    private fun cleanSingleFile(fileAddress: Long, txn: ReadWriteTransaction) {
+    private fun cleanSingleFile(fileAddress: Long, txn: ReadWriteTransaction, startTs: Long) {
         // the file can be already cleaned
         if (isFileCleaned(fileAddress)) {
             throw ExodusException("Attempt to clean already cleaned file")
@@ -432,6 +434,14 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
                             store.reclaim(txn, loggable, loggables)
                         }
                     } catch (e: ExodusException) {
+                        errorsSinceStart++
+                        val seconds = ((System.currentTimeMillis() - startTs) / 1000).coerceAtLeast(1)
+                        val errorsRate = errorsSinceStart / seconds
+
+                        if (errorsSinceStart > 10 && errorsRate > 1) {
+                            throw e
+                        }
+
                         logger.warn(
                             "Error during reclaiming loggable, trying to retry by iteration over the whole tree. Store: ${
                                 store.name
