@@ -168,7 +168,8 @@ public class EnvironmentImpl implements Environment {
             metaReadLock = metaLock.readLock();
             metaWriteLock = metaLock.writeLock();
 
-            txnDispatcher = new ReentrantTransactionDispatcher(ec.getEnvMaxParallelTxns());
+            txnDispatcher = new ReentrantTransactionDispatcher(ec.getEnvMaxParallelTxns(),
+                ec.getEnvTransactionPermissionTimeout());
 
             statistics = new EnvironmentStatistics(this);
             txnProfiler = ec.getProfilerEnabled() ? new TxnProfiler() : null;

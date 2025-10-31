@@ -39,9 +39,11 @@ final class ReentrantTransactionDispatcher {
     private final CriticalSection criticalSection;
     private long acquireOrder;
     private int acquiredPermits;
+    private final long permissionTimeoutSeconds;
 
-    ReentrantTransactionDispatcher(final int maxSimultaneousTransactions) {
-        if (maxSimultaneousTransactions < 1) {
+    ReentrantTransactionDispatcher(final int maxSimultaneousTransactions, long permissionTimeoutSeconds) {
+      this.permissionTimeoutSeconds = permissionTimeoutSeconds;
+      if (maxSimultaneousTransactions < 1) {
             throw new IllegalArgumentException("maxSimultaneousTransactions < 1");
         }
         availablePermits = maxSimultaneousTransactions;
@@ -188,9 +190,18 @@ final class ReentrantTransactionDispatcher {
         final long currentOrder = acquireOrder++;
         queue.put(currentOrder, condition);
         while (acquiredPermits > availablePermits - permits || queue.firstKey() != currentOrder) {
-            condition.awaitUninterruptibly();
+          try {
+            if (!condition.await(permissionTimeoutSeconds, TimeUnit.SECONDS)) {
+                queue.remove(currentOrder);
+                throw new RuntimeException("Transaction instantiation timed out");
+            }
+          } catch (InterruptedException e){
+            queue.remove(currentOrder);
+            throw new RuntimeException("Transaction instantiation was interrupted", e);
+          }
         }
         queue.pollFirstEntry();
+
         acquiredPermits += permits;
         threadPermits.put(thread, currentThreadPermits + permits);
         if (acquiredPermits < availablePermits) {

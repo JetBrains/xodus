@@ -26,12 +26,12 @@ public class ReentrantTransactionDispatcherTest {
 
     @Before
     public void setUp() {
-        dispatcher = new ReentrantTransactionDispatcher(10);
+        dispatcher = new ReentrantTransactionDispatcher(10, 10);
     }
 
     @Test(expected = IllegalArgumentException.class)
     public void createDispatcher() {
-        new ReentrantTransactionDispatcher(0);
+        new ReentrantTransactionDispatcher(0, 10);
     }
 
     @Test(expected = ExodusException.class)
