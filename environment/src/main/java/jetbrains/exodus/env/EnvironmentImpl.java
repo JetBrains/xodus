@@ -736,53 +736,20 @@ public class EnvironmentImpl implements Environment {
 
 
     public void prepareForBackup() {
-        if (isOpen()) {
-            gc.suspend();
-
-            var highAddressAndRoot = flushSyncAndFillPagesWithNulls();
-            var fileAddress = log.getFileAddress(highAddressAndRoot[0]);
-            var fileOffset = highAddressAndRoot[0] - fileAddress;
-
-            var metadata =
-                    BackupMetadata.serialize(1, EnvironmentImpl.CURRENT_FORMAT_VERSION,
-                            highAddressAndRoot[1], log.getCachePageSize(), log.getFileLengthBound(),
-                            true, fileAddress, fileOffset);
-
-            var startBackupMetadata = Paths.get(log.getLocation()).resolve(
-                    BackupMetadata.START_BACKUP_METADATA_FILE_NAME);
-            try {
-                Files.deleteIfExists(startBackupMetadata);
-            } catch (IOException e) {
-                throw new ExodusException("Error deletion of previous backup metadata", e);
-            }
-
-            try (var channel = FileChannel.open(
-                    startBackupMetadata, StandardOpenOption.CREATE_NEW,
-                    StandardOpenOption.WRITE)) {
-                while (metadata.remaining() > 0) {
-                    //noinspection ResultOfMethodCallIgnored
-                    channel.write(metadata);
-                }
-            } catch (IOException e) {
-                throw new ExodusException("Error during generation of backup metadata", e);
-            }
-
-            return;
+        if (!isOpen()) {
+            throw new IllegalStateException("Environment is closed");
         }
-
-        throw new IllegalStateException("Environment is closed");
+        gc.suspend();
+        flushSyncAndFillPagesWithNulls();
     }
 
     public void finishBackup() {
         if (isOpen()) {
-            gc.resume();
-        }
-        var startBackupMetadata = Paths.get(log.getLocation()).resolve(
-                BackupMetadata.START_BACKUP_METADATA_FILE_NAME);
-        try {
-            Files.deleteIfExists(startBackupMetadata);
-        } catch (IOException e) {
-            throw new ExodusException("Error deletion of previous backup metadata", e);
+            try {
+                gc.resume();
+            } catch (Exception e) {
+                loggerError("Failed to resume GC after backup", e);
+            }
         }
     }
 
