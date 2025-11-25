@@ -53,7 +53,7 @@ internal class IndicesCreator(
                             if (!dbSession.schema.indexExists(indexName)) {
                                 val indexType =
                                     if (unique) SchemaClass.INDEX_TYPE.UNIQUE else SchemaClass.INDEX_TYPE.NOTUNIQUE
-                                if (dbSession.isTxActive) {
+                                if (dbSession.activeTransactionOrNull != null) {
                                     val sessionCopy = (dbSession as DatabaseSessionEmbedded).copy()
                                     sessionCopy.use {
                                         val copySessionClass = sessionCopy.schema.getClass(ownerVertexName)
