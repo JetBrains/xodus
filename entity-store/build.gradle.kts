@@ -1,4 +1,4 @@
-val ytdbVersion = "1.0.0-20250801.175607-54"
+val ytdbVersion = "0.4-20251201.103813-1"
 val ktorVersion = "3.1.3"
 
 dependencies {
