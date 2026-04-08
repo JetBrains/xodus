@@ -530,7 +530,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                 }
                 Settings.set(internalSettings, "refactorFixNegativeFloatAndDoubleProps() applied", "y");
             }
-            if (fromScratch || Settings.get(internalSettings, "Link null-indices present") == null) {
+            if (fromScratch || Settings.get(internalSettings, "Link null-indices present") == null || config.getRefactoringNullIndices()) {
                 if (!fromScratch) {
                     refactorings.refactorCreateNullLinkIndices();
                 }
