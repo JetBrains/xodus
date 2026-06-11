@@ -101,6 +101,48 @@ public class LogTests extends LogTestsBase {
     }
 
     @Test
+    public void testSyncOnEndWritePaddingLastPageOfFile() throws InterruptedException {
+        // Regression test: a sync triggered inside endWrite() (when syncPeriod has elapsed)
+        // pads the current page via addHashCodeToPage() if 17 or fewer bytes are left in it.
+        // If that page is the last page of a file, the padding fills the file up to
+        // fileLengthBound, and the file must be closed exactly as if a regular write had
+        // reached the boundary. Otherwise the next write goes past the file boundary and fails
+        // with "endPosition > fileLengthBound".
+        initLog(new LogConfig().setFileSize(1).setCachePageSize(1024).setSyncPeriod(1));
+
+        final long fileLengthBound = getLog().getFileLengthBound();
+        Assert.assertEquals(1024, fileLengthBound);
+
+        final Loggable emptyLoggable = NullLoggable.create();
+        final int adjustedPageSize = 1024 - BufferedDataWriter.HASH_CODE_SIZE;
+
+        getLog().beginWrite();
+        var expired = ExpiredLoggableCollection.newInstance(log);
+        // fill the page (the only page of the first file) so that exactly 17 bytes are left:
+        // 9 bytes before adjustedPageSize plus 8 bytes of the hash code area
+        while (getLog().getWrittenHighAddress() < adjustedPageSize - 9) {
+            getLog().write(emptyLoggable, expired);
+        }
+        Thread.sleep(50); // let syncPeriod (1 ms) elapse so that endWrite() performs sync
+        getLog().endWrite();
+
+        // the padding has filled the first file up to its boundary
+        Assert.assertEquals(fileLengthBound, getLog().getHighAddress());
+
+        getLog().beginWrite();
+        var expired2 = ExpiredLoggableCollection.newInstance(log);
+        // this write must open a new file and not overflow the previous one
+        Assert.assertEquals(fileLengthBound, getLog().write(emptyLoggable, expired2));
+        getLog().flush();
+        getLog().endWrite();
+
+        // depending on timing, endWrite() may append one more hash code record,
+        // so the exact high address is not asserted
+        Assert.assertTrue(getLog().getHighAddress() > fileLengthBound);
+        Assert.assertEquals(2, (int) getLog().getNumberOfFiles());
+    }
+
+    @Test
     public void testHighestPage() {
         initLog(1, 1024);
 

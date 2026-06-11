@@ -237,6 +237,7 @@ public final class BufferedDataWriter {
 
         if (doNeedsToBeSynchronized(currentHighAddress)) {
             doSync(currentHighAddress);
+            closeFullFileAfterSync();
         }
 
         if (blockSetWasChanged) {
@@ -921,38 +922,62 @@ public final class BufferedDataWriter {
 
             assert lastSyncedAddress <= committedHighAddress;
 
-            lastSyncedAddress = committedHighAddress;
-            lastSyncedTs = System.currentTimeMillis();
-
-            writer.close();
-
-            assert blockSetMutable != null;
-
-            var blockSet = blockSetMutable;
-            var lastFile = blockSet.getMaximum();
-            if (lastFile != null) {
-                var block = blockSet.getBlock(lastFile);
-
-                var refreshed = block.refresh();
-                if (block != refreshed) {
-                    blockSet.add(lastFile, refreshed);
-                }
-
-                var length = refreshed.length();
-                if (length < fileLengthBound) {
-                    throw new IllegalStateException(
-                            "File's too short (" + LogUtil.getLogFilename(lastFile)
-                                    + "), block.length() = " + length + ", fileLengthBound = " + fileLengthBound
-                    );
-                }
-
-                if (makeFileReadOnly && block instanceof File) {
-                    //noinspection ResultOfMethodCallIgnored
-                    ((File) block).setReadOnly();
-                }
-            }
+            closeFullFile(fileLengthBound, makeFileReadOnly, committedHighAddress);
         } else if (endPosition > fileLengthBound) {
             throw new ExodusException("endPosition > fileLengthBound: " + endPosition + " > " + fileLengthBound);
+        }
+    }
+
+    /**
+     * The sync performed in {@link #endWrite()} pads the current page (see
+     * {@link #addHashCodeToPage(MutablePage)}) and so can fill the current file up to its boundary. In this case
+     * the file should be closed the same way {@link #closeFileIfNecessary(long, boolean)} closes it after a regular
+     * write, otherwise the writer is left open past the file boundary and the next write fails.
+     * Unlike {@link #closeFileIfNecessary(long, boolean)} this method does not sync (the caller just did) and does
+     * not rely on {@link #committedHighAddress} which is not updated yet at this point of {@link #endWrite()}.
+     */
+    private void closeFullFileAfterSync() {
+        final long fileLengthBound = log.getFileLengthBound();
+        if (!writer.isOpen() || writer.position() != fileLengthBound) {
+            return;
+        }
+
+        assert currentPage.committedCount == currentPage.writtenCount;
+        assert lastSyncedAddress <= currentHighAddress;
+
+        closeFullFile(fileLengthBound, log.getConfig().isFullFileReadonly(), currentHighAddress);
+    }
+
+    private void closeFullFile(long fileLengthBound, boolean makeFileReadOnly, long syncedAddress) {
+        lastSyncedAddress = syncedAddress;
+        lastSyncedTs = System.currentTimeMillis();
+
+        writer.close();
+
+        assert blockSetMutable != null;
+
+        var blockSet = blockSetMutable;
+        var lastFile = blockSet.getMaximum();
+        if (lastFile != null) {
+            var block = blockSet.getBlock(lastFile);
+
+            var refreshed = block.refresh();
+            if (block != refreshed) {
+                blockSet.add(lastFile, refreshed);
+            }
+
+            var length = refreshed.length();
+            if (length < fileLengthBound) {
+                throw new IllegalStateException(
+                        "File's too short (" + LogUtil.getLogFilename(lastFile)
+                                + "), block.length() = " + length + ", fileLengthBound = " + fileLengthBound
+                );
+            }
+
+            if (makeFileReadOnly && block instanceof File) {
+                //noinspection ResultOfMethodCallIgnored
+                ((File) block).setReadOnly();
+            }
         }
     }
 
