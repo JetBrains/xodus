@@ -395,12 +395,15 @@ public abstract class XodusDirectoryBaseTest extends BaseDirectoryTestCase {
 
                     final var cb = new CyclicBarrier(numOfThreads);
                     final var futures = new ArrayList<Future<?>>();
+                    final var workersStarted = new CountDownLatch(numOfThreads);
+                    final var workersDone = new CountDownLatch(numOfThreads);
 
                     for (int t = 0; t < numOfThreads; t++) {
                         final var roundId = r;
                         final var threadId = t;
                         futures.add(executor.submit(() -> {
                             try {
+                                workersStarted.countDown();
                                 cb.await();
                                 for (int i = 0; i < numOfIterationsPerThread; i++) {
                                     work.run(dirWrapper, fileNameGen, roundId, threadId, i);
@@ -410,6 +413,8 @@ public abstract class XodusDirectoryBaseTest extends BaseDirectoryTestCase {
                                     log.error("Unexpected exception", e);
                                 }
                                 throw new RuntimeException(e);
+                            } finally {
+                                workersDone.countDown();
                             }
                         }));
                     }
@@ -423,10 +428,25 @@ public abstract class XodusDirectoryBaseTest extends BaseDirectoryTestCase {
                             }
                         }
                     } else {
+                        // a task cancelled before it starts never runs at all, so make sure
+                        // every worker has started before interrupting, otherwise workersDone
+                        // can never reach zero
+                        await(workersStarted, "Worker threads did not start");
                         sleep(interruptAfterMillis);
                         for (Future<?> f : futures) {
                             f.cancel(true);
                         }
+                        // cancel(true) only sets the interrupt flag, which the workers observe
+                        // at the next betweenFileOperations checkpoint. Wait until they actually
+                        // terminate, otherwise an in-flight file operation races with the
+                        // directory close and reopen below: e.g. an XodusIndexOutput.close()
+                        // can move its file into the index after the reopened directory has
+                        // already scanned for orphaned files, and then get interrupted before
+                        // writing the metadata file, planting an orphan that is only cleaned
+                        // on the next reopen. f.get() cannot be used to wait for that: on a
+                        // cancelled future it throws immediately, even while the task body
+                        // is still running.
+                        await(workersDone, "Worker threads did not terminate after interruption");
                     }
 
                     expectedDirContent = dirWrapper.getContent();
@@ -633,6 +653,14 @@ public abstract class XodusDirectoryBaseTest extends BaseDirectoryTestCase {
                     throw e;
                 }
             }
+        }
+    }
+
+    private static void await(CountDownLatch latch, String timeoutMessage) {
+        try {
+            assertTrue(timeoutMessage, latch.await(1, TimeUnit.MINUTES));
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
         }
     }
 
