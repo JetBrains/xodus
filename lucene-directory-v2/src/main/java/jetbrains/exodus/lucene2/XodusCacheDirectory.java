@@ -854,7 +854,7 @@ public class XodusCacheDirectory extends Directory implements CacheDataProvider 
 
         @Override
         public IndexInput slice(String sliceDescription, long offset, long length) {
-            if (offset < 0 || length < 0 || offset + length > this.length()) {
+            if (offset < 0 || length < 0 || offset > this.length() - length) {
                 throw new IllegalArgumentException("slice() " + sliceDescription +
                         " out of bounds: offset=" + offset + ",length=" + length + ",fileLength=" + this.length() + ": " + this);
             }
