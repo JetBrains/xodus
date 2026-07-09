@@ -23,7 +23,7 @@ import org.apache.commons.compress.archivers.ArchiveInputStream
 import org.apache.commons.compress.archivers.ArchiveStreamFactory
 import org.apache.commons.compress.archivers.examples.Expander
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream
-import org.apache.commons.compress.utils.IOUtils
+import org.apache.commons.io.IOUtils.copy
 import java.io.BufferedInputStream
 import java.io.File
 import java.io.InputStream
@@ -122,7 +122,7 @@ fun main(args: Array<String>) {
     }
 
     if (compress) {
-        IOUtils.copy(enCrypted, target.outputStream())
+        copy(enCrypted, target.outputStream())
     } else {
         Expander().expand(TarArchiveInputStream(GZIPInputStream(enCrypted)), target.toPath())
     }

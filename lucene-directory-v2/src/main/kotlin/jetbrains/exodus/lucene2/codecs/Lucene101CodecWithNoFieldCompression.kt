@@ -20,7 +20,7 @@ import org.apache.lucene.codecs.StoredFieldsFormat
 import org.apache.lucene.codecs.compressing.CompressionMode
 import org.apache.lucene.codecs.compressing.Compressor
 import org.apache.lucene.codecs.compressing.Decompressor
-import org.apache.lucene.codecs.lucene101.Lucene101Codec
+import org.apache.lucene.codecs.lucene104.Lucene104Codec
 import org.apache.lucene.codecs.lucene90.compressing.Lucene90CompressingStoredFieldsFormat
 import org.apache.lucene.store.ByteBuffersDataInput
 import org.apache.lucene.store.DataInput
@@ -30,7 +30,7 @@ import org.apache.lucene.util.BytesRef
 /**
  * Lucene101Codec with no compression of stored fields.
  */
-class Lucene101CodecWithNoFieldCompression : FilterCodec("Lucene101CodecWithNoFieldCompression", Lucene101Codec()) {
+class Lucene101CodecWithNoFieldCompression : FilterCodec("Lucene101CodecWithNoFieldCompression", Lucene104Codec()) {
 
     private val flatFieldsFormat: StoredFieldsFormat =
         Lucene90CompressingStoredFieldsFormat(
