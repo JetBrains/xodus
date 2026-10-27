@@ -19,6 +19,7 @@ import jetbrains.exodus.ExodusException
 import jetbrains.exodus.core.execution.Job
 import jetbrains.exodus.core.execution.JobHandler
 import jetbrains.exodus.crypto.newCipherProvider
+import jetbrains.exodus.gc.GarbageCollector
 import jetbrains.exodus.io.AsyncFileDataWriter
 import jetbrains.exodus.io.DataReaderWriterProvider
 import jetbrains.exodus.io.LockingManager
@@ -32,6 +33,7 @@ import mu.KLogging
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.Paths
+import java.nio.file.StandardCopyOption
 import java.util.concurrent.CountDownLatch
 
 object Environments : KLogging() {
@@ -198,7 +200,7 @@ object Environments : KLogging() {
                     return@let
                 }
                 Files.list(Paths.get(location)).forEach { file ->
-                    if (file.fileName.toString().endsWith(".del")) {
+                    if (file.fileName.toString().endsWith(AsyncFileDataWriter.DELETED_FILE_EXTENSION)) {
                         EnvironmentImpl.loggerInfo("File $file is marked as deleted. Deleting it from the file system.")
                         file.toFile().setWritable(true)
                         Files.deleteIfExists(file)
@@ -260,6 +262,16 @@ object Environments : KLogging() {
                 Files.deleteIfExists(
                     Paths.get(tempDir.toURI()).resolve(LockingManager.LOCK_FILE_NAME)
                 )
+
+                // the database has been rewritten from scratch, so GC can be enabled again
+                val stopGcPath = locationPath.resolve(GarbageCollector.STOP_GC_FILE)
+                if (Files.exists(stopGcPath)) {
+                    val delStopGcPath = locationPath.resolve(
+                        GarbageCollector.STOP_GC_FILE +
+                                AsyncFileDataWriter.DELETED_FILE_EXTENSION
+                    )
+                    Files.move(stopGcPath, delStopGcPath, StandardCopyOption.REPLACE_EXISTING)
+                }
 
                 env = envCreator()
 
