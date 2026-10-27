@@ -588,7 +588,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
         val date = dtf.format(now)
 
         val dirName = "restore-$date-"
-        return Files.createTempDirectory(dirName).toAbsolutePath()
+        return Files.createDirectory(Path.of(location).resolve(dirName))
     }
 
 
