@@ -15,11 +15,11 @@
  */
 package jetbrains.exodus.env.management
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import jetbrains.exodus.env.Environment
 import jetbrains.exodus.env.EnvironmentImpl
 import jetbrains.exodus.env.Transaction
 import jetbrains.exodus.management.MBeanBase
-import mu.KLogging
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 
@@ -54,7 +54,7 @@ class BackupController(private val env: EnvironmentImpl) : MBeanBase(getObjectNa
             backupTransaction = null
             env.finishBackup()
         } catch (e: Throwable) {
-            logger.error("Failed to finish backup on environment ${env.location}", e)
+            logger.error(e) { "Failed to finish backup on environment ${env.location}" }
             throw e
         } finally {
             backupTransactionLock.unlock()
@@ -79,7 +79,8 @@ class BackupController(private val env: EnvironmentImpl) : MBeanBase(getObjectNa
         super.close()
     }
 
-    companion object: KLogging() {
+    companion object {
+        val logger = KotlinLogging.logger {}
         internal fun getObjectName(env: Environment) =
             "$BACKUP_CONTROLLER_NAME_PREFIX, location=${escapeLocation(env.location)}"
     }

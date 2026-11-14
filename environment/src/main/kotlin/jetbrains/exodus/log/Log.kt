@@ -16,6 +16,7 @@
 package jetbrains.exodus.log
 
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import jetbrains.exodus.ArrayByteIterable
 import jetbrains.exodus.ByteIterable
 import jetbrains.exodus.ExodusException
@@ -30,7 +31,6 @@ import jetbrains.exodus.kotlin.notNull
 import jetbrains.exodus.tree.ExpiredLoggableCollection
 import jetbrains.exodus.util.DeferredIO
 import jetbrains.exodus.util.IdGenerator
-import mu.KLogging
 import java.io.Closeable
 import java.io.File
 import java.io.IOException
@@ -188,7 +188,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
             val backupLocation = Path.of(location).resolve(BackupMetadata.BACKUP_METADATA_FILE_NAME)
             if (!needToPerformMigration && !startupMetadata.isCorrectlyClosed) {
                 if (Files.exists(backupLocation)) {
-                    logger.info("Database $location : trying to restore from dynamic backup...")
+                    logger.info { "Database $location : trying to restore from dynamic backup..." }
                     val backupMetadataBuffer = ByteBuffer.allocate(BackupMetadata.FILE_SIZE)
                     FileChannel.open(backupLocation, StandardOpenOption.READ).use { channel ->
                         while (backupMetadataBuffer.remaining() > 0) {
@@ -209,20 +209,20 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                     if (backupMetadata == null || backupMetadata.rootAddress < 0 ||
                         (backupMetadata.lastFileOffset % backupMetadata.pageSize.toLong()) != 0L
                     ) {
-                        logger.warn("Backup is not stored correctly for database $location.")
+                        logger.warn { "Backup is not stored correctly for database $location." }
                     } else {
                         val lastFileName = LogUtil.getLogFilename(backupMetadata.lastFileAddress)
                         val lastSegmentFile = Path.of(location).resolve(lastFileName)
 
                         if (!Files.exists(lastSegmentFile)) {
-                            logger.warn("Backup is not stored correctly for database $location.")
+                            logger.warn { "Backup is not stored correctly for database $location." }
                         } else {
-                            logger.info(
+                            logger.info {
                                 "Found backup. " +
                                         "Database $location will be restored till file $lastFileName, " +
                                         " file length will be set too " +
                                         "${backupMetadata.lastFileOffset}. DB root address ${backupMetadata.rootAddress}"
-                            )
+                            }
 
                             SharedOpenFilesCache.invalidate()
                             try {
@@ -236,11 +236,11 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                                     blocks[block.address] = block as FileDataReader.FileBlock
                                 }
 
-                                logger.info("Files in database: $location")
+                                logger.info { "Files in database: $location" }
                                 val blockAddressIterator = blocks.keys.iterator()
                                 while (blockAddressIterator.hasNext()) {
                                     val address = blockAddressIterator.next()
-                                    logger.info(LogUtil.getLogFilename(address))
+                                    logger.info { LogUtil.getLogFilename(address) }
                                 }
 
                                 copyFilesInRestoreTempDir(
@@ -263,7 +263,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
 
                                 if (blocksToTruncateIterator.hasNext()) {
                                     val blockToDelete = blocksToTruncateIterator.next()
-                                    logger.info("File ${LogUtil.getLogFilename(blockToDelete.address)} will be deleted.")
+                                    logger.info { "File ${LogUtil.getLogFilename(blockToDelete.address)} will be deleted." }
 
 
                                     if (!blockToDelete.canWrite()) {
@@ -281,10 +281,9 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                                 startupMetadata = backupMetadata
                                 restoredFromBackup = true
                             } catch (ex: Exception) {
-                                logger.error(
-                                    "Failed to restore database $location from dynamic backup. ",
-                                    ex
-                                )
+                                logger.error(ex) {
+                                    "Failed to restore database $location from dynamic backup. "
+                                }
                             }
                         }
                     }
@@ -292,21 +291,21 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
             }
 
             if (config.cachePageSize != startupMetadata.pageSize) {
-                logger.warn(
+                logger.warn {
                     "Environment $location was created with cache page size equals to " +
                             "${startupMetadata.pageSize} but provided page size is ${config.cachePageSize} " +
                             "page size will be updated to ${startupMetadata.pageSize}"
-                )
+                }
 
                 config.cachePageSize = startupMetadata.pageSize
             }
 
             if (fileLength != startupMetadata.fileLengthBoundary) {
-                logger.warn(
+                logger.warn {
                     "Environment $location was created with maximum files size equals to " +
                             "${startupMetadata.fileLengthBoundary} but provided file size is $fileLength " +
                             "file size will be updated to ${startupMetadata.fileLengthBoundary}"
-                )
+                }
 
                 config.fileSize = startupMetadata.fileLengthBoundary / 1024
                 fileLength = startupMetadata.fileLengthBoundary
@@ -343,11 +342,11 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                     }
 
                     if (count > 0) {
-                        logger.error(
+                        logger.error {
                             "Temporary files which are used during environment" +
                                     " auto-recovery have been found, typically it indicates that recovery routine finished " +
                                     "incorrectly, triggering database check."
-                        )
+                        }
                         tmpLeftovers = true
                     }
                 }
@@ -368,11 +367,11 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                 val lastBlock = blockSetMutable.getBlock(lastAddress)
                 val lastFileLength = lastBlock.length()
                 if (lastFileLength and (cachePageSize - 1).toLong() > 0) {
-                    logger.error(
+                    logger.error {
                         "Unexpected size of the last segment $lastBlock , " +
                                 "segment size should be quantified by page size. Segment size $lastFileLength. " +
                                 "Page size $cachePageSize"
-                    )
+                    }
                     incorrectLastSegmentSize = true
                 }
             }
@@ -382,22 +381,22 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                     if (!startupMetadata.isCorrectlyClosed || tmpLeftovers
                         || incorrectLastSegmentSize
                     ) {
-                        logger.warn(
+                        logger.warn {
                             "Environment located at $location has been closed incorrectly. " +
                                     "Data check routine is started to assess data consistency ..."
-                        )
+                        }
                         true
                     } else if (needToPerformMigration) {
-                        logger.warn(
+                        logger.warn {
                             "Environment located at $location has been created with different version. " +
                                     "Data check routine is started to assess data consistency ..."
-                        )
+                        }
                         true
                     } else if (config.isForceDataCheckOnStart) {
-                        logger.warn(
+                        logger.warn {
                             "Environment located at $location will be checked for data consistency " +
                                     "due to the forceDataCheckOnStart option is set to true."
-                        )
+                        }
                         true
                     } else {
                         false
@@ -415,7 +414,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                 blockSetMutable = BlockSet.Immutable(fileLength).beginWrite()
                 logWasChanged = checkLogConsistencyAndUpdateRootAddress(blockSetMutable)
 
-                logger.info("Data check is completed for environment $location.")
+                logger.info { "Data check is completed for environment $location." }
             }
 
             val blockSetImmutable = blockSetMutable.endWrite()
@@ -518,7 +517,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
             nullPage = BufferedDataWriter.generateNullPage(cachePageSize)
 
             if (!rwIsReadonly && writtenInPage > 0) {
-                logger.warn(
+                logger.warn {
                     "Page ${(highAddress and (cachePageSize - 1).toLong())} is not written completely, fixing it. " +
                             "Environment : $location, file : ${
                                 LogUtil.getLogFilename(
@@ -527,7 +526,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                                     )
                                 )
                             }."
-                )
+                }
 
                 if (needToPerformMigration) {
                     padWholePageWithNulls()
@@ -539,7 +538,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
             }
 
             if (logWasChanged) {
-                logger.info("Log $location content was changed during the initialization, data sync is performed.")
+                logger.info { "Log $location content was changed during the initialization, data sync is performed." }
 
                 beginWrite()
                 try {
@@ -567,17 +566,17 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
     private fun copyFilesInRestoreTempDir(files: Iterator<FileDataReader.FileBlock>) {
         try {
             val tempDir = createTempRestoreDirectoryWithDate()
-            logger.info("Database $location - copying files into the temp directory $tempDir before data restore.")
+            logger.info { "Database $location - copying files into the temp directory $tempDir before data restore." }
 
             while (files.hasNext()) {
                 val file = files.next()
-                logger.info("Database $location - file $file is copied into the temp directory $tempDir")
+                logger.info { "Database $location - file $file is copied into the temp directory $tempDir" }
                 Files.copy(file.toPath(), tempDir.resolve(file.toPath().fileName))
             }
 
-            logger.info("Database $location - copying of files into the temp directory $tempDir is completed.")
+            logger.info { "Database $location - copying of files into the temp directory $tempDir is completed." }
         } catch (e: Exception) {
-            logger.error("Error during backup of broken files", e)
+            logger.error(e) { "Error during backup of broken files" }
         }
     }
 
@@ -695,10 +694,10 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                 blocks[block.address] = block
 
                 if (block is FileDataReader.FileBlock && block.length() > fileLengthBound && !blockIterator.hasNext()) {
-                    logger.warn(
+                    logger.warn {
                         "File ${LogUtil.getLogFilename(block.address)} is too large, " +
                                 "it will be truncated to $fileLengthBound bytes."
-                    )
+                    }
 
                     val location = Path.of(this.location)
 
@@ -719,7 +718,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                     val secondFile = Files.createTempFile(location, "split-2", ".txd")
 
                     if (!block.setWritable(true)) {
-                        logger.error("Can't set writable permission for file ${block.path}")
+                        logger.error { "Can't set writable permission for file ${block.path}" }
                     }
 
                     FileChannel.open(Path.of(block.path)).use { original ->
@@ -761,7 +760,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                     }
 
                     if (!firstFile.toFile().setReadOnly()) {
-                        logger.error("Error during setting of read only property for file $firstFile")
+                        logger.error { "Error during setting of read only property for file $firstFile" }
                     }
 
                     blockIterator = reader.blocks.iterator()
@@ -774,14 +773,14 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
             break
         }
 
-        logger.info("Files found in directory $location ...")
-        logger.info("------------------------------------------------------")
+        logger.info { "Files found in directory $location ..." }
+        logger.info { "------------------------------------------------------" }
         val blockAddressIterator = blocks.keys.iterator()
         while (blockAddressIterator.hasNext()) {
             val address = blockAddressIterator.next()
-            logger.info(LogUtil.getLogFilename(address))
+            logger.info { LogUtil.getLogFilename(address) }
         }
-        logger.info("------------------------------------------------------")
+        logger.info { "------------------------------------------------------" }
 
         val clearInvalidLog = config.isClearInvalidLog
         var hasNext: Boolean
@@ -808,7 +807,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                 val startBlockAddress = block.address
                 val endBlockAddress = startBlockAddress + fileLengthBound
 
-                logger.info("File ${LogUtil.getLogFilename(startBlockAddress)} is being verified.")
+                logger.info { "File ${LogUtil.getLogFilename(startBlockAddress)} is being verified." }
 
                 val blockLength = block.length()
                 // if it is not the last file and its size is not as expected
@@ -927,7 +926,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                 }
             } while (hasNext)
         } catch (exception: Exception) {
-            logger.warn("Error during verification of database $location", exception)
+            logger.warn(exception) { "Error during verification of database $location" }
 
             SharedOpenFilesCache.invalidate()
 
@@ -967,7 +966,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                     val endBlockLength = dbRootEndAddress % fileLengthBound
                     val endBlockReminder = endBlockLength.toInt() and (cachePageSize - 1)
 
-                    logger.warn(
+                    logger.warn {
                         "Data corruption was detected. Reason : \"${exception.message}\". " +
                                 "Database '$location' will be truncated till address : $dbRootEndAddress. " +
                                 "Name of the file to be truncated : ${
@@ -976,14 +975,14 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                                     )
                                 }. " +
                                 "Initial file size ${endBlock.length()} bytes, final file size $endBlockLength bytes."
-                    )
+                    }
 
                     if (blocksToTruncate.size > 1) {
-                        logger.warn(
+                        logger.warn {
                             "The following files will be deleted : " +
                                     blocksToTruncate.keys.asSequence().drop(1)
                                         .joinToString(", ") { LogUtil.getLogFilename(it) }
-                        )
+                        }
                     }
 
 
@@ -1030,7 +1029,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                             try {
                                 truncateFile(endBlock, position, lastPage)
                             } catch (e: IOException) {
-                                logger.error("Error during truncation of file $endBlock", e)
+                                logger.error(e) { "Error during truncation of file $endBlock" }
                                 throw ExodusException("Can not restore log corruption", exception)
                             }
                         }
@@ -1054,7 +1053,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
 
                     if (blocksToTruncateIterator.hasNext()) {
                         val blockToDelete = blocksToTruncateIterator.next()
-                        logger.info("File ${LogUtil.getLogFilename(blockToDelete.address)} will be deleted.")
+                        logger.info { "File ${LogUtil.getLogFilename(blockToDelete.address)} will be deleted." }
                         blockSetMutable.remove(blockToDelete.address)
 
                         when (reader) {
@@ -1085,9 +1084,9 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                     }
                 } else {
                     if (loggablesProcessed < 3) {
-                        logger.error(
+                        logger.error {
                             "Data corruption was detected. Reason : ${exception.message} . Likely invalid cipher key/iv were used. "
-                        )
+                        }
 
                         blockSetMutable.clear()
                         throw InvalidCipherParametersException()
@@ -1098,13 +1097,13 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                 }
 
                 rwIsReadonly = false
-                logger.info("Data corruption was fixed for environment $location.")
+                logger.info { "Data corruption was fixed for environment $location." }
 
                 if (loadedDbRootAddress != dbRootAddress) {
-                    logger.warn(
+                    logger.warn {
                         "DB root address stored in log metadata and detected are different. " +
                                 "Root address will be fixed. Stored address : $loadedDbRootAddress , detected  $dbRootAddress ."
-                    )
+                    }
                 }
 
                 return dbRootAddress
@@ -1113,16 +1112,16 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
             } catch (e: DataCorruptionException) {
                 throw e
             } catch (e: Exception) {
-                logger.error("Error during attempt to restore log $location", e)
+                logger.error(e) { "Error during attempt to restore log $location" }
                 throw ExodusException(exception)
             }
         }
 
         if (loadedDbRootAddress != dbRootAddress) {
-            logger.warn(
+            logger.warn {
                 "DB root address stored in log metadata and detected are different. " +
                         "Root address will be fixed. Stored address : $loadedDbRootAddress , detected  $dbRootAddress ."
-            )
+            }
             return dbRootAddress
         }
 
@@ -1130,10 +1129,10 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
     }
 
     private fun clearDataCorruptionLog(exception: Exception, blockSetMutable: BlockSet.Mutable) {
-        logger.error(
+        logger.error {
             "Data corruption was detected. Reason : ${exception.message} . " +
                     "Environment $location will be cleared."
-        )
+        }
 
         blockSetMutable.clear()
         dataWriter.clear()
@@ -1180,11 +1179,11 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                 StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE
             )
         } catch (moveNotSupported: AtomicMoveNotSupportedException) {
-            logger.warn(
+            logger.warn {
                 "Environment: $location. " +
                         "Atomic move is not supported by the file system and can not be used during " +
                         "log restore. Falling back to the non-atomic move."
-            )
+            }
             Files.move(
                 endBlockBackupPath, Path.of(endBlock.toURI()),
                 StandardCopyOption.REPLACE_EXISTING
@@ -1881,7 +1880,8 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
         identity = identityGenerator.nextId()
     }
 
-    companion object : KLogging() {
+    companion object {
+        val logger = KotlinLogging.logger {}
 
 
         val identityGenerator = IdGenerator()

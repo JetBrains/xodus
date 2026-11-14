@@ -15,11 +15,15 @@
  */
 package jetbrains.exodus.debug
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import jetbrains.exodus.env.TransactionBase
-import mu.KLogging
 import java.io.PrintStream
 
-class TxnProfiler : KLogging() {
+class TxnProfiler {
+
+    companion object {
+        val logger = KotlinLogging.logger {}
+    }
 
     var gcTransactions: Long = 0L
         private set

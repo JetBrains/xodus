@@ -15,11 +15,15 @@
  */
 package jetbrains.exodus.io.inMemory
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import jetbrains.exodus.io.Block
 import jetbrains.exodus.io.DataReader
-import mu.KLogging
 
-open class MemoryDataReader(val memory: Memory) : DataReader, KLogging() {
+open class MemoryDataReader(val memory: Memory) : DataReader {
+
+    companion object {
+        val logger = KotlinLogging.logger {}
+    }
 
     private val memoryBlocks get() = memory.allBlocks.asSequence()
 

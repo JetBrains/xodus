@@ -15,6 +15,7 @@
  */
 package jetbrains.exodus.env
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import jetbrains.exodus.ExodusException
 import jetbrains.exodus.core.execution.Job
 import jetbrains.exodus.core.execution.JobHandler
@@ -28,13 +29,14 @@ import jetbrains.exodus.log.LogConfig
 import jetbrains.exodus.log.LogUtil
 import jetbrains.exodus.log.StartupMetadata
 import jetbrains.exodus.tree.ExpiredLoggableCollection
-import mu.KLogging
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.Paths
 import java.util.concurrent.CountDownLatch
 
-object Environments : KLogging() {
+object Environments {
+
+    val logger = KotlinLogging.logger {}
 
     @JvmStatic
     fun newInstance(dir: String, subDir: String, ec: EnvironmentConfig): Environment =
@@ -301,7 +303,7 @@ object Environments : KLogging() {
                 env.isCheckLuceneDirectory = true
 
                 if (env.environmentConfig.checkBackupConsistency) {
-                    logger.warn("Data structures consistency is going to be checked after restoring from backup")
+                    logger.warn { "Data structures consistency is going to be checked after restoring from backup" }
                     (env as EnvironmentImpl).checkDataStructuresConsistency()
                 }
             }
@@ -338,8 +340,10 @@ object Environments : KLogging() {
         }
 
         if (env.environmentConfig.checkDataStructuresConsistency) {
-            logger.warn("Data structures consistency is going to be checked because setting " +
-                    EnvironmentConfig.ENV_CHECK_DATA_STRUCTURES_CONSISTENCY + " is set to true")
+            logger.warn {
+                "Data structures consistency is going to be checked because setting " +
+                        EnvironmentConfig.ENV_CHECK_DATA_STRUCTURES_CONSISTENCY + " is set to true"
+            }
             (env as EnvironmentImpl).checkDataStructuresConsistency()
         }
 

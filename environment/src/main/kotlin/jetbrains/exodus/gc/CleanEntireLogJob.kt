@@ -15,8 +15,8 @@
  */
 package jetbrains.exodus.gc
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import jetbrains.exodus.core.execution.LatchJob
-import mu.KLogging
 
 internal class CleanEntireLogJob(private val gc: GarbageCollector) : LatchJob() {
 
@@ -45,6 +45,8 @@ internal class CleanEntireLogJob(private val gc: GarbageCollector) : LatchJob() 
         }
     }
 
-    companion object : KLogging()
+    companion object {
+        val logger = KotlinLogging.logger {}
+    }
 }
 

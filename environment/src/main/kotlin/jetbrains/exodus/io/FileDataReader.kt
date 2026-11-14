@@ -15,18 +15,20 @@
  */
 package jetbrains.exodus.io
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import jetbrains.exodus.ExodusException
 import jetbrains.exodus.core.dataStructures.LongArrayList
 import jetbrains.exodus.log.Log
 import jetbrains.exodus.log.LogUtil
-import mu.KLogging
 import java.io.File
 import java.io.IOException
 import java.io.RandomAccessFile
 
-class FileDataReader(val dir: File) : DataReader, KLogging() {
+class FileDataReader(val dir: File) : DataReader {
 
-    companion object : KLogging()
+    companion object {
+        val logger = KotlinLogging.logger {}
+    }
 
     private var useNio = false
     private var log: Log? = null
@@ -96,9 +98,7 @@ class FileDataReader(val dir: File) : DataReader, KLogging() {
                             }
                         } catch (t: Throwable) {
                             // if we failed to read mapped file, then try ordinary RandomAccessFile.read()
-                            if (logger.isWarnEnabled) {
-                                logger.warn("Failed to transfer bytes from memory mapped file", t)
-                            }
+                            logger.warn(t) { "Failed to transfer bytes from memory mapped file" }
                         }
                     }
 

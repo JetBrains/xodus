@@ -15,7 +15,7 @@
  */
 package jetbrains.exodus.crypto.convert
 
-import mu.KLogging
+import io.github.oshai.kotlinlogging.KotlinLogging
 import org.apache.commons.compress.archivers.ArchiveOutputStream
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry
 import org.apache.commons.compress.archivers.tar.TarArchiveOutputStream
@@ -23,7 +23,8 @@ import org.apache.commons.compress.archivers.zip.ZipArchiveEntry
 import org.apache.commons.compress.archivers.zip.ZipArchiveOutputStream
 import java.io.IOException
 
-object ArchiveEncryptListenerFactory : KLogging() {
+object ArchiveEncryptListenerFactory {
+    val logger = KotlinLogging.logger {}
     fun newListener(archive: ArchiveOutputStream): EncryptListener {
         return when (archive) {
             is TarArchiveOutputStream -> {

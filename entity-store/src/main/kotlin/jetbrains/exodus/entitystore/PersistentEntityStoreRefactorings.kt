@@ -17,6 +17,7 @@
 
 package jetbrains.exodus.entitystore
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import jetbrains.exodus.*
 import jetbrains.exodus.bindings.*
 import jetbrains.exodus.core.dataStructures.IntArrayList
@@ -33,7 +34,6 @@ import jetbrains.exodus.env.StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING
 import jetbrains.exodus.kotlin.notNull
 import jetbrains.exodus.log.CompressedUnsignedLongByteIterable
 import jetbrains.exodus.util.ByteArraySizedInputStream
-import mu.KLogging
 import java.util.*
 import kotlin.experimental.xor
 
@@ -181,7 +181,7 @@ class PersistentEntityStoreRefactorings(private val store: PersistentEntityStore
                             var allLinksIndex = links.allLinksIndex
                             val envTxn = txn.environmentTransaction
                             if (allLinksIndex.getStore().count(envTxn) > 0) {
-                                logger.warn("Refactoring creating null-value link indices looped for [$entityType]")
+                                logger.warn { "Refactoring creating null-value link indices looped for [$entityType]" }
                                 envTxn.environment.truncateStore(allLinksIndex.getStore().name, envTxn)
                                 store.linksTables.remove(entityTypeId)
                                 links = store.getLinksTable(txn, entityTypeId)
@@ -536,7 +536,7 @@ class PersistentEntityStoreRefactorings(private val store: PersistentEntityStore
                                 deletePair(linksTable.getSecondIndexCursor(txn), deleteLink.second, deleteLink.first)
                             }
                         }
-                        if (logger.isInfoEnabled) {
+                        if (logger.isInfoEnabled()) {
                             if (redundantLinksSize > 0) {
                                 val redundantLinkTypeNames = ArrayList<String>(redundantLinkTypes.size)
                                 for (typeId in redundantLinkTypes) {
@@ -700,7 +700,7 @@ class PersistentEntityStoreRefactorings(private val store: PersistentEntityStore
                                         }
                                     }
                                 } catch (t: Throwable) {
-                                    logger.error("Error reading property value index ", t)
+                                    logger.error(t) { "Error reading property value index " }
                                     throwJVMError(t)
                                 }
                             }
@@ -873,7 +873,7 @@ class PersistentEntityStoreRefactorings(private val store: PersistentEntityStore
                                 }
                             }
                         } catch (t: Throwable) {
-                            logger.error("$settingName: error reading blobs", t)
+                            logger.error(t) { "$settingName: error reading blobs" }
                             throwJVMError(t)
                         }
                     }
@@ -1046,10 +1046,9 @@ class PersistentEntityStoreRefactorings(private val store: PersistentEntityStore
                         } catch (found: DuplicateFoundException) {
                             // it's okay, do nothing
                         } catch (t: Throwable) {
-                            logger.error(
-                                "refactorDeduplicateInPlaceBlobs(): error reading blobs for [$entityType]",
-                                t
-                            )
+                            logger.error(t) {
+                                "refactorDeduplicateInPlaceBlobs(): error reading blobs for [$entityType]"
+                            }
                             throwJVMError(t)
                         }
                     }
@@ -1105,7 +1104,7 @@ class PersistentEntityStoreRefactorings(private val store: PersistentEntityStore
         try {
             store.executeInTransaction(executable)
         } catch (t: Throwable) {
-            logger.error("Failed to execute refactoring for entity type: $entityType", t)
+            logger.error(t) { "Failed to execute refactoring for entity type: $entityType" }
             throwJVMError(t)
         }
     }
@@ -1118,11 +1117,12 @@ class PersistentEntityStoreRefactorings(private val store: PersistentEntityStore
                 }
             }
         } catch (e: ExodusException) {
-            logger.error("Failed to remove store $name", e)
+            logger.error(e) { "Failed to remove store $name" }
         }
     }
 
-    companion object : KLogging() {
+    companion object {
+        val logger = KotlinLogging.logger {}
 
         private fun runReadonlyTransactionSafeForEntityType(entityType: String, action: () -> Unit) {
             try {
@@ -1130,7 +1130,7 @@ class PersistentEntityStoreRefactorings(private val store: PersistentEntityStore
             } catch (ignore: ReadonlyTransactionException) {
                 // that fixes XD-377, XD-492 and similar not reported issues
             } catch (t: Throwable) {
-                logger.error("Failed to execute refactoring for entity type: $entityType", t)
+                logger.error(t) { "Failed to execute refactoring for entity type: $entityType" }
                 throwJVMError(t)
             }
         }
@@ -1150,9 +1150,7 @@ class PersistentEntityStoreRefactorings(private val store: PersistentEntityStore
         }
 
         private fun logInfo(message: String) {
-            if (logger.isInfoEnabled) {
-                logger.info(message)
-            }
+            logger.info { message }
         }
     }
 }

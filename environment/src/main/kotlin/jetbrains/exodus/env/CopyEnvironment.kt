@@ -15,9 +15,9 @@
  */
 package jetbrains.exodus.env
 
+import io.github.oshai.kotlinlogging.KLogger
 import jetbrains.exodus.ArrayByteIterable
 import jetbrains.exodus.runtime.OOMGuard
-import mu.KLogger
 import java.io.File
 import java.util.*
 import kotlin.math.min
@@ -123,7 +123,7 @@ fun Environment.copyTo(
                     }
                 }
                 println()
-                logger?.error("Failed to completely copy store $name", storeIsBroken)
+                logger?.error(storeIsBroken) { "Failed to completely copy store $name" }
             }
             val actualSize = newEnv.computeInReadonlyTransaction { txn ->
                 if (newEnv.storeExists(name, txn)) {

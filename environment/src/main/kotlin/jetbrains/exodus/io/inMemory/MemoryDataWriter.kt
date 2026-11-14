@@ -15,6 +15,7 @@
  */
 package jetbrains.exodus.io.inMemory
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import jetbrains.exodus.ExodusException
 import jetbrains.exodus.core.dataStructures.LongIntPair
 import jetbrains.exodus.core.dataStructures.Pair
@@ -22,13 +23,14 @@ import jetbrains.exodus.io.AbstractDataWriter
 import jetbrains.exodus.io.Block
 import jetbrains.exodus.io.RemoveBlockType
 import jetbrains.exodus.log.LogUtil
-import mu.KLogging
 import org.jetbrains.annotations.NotNull
 import java.util.concurrent.CompletableFuture
 
 open class MemoryDataWriter(private val memory: Memory) : AbstractDataWriter() {
 
-    companion object : KLogging()
+    companion object {
+        val logger = KotlinLogging.logger {}
+    }
 
     private var closed = false
     private lateinit var data: Memory.Block
