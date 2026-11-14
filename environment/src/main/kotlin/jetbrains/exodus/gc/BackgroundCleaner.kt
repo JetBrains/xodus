@@ -15,10 +15,10 @@
  */
 package jetbrains.exodus.gc
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import jetbrains.exodus.ExodusException
 import jetbrains.exodus.core.execution.*
 import jetbrains.exodus.kotlin.synchronized
-import mu.KLogging
 
 internal class BackgroundCleaner(private val gc: GarbageCollector) {
 
@@ -55,7 +55,7 @@ internal class BackgroundCleaner(private val gc: GarbageCollector) {
             }
         }
         if (processor.exceptionHandler == null) {
-            processor.exceptionHandler = JobProcessorExceptionHandler { _, _, t -> logger.error(t.message, t) }
+            processor.exceptionHandler = JobProcessorExceptionHandler { _, _, t -> logger.error(t) { t.message } }
         }
         processor.start()
         this.processor = processor
@@ -128,5 +128,7 @@ internal class BackgroundCleaner(private val gc: GarbageCollector) {
         }
     }
 
-    companion object : KLogging()
+    companion object {
+        val logger = KotlinLogging.logger {}
+    }
 }

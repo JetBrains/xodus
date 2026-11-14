@@ -15,12 +15,13 @@
  */
 package jetbrains.exodus.crypto.convert
 
-import mu.KLogging
+import io.github.oshai.kotlinlogging.KotlinLogging
 import java.io.File
 import java.io.FileOutputStream
 import java.io.OutputStream
 
-object DirectoryEncryptListenerFactory : KLogging() {
+object DirectoryEncryptListenerFactory {
+    val logger = KotlinLogging.logger {}
 
     fun newListener(folder: File): EncryptListener {
         return object : EncryptListener {

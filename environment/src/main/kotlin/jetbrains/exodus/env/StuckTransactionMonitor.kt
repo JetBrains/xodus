@@ -15,9 +15,9 @@
  */
 package jetbrains.exodus.env
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import jetbrains.exodus.core.execution.Job
 import jetbrains.exodus.core.execution.ThreadJobProcessorPool
-import mu.KLogging
 import java.lang.ref.WeakReference
 import java.util.*
 
@@ -45,7 +45,7 @@ internal class StuckTransactionMonitor(env: EnvironmentImpl) : Job() {
                         val creatingThread = txn.creatingThread
                         val msg = "Transaction timed out: created at ${Date(txn.startTime)}, " +
                                 "thread = $creatingThread(${creatingThread.id})\n$trace"
-                        logger.info(msg)
+                        logger.info { msg }
                         ++stuckTxnCount
                     }
                 }
@@ -79,5 +79,7 @@ internal class StuckTransactionMonitor(env: EnvironmentImpl) : Job() {
         }
     }
 
-    companion object : KLogging()
+    companion object {
+        val logger = KotlinLogging.logger {}
+    }
 }

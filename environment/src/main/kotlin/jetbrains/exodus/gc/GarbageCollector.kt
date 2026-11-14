@@ -15,6 +15,7 @@
  */
 package jetbrains.exodus.gc
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import jetbrains.exodus.ExodusException
 import jetbrains.exodus.core.dataStructures.LongArrayList
 import jetbrains.exodus.core.dataStructures.Priority
@@ -34,7 +35,6 @@ import jetbrains.exodus.log.Loggable
 import jetbrains.exodus.runtime.OOMGuard
 import jetbrains.exodus.tree.ExpiredLoggableCollection
 import jetbrains.exodus.util.DeferredIO
-import mu.KLogging
 import java.io.File
 import java.io.PrintWriter
 import java.io.StringWriter
@@ -356,15 +356,15 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
                     ", free bytes = ${formatBytes(getFileFreeBytes(fileAddress))}"
         }
         val log = log
-        if (logger.isDebugEnabled) {
+        if (logger.isDebugEnabled()) {
             val high = log.highReadAddress
             val highFile = log.highFileAddress
-            logger.debug(
+            logger.debug {
                 String.format(
                     "Cleaner acquired txn when log high address was: %d (%s@%d) when cleaning file %s",
                     high, LogUtil.getLogFilename(highFile), high - highFile, LogUtil.getLogFilename(fileAddress)
                 )
-            )
+            }
         }
 
         try {
@@ -390,12 +390,13 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
                 }
             }
         } catch (e: Throwable) {
-            logger.error("cleanFile(" + LogUtil.getLogFilename(fileAddress) + ')'.toString(), e)
+            logger.error(e) { "cleanFile(" + LogUtil.getLogFilename(fileAddress) + ')' }
             throw e
         }
     }
 
-    companion object : KLogging() {
+    companion object {
+        val logger = KotlinLogging.logger {}
 
         const val UTILIZATION_PROFILE_STORE_NAME = "exodus.gc.up"
 

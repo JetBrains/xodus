@@ -15,6 +15,7 @@
  */
 package jetbrains.exodus.query
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import jetbrains.exodus.entitystore.Entity
 import jetbrains.exodus.entitystore.EntityIterable
 import jetbrains.exodus.entitystore.PersistentEntityStoreImpl
@@ -29,9 +30,12 @@ import jetbrains.exodus.query.Or.Companion.or
 import jetbrains.exodus.query.Utils.isTypeOf
 import jetbrains.exodus.query.metadata.ModelMetaData
 import jetbrains.exodus.util.doIfTrue
-import mu.KLogging
 
-open class QueryEngine(val modelMetaData: ModelMetaData?, val persistentStore: PersistentEntityStoreImpl) : KLogging() {
+open class QueryEngine(val modelMetaData: ModelMetaData?, val persistentStore: PersistentEntityStoreImpl) {
+
+    companion object {
+        val logger = KotlinLogging.logger {}
+    }
 
     private var _sortEngine: SortEngine? = null
 
@@ -370,7 +374,7 @@ open class QueryEngine(val modelMetaData: ModelMetaData?, val persistentStore: P
 
     private fun reportInMemoryError() {
         doIfTrue("jetbrains.exodus.query.reportInMemoryQueries") {
-            logger.error("QueryEngine does in-memory computations", Throwable())
+            logger.error(Throwable()) { "QueryEngine does in-memory computations" }
         }
     }
 }

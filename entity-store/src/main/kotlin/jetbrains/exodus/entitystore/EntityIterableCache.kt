@@ -15,6 +15,7 @@
  */
 package jetbrains.exodus.entitystore
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import jetbrains.exodus.ExodusException
 import jetbrains.exodus.core.dataStructures.ConcurrentObjectCache
 import jetbrains.exodus.core.dataStructures.Priority
@@ -24,12 +25,12 @@ import jetbrains.exodus.entitystore.EntityIterableCache.TooLongEntityIterableIns
 import jetbrains.exodus.entitystore.EntityIterableCache.TooLongEntityIterableInstantiationReason.JOB_OVERDUE
 import jetbrains.exodus.entitystore.iterate.EntityIterableBase
 import jetbrains.exodus.env.ReadonlyTransactionException
-import mu.KLogging
 import java.lang.Long.max
 
 class EntityIterableCache internal constructor(private val store: PersistentEntityStoreImpl) {
 
-    companion object : KLogging() {
+    companion object {
+        val logger = KotlinLogging.logger {}
 
         fun toString(config: PersistentEntityStoreConfig, handle: EntityIterableHandle): String {
             return if (config.entityIterableCacheUseHumanReadable) {
@@ -251,7 +252,7 @@ class EntityIterableCache internal constructor(private val store: PersistentEnti
                 txn.queryCancellingPolicy = cancellingPolicy
                 try {
                     it.getOrCreateCachedInstance(txn, !isConsistent)
-                    if (logger.isInfoEnabled) {
+                    if (logger.isInfoEnabled()) {
                         val cachedIn = System.currentTimeMillis() - started
                         if (cachedIn > 1000) {
                             logger.info {
@@ -263,7 +264,7 @@ class EntityIterableCache internal constructor(private val store: PersistentEnti
                 } catch (_: ReadonlyTransactionException) {
                     // work around XD-626
                     val action = if (isConsistent) "Caching" else "Caching (inconsistent)"
-                    logger.error("$action failed with ReadonlyTransactionException. Re-queueing...")
+                    logger.error { "$action failed with ReadonlyTransactionException. Re-queueing..." }
                     queue(Priority.below_normal)
                 } catch (e: TooLongEntityIterableInstantiationException) {
                     val cachingTime = System.currentTimeMillis() - started
@@ -318,7 +319,7 @@ class EntityIterableCache internal constructor(private val store: PersistentEnti
                     // This method tries to set the maximum size of the cache if there is no concurrent modification,
                     // assuming that it converges to the desired value eventually.
                     if (cacheAdapter.trySetSize(targetSize)) {
-                        logger.info("Cache size updated from $currentSize to $targetSize")
+                        logger.info { "Cache size updated from $currentSize to $targetSize" }
                     }
                 }
             } catch (e: Exception) {

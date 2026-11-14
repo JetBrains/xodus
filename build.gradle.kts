@@ -171,6 +171,7 @@ subprojects {
     dependencies {
         implementation(rootProject.libs.kotlin.stdlib)
         implementation(rootProject.libs.kotlin.logging)
+        implementation(rootProject.libs.slf4j.api)
     }
 
     tasks.compileKotlin {

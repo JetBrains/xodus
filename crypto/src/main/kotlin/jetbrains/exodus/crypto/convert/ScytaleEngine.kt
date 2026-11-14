@@ -15,11 +15,11 @@
  */
 package jetbrains.exodus.crypto.convert
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import jetbrains.exodus.crypto.StreamCipherProvider
 import jetbrains.exodus.crypto.asHashedIV
 import jetbrains.exodus.log.LogUtil
 import jetbrains.exodus.util.ByteArraySpinAllocator
-import mu.KLogging
 import java.io.Closeable
 import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.TimeUnit
@@ -34,7 +34,8 @@ class ScytaleEngine(
     inputQueueSize: Int = 40,
     outputQueueSize: Int = 40
 ) : Closeable {
-    companion object : KLogging() {
+    companion object {
+        val logger = KotlinLogging.logger {}
         val timeout = 200L
     }
 

@@ -15,8 +15,8 @@
  */
 package jetbrains.exodus.entitystore
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import jetbrains.exodus.ConfigSettingChangeListener
-import mu.KLogging
 
 internal class PersistentEntityStoreSettingsListener(private val store: PersistentEntityStoreImpl) : ConfigSettingChangeListener.Adapter() {
 
@@ -29,5 +29,7 @@ internal class PersistentEntityStoreSettingsListener(private val store: Persiste
         }
     }
 
-    companion object : KLogging()
+    companion object {
+        val logger = KotlinLogging.logger {}
+    }
 }

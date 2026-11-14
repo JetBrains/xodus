@@ -15,9 +15,9 @@
  */
 package jetbrains.exodus.entitystore
 
+import io.github.oshai.kotlinlogging.KLogger
+import io.github.oshai.kotlinlogging.KotlinLogging
 import jetbrains.exodus.testutil.randomGaussian
-import mu.KLogger
-import mu.KLogging
 import java.util.*
 
 class IssueTrackerTestCase(
@@ -37,7 +37,9 @@ class IssueTrackerTestCase(
     val logQueryResult: Boolean = false,
 ) {
 
-    companion object : KLogging()
+    companion object {
+        val logger = KotlinLogging.logger {}
+    }
 
     // Queries
     fun queryRandomIssue(): Entity {
@@ -124,7 +126,7 @@ class IssueTrackerTestCase(
 
     private fun KLogger.logQueryResult(message: String) {
         if (logQueryResult) {
-            info(message)
+            info { message }
         }
     }
 }
@@ -139,7 +141,7 @@ data class Project(val name: String) {
         }
 
         fun createEntities(testData: TestData, count: Int, store: PersistentEntityStore): List<Entity> {
-            EntityIterableCacheTest.logger.info("Creating $count projects...")
+            EntityIterableCacheTest.logger.info { "Creating $count projects..." }
             return store.computeInTransaction {
                 (1..count).map {
                     val project = create(testData)
@@ -164,7 +166,7 @@ data class User(val name: String) {
     companion object {
 
         fun createEntities(testData: TestData, count: Int, store: PersistentEntityStore): List<Entity> {
-            EntityIterableCacheTest.logger.info("Creating $count users...")
+            EntityIterableCacheTest.logger.info { "Creating $count users..." }
             return store.computeInTransaction {
                 (1..count).map {
                     val user = create(testData)
@@ -236,7 +238,7 @@ data class Issue(
             users: List<Entity>,
             store: PersistentEntityStore
         ): List<Entity> {
-            EntityIterableCacheTest.logger.info("Creating $count issues...")
+            EntityIterableCacheTest.logger.info { "Creating $count issues..." }
             return store.computeInTransaction {
                 (1..count).map {
                     val issue = create(testData, projects, users)

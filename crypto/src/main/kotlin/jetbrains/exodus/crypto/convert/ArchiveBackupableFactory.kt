@@ -15,11 +15,11 @@
  */
 package jetbrains.exodus.crypto.convert
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import jetbrains.exodus.backup.BackupStrategy
 import jetbrains.exodus.backup.Backupable
 import jetbrains.exodus.backup.VirtualFileDescriptor
 import jetbrains.exodus.log.StartupMetadata
-import mu.KLogging
 import org.apache.commons.compress.archivers.ArchiveEntry
 import org.apache.commons.compress.archivers.ArchiveInputStream
 import org.apache.commons.compress.archivers.ArchiveStreamFactory
@@ -28,7 +28,8 @@ import java.io.File
 import java.io.InputStream
 import java.util.zip.GZIPInputStream
 
-object ArchiveBackupableFactory : KLogging() {
+object ArchiveBackupableFactory {
+    val logger = KotlinLogging.logger {}
     private val separators = charArrayOf('\\', '/')
 
     fun newBackupable(stream: InputStream, gzip: Boolean) = Backupable {

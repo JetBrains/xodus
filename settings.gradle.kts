@@ -22,7 +22,7 @@ dependencyResolutionManagement {
             version("kotlin-lang", "1.9")
             version("kotlin", "1.9.21")
 
-            version("kotlin-logging", "3.0.5")
+            version("kotlin-logging", "6.0.9")
             version("lz4", "1.8.0")
             version("slf4j", "2.0.7")
             version("jetbrains-annotations", "24.0.0")
@@ -70,7 +70,7 @@ dependencyResolutionManagement {
             library("commons-lang", "org.apache.commons", "commons-lang3").versionRef("commons-lang")
 
             library("kotlin-stdlib", "org.jetbrains.kotlin", "kotlin-stdlib").versionRef("kotlin")
-            library("kotlin-logging", "io.github.microutils", "kotlin-logging").versionRef("kotlin-logging")
+            library("kotlin-logging", "io.github.oshai", "kotlin-logging-jvm").versionRef("kotlin-logging")
 
             library("commons-io", "commons-io", "commons-io").versionRef("commons-io")
             library("lz4", "org.lz4", "lz4-java").versionRef("lz4")

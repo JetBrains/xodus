@@ -15,8 +15,8 @@
  */
 package jetbrains.exodus.entitystore
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import jetbrains.exodus.testutil.TimeProfiler
-import mu.KLogging
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit.MINUTES
@@ -25,7 +25,8 @@ import kotlin.concurrent.thread
 
 class EntityIterableCacheTest : EntityStoreTestBase() {
 
-    companion object : KLogging() {
+    companion object {
+        val logger = KotlinLogging.logger {}
 
         init {
             // Use for local experiments to change cache params
@@ -144,7 +145,7 @@ class EntityIterableCacheTest : EntityStoreTestBase() {
         val updateDelayMillis = 100L
 
         // When
-        logger.info("Running $queryCount queries...")
+        logger.info { "Running $queryCount queries..." }
         val finishedRef = AtomicBoolean(false)
         val writeThread = thread {
             while (!finishedRef.get()) {
@@ -184,7 +185,7 @@ class EntityIterableCacheTest : EntityStoreTestBase() {
         val queryDelayMillis = 10L
 
         // When
-        logger.info("Running $writeCount writes...")
+        logger.info { "Running $writeCount writes..." }
         val finishedRef = AtomicBoolean(false)
         val queryThread = thread {
             while (!finishedRef.get()) {
@@ -238,7 +239,7 @@ class EntityIterableCacheTest : EntityStoreTestBase() {
         val writeDelayMillis = 100L
 
         // When
-        logger.info("Running $writeCount writes and $queryCount reads...")
+        logger.info { "Running $writeCount writes and $queryCount reads..." }
 
         val queryExecutor = Executors.newFixedThreadPool(queryConcurrencyLevel)
         val readProfiler = TimeProfiler("Read performance")

@@ -15,14 +15,16 @@
  */
 package jetbrains.exodus.core.execution
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import jetbrains.exodus.core.dataStructures.decorators.QueueDecorator
 import jetbrains.exodus.core.dataStructures.hash.HashSet
-import mu.KLogging
 
 /**
  * Shared timer runs registered periodic tasks (each second) in lock-free manner.
  */
-object SharedTimer : KLogging() {
+object SharedTimer {
+
+    val logger = KotlinLogging.logger {}
 
     private val PERIOD = 1000 // in milliseconds
     private val registeredTasks: MutableSet<ExpirablePeriodicTask>
@@ -98,7 +100,7 @@ object SharedTimer : KLogging() {
                         try {
                             task.run()
                         } catch (t: Throwable) {
-                            logger.error("Periodic task failure", t)
+                            logger.error(t) { "Periodic task failure" }
                         }
                     }
                 }
