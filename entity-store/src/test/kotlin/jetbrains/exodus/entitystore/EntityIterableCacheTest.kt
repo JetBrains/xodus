@@ -15,6 +15,8 @@
  */
 package jetbrains.exodus.entitystore
 
+import jetbrains.exodus.entitystore.iterate.EntityIterableBase
+import jetbrains.exodus.entitystore.iterate.EntityIterableHandleDecorator
 import jetbrains.exodus.testutil.TimeProfiler
 import mu.KLogging
 import org.junit.Ignore
@@ -58,6 +60,41 @@ class EntityIterableCacheTest : EntityStoreTestBase() {
         // Then
         reportInLogEntityIterableCacheStats()
         assertEquals(1, entityStore.entityIterableCache.stats.totalHits)
+    }
+
+    fun testCountIsRecomputedAfterCachedInstanceExpired() {
+        val writeTxn = storeTransaction
+        writeTxn.newEntity("Issue")
+        writeTxn.flush()
+        val txn = entityStore.beginReadonlyTransaction()
+        try {
+            val expired = AtomicBoolean(false)
+            val iterable = object : EntityIterableBase(txn) {
+                private val source = txn.getAll("Issue") as EntityIterableBase
+
+                override fun getIteratorImpl(txn: PersistentStoreTransaction) = source.getIteratorImpl(txn)
+
+                override fun getHandleImpl(): EntityIterableHandle =
+                    object : EntityIterableHandleDecorator(entityStore, EntityIterableType.ALL_ENTITIES, source.handle) {
+                        override fun isExpired() = expired.get()
+                    }
+            }
+            val cache = entityStore.entityIterableCache
+            val handle = iterable.handle
+
+            iterable.getOrCreateCachedInstance(txn, true)
+            assertEquals(1L, cache.getCachedCount(handle))
+
+            expired.set(true)
+            entityStore.config.entityIterableCacheCountsLifeTime = 1
+            Thread.sleep(50)
+            assertNull(cache.getCachedCount(handle))
+
+            iterable.getOrCreateCachedInstance(txn, true)
+            assertEquals(1L, cache.getCachedCount(handle))
+        } finally {
+            txn.abort()
+        }
     }
 
     fun testCacheTransactionIsolation() {
