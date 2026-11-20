@@ -881,13 +881,16 @@ public abstract class XodusDirectoryBaseTest extends BaseDirectoryTestCase {
             }
         }
 
-        void createFile(String name) throws IOException {
+        synchronized void createFile(String name) throws IOException {
             dirState.put(name, randomFileOfSize(dir, name, 10, 100));
             logOperation(DirOperation.create(name));
         }
 
-        void renameFile(String oldName, String newName) throws IOException {
-
+        synchronized void renameFile(String oldName, String newName) throws IOException {
+            if (!dirState.containsKey(oldName)) {
+                // Directory.rename(x, x) silently succeeds even for a missing file
+                throw new NoSuchFileException(oldName);
+            }
             dir.rename(oldName, newName);
             final var oldContent = dirState.remove(oldName);
             assertNotNull("Empty content for new file " + oldName, oldContent);
@@ -895,7 +898,7 @@ public abstract class XodusDirectoryBaseTest extends BaseDirectoryTestCase {
             logOperation(DirOperation.rename(oldName, newName));
         }
 
-        void deleteFile(String fileName) throws IOException {
+        synchronized void deleteFile(String fileName) throws IOException {
             dir.deleteFile(fileName);
             dirState.remove(fileName);
             logOperation(DirOperation.delete(fileName));
